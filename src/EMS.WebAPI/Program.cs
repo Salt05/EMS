@@ -40,8 +40,12 @@ var projectId = builder.Configuration["Firebase:ProjectId"] ?? "ems-project";
 builder.Services.AddSingleton(FirestoreDb.Create(projectId));
 
 // ============ FIREBASE CLIENT AUTH ============
-var firebaseApiKey = builder.Configuration["Firebase:ApiKey"] ?? "";
-var firebaseAuthClient = new FirebaseAuthClient(new FirebaseAuthConfig { ApiKey = firebaseApiKey });
+var firebaseApiKey = builder.Configuration["Firebase:ApiKey"] ?? throw new ArgumentException("Firebase:ApiKey must be set");
+var firebaseAuthDomain = builder.Configuration["Firebase:AuthDomain"] ?? throw new ArgumentException("Firebase:AuthDomain must be set");
+var firebaseAuthClient = new FirebaseAuthClient(new FirebaseAuthConfig { 
+    ApiKey = firebaseApiKey,
+    AuthDomain = firebaseAuthDomain
+});
 builder.Services.AddSingleton(firebaseAuthClient);
 
 // ============ SERVICES ============
