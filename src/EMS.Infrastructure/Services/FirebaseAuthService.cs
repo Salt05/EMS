@@ -45,6 +45,7 @@ public class FirebaseAuthService : IAuthService
     {
         try
         {
+            await Task.Yield();
             // Note: Firebase Admin SDK doesn't directly support password login
             // In production, use Firebase REST API or client SDK
             _logger.LogInformation($"Login request for: {email}");

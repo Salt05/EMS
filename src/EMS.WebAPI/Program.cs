@@ -21,7 +21,6 @@ builder.Host.UseSerilog();
 
 // ============ FIRESTORE ============
 var projectId = builder.Configuration["Firebase:ProjectId"] ?? "ems-project";
-var firestoreDb = new FirestoreClientBuilder { ProjectId = projectId }.Build();
 builder.Services.AddSingleton(FirestoreDb.Create(projectId));
 
 // ============ FIREBASE AUTH ============
