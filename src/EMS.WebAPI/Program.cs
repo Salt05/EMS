@@ -19,11 +19,27 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// ============ FIRESTORE ============
+// ============ FIREBASE ADMIN SDK & FIRESTORE ============
+var firebaseKeyFilePath = Path.Combine(builder.Environment.ContentRootPath, "firebase-key.json");
+if (File.Exists(firebaseKeyFilePath))
+{
+    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", firebaseKeyFilePath);
+    FirebaseAdmin.FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+    {
+        Credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(firebaseKeyFilePath)
+    });
+}
+else
+{
+    FirebaseAdmin.FirebaseApp.Create();
+}
+
+builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
+
 var projectId = builder.Configuration["Firebase:ProjectId"] ?? "ems-project";
 builder.Services.AddSingleton(FirestoreDb.Create(projectId));
 
-// ============ FIREBASE AUTH ============
+// ============ FIREBASE CLIENT AUTH ============
 var firebaseApiKey = builder.Configuration["Firebase:ApiKey"] ?? "";
 var firebaseAuthClient = new FirebaseAuthClient(new FirebaseAuthConfig { ApiKey = firebaseApiKey });
 builder.Services.AddSingleton(firebaseAuthClient);
