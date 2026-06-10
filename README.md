@@ -9,7 +9,7 @@
 
 ## 🎯 Giới thiệu
 
-**EMS** (Event Management System) là một hệ thống quản lý sự kiện **đa nền tảng (multi-tenant)** mã nguồn mở, được thiết kế để phục vụ cho nhiều trường đại học, tổ chức và doanh nghiệp. Mỗi tổ chức (tenant) có không gian dữ liệu riêng biệt, có thể tùy chỉnh giao diện và cấu hình theo nhu cầu.
+EMS (Event Management System) là một hệ thống quản lý sự kiện đa nền tảng (multi-tenant)** mã nguồn mở, được thiết kế để phục vụ cho nhiều trường đại học, tổ chức và doanh nghiệp. Mỗi tổ chức (tenant) có không gian dữ liệu riêng biệt, có thể tùy chỉnh giao diện và cấu hình theo nhu cầu.
 
 Hệ thống thay thế hoàn toàn phương pháp ghi danh và điểm danh thủ công, giúp sinh viên dễ dàng đăng ký, điểm danh và theo dõi sự kiện; hỗ trợ ban tổ chức quản lý người tham gia, xuất báo cáo; và cung cấp cho quản trị viên công cụ giám sát toàn bộ hoạt động.
 
