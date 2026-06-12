@@ -1,9 +1,31 @@
-﻿@page "/"
+@page "/"
+@attribute [Authorize]
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Dashboard — EMS</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Dashboard</h1>
 
-Welcome to your new app.
-
-<SurveyPrompt Title="How is Blazor working for you?" />
+<AuthorizeView>
+    <Authorized>
+        <div class="dashboard-welcome">
+            <div class="welcome-card">
+                <h2>Chào mừng đến với EMS</h2>
+                <p>Hệ thống Quản lý Sự kiện — Event Management System</p>
+                <div class="user-info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Email</span>
+                        <span class="info-value">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Role</span>
+                        <span class="info-value">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Tenant</span>
+                        <span class="info-value">@context.User.FindFirst("tenantId")?.Value</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>

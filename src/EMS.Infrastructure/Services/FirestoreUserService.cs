@@ -28,7 +28,7 @@ public class FirestoreUserService : IUserService
 
             if (!doc.Exists) return null;
 
-            var user = doc.ConvertTo<User>();
+            var user = MapToUser(doc);
             if (user.TenantId != tenantId) return null;
 
             return user;
@@ -53,7 +53,7 @@ public class FirestoreUserService : IUserService
 
             if (snapshot.Documents.Count == 0) return null;
 
-            return snapshot.Documents[0].ConvertTo<User>();
+            return MapToUser(snapshot.Documents[0]);
         }
         catch (Exception ex)
         {
@@ -131,7 +131,7 @@ public class FirestoreUserService : IUserService
             var snapshot = await query.GetSnapshotAsync();
 
             return snapshot.Documents
-                .Select(d => d.ConvertTo<User>())
+                .Select(d => MapToUser(d))
                 .ToList();
         }
         catch (Exception ex)
@@ -139,5 +139,40 @@ public class FirestoreUserService : IUserService
             _logger.LogError($"Error getting users by tenant: {ex.Message}");
             return new List<User>();
         }
+    }
+
+    private User MapToUser(DocumentSnapshot snapshot)
+    {
+        var dict = snapshot.ToDictionary();
+        
+        var user = new User
+        {
+            Id = dict.TryGetValue("id", out var id) ? id?.ToString() ?? snapshot.Id : snapshot.Id,
+            FirebaseUid = dict.TryGetValue("firebaseUid", out var fuid) ? fuid?.ToString() ?? "" : "",
+            Email = dict.TryGetValue("email", out var email) ? email?.ToString() ?? "" : "",
+            FullName = dict.TryGetValue("fullName", out var name) ? name?.ToString() ?? "" : "",
+            PhoneNumber = dict.TryGetValue("phoneNumber", out var phone) ? phone?.ToString() : null,
+            MSSV = dict.TryGetValue("mssv", out var mssv) ? mssv?.ToString() : null,
+            Department = dict.TryGetValue("department", out var dept) ? dept?.ToString() : null,
+            TenantId = dict.TryGetValue("tenantId", out var tenant) ? tenant?.ToString() ?? "" : "",
+            Status = dict.TryGetValue("status", out var status) && status is long statusInt ? (EMS.Core.Entities.Enums.UserStatus)statusInt : EMS.Core.Entities.Enums.UserStatus.Active,
+            CreatedAt = dict.TryGetValue("createdAt", out var created) && created is Timestamp createdTs ? createdTs.ToDateTime() : DateTime.UtcNow,
+            UpdatedAt = dict.TryGetValue("updatedAt", out var updated) && updated is Timestamp updatedTs ? updatedTs.ToDateTime() : DateTime.UtcNow,
+            LastLoginAt = dict.TryGetValue("lastLoginAt", out var login) && login is Timestamp loginTs ? (loginTs.ToDateTime() == DateTime.MinValue ? null : (DateTime?)loginTs.ToDateTime()) : null
+        };
+
+        if (dict.TryGetValue("roleIds", out var rolesObj) && rolesObj is System.Collections.IEnumerable rolesEnum)
+        {
+            foreach (var r in rolesEnum)
+            {
+                var roleStr = r?.ToString();
+                if (!string.IsNullOrEmpty(roleStr))
+                {
+                    user.RoleIds.Add(roleStr);
+                }
+            }
+        }
+
+        return user;
     }
 }
