@@ -52,6 +52,7 @@ builder.Services.AddSingleton(firebaseAuthClient);
 builder.Services.AddScoped<IAuthService, FirebaseAuthService>();
 builder.Services.AddScoped<IUserService, FirestoreUserService>();
 builder.Services.AddScoped<ITenantService, FirestoreTenantService>();
+builder.Services.AddScoped<IEventService, FirestoreEventService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 
