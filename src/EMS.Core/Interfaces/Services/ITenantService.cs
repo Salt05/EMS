@@ -9,4 +9,6 @@ public interface ITenantService
     Task<Tenant?> CreateTenantAsync(Tenant tenant);
     Task<bool> UpdateTenantAsync(Tenant tenant);
     Task<bool> DeleteTenantAsync(string tenantId);
+    Task<List<Tenant>> GetTenantsAsync();
 }
+
