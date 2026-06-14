@@ -13,6 +13,8 @@ Tài liệu này ghi nhận chi tiết kỹ thuật các tính năng và nhiệm
 | 3 | `P1_E2` | Tenant Resolution Middleware | 2026-06-11 | Middleware tự động bóc tách subdomain của request để định danh tenant tương ứng. |
 | 4 | `P1_E3` | Authentication APIs (WebAPI) | 2026-06-11 | API Register, Login, Reset mật khẩu kết hợp Firebase Auth client & tự sinh JWT token. |
 | 5 | `P1_E7` | Blazor WASM Authentication UI | 2026-06-12 | Trang Đăng nhập/Đăng xuất Blazor, phân quyền router, auto-attach token & Tenant ID vào HTTP Header. |
+| 6 | `EMS-10` | Event CRUD & Approval APIs | 2026-06-14 | Các API RESTful quản lý vòng đời sự kiện, tích hợp phê duyệt/từ chối từ Admin và isolation dữ liệu theo Tenant. |
+| 7 | `EMS-12` | MyEvents & Event Forms (Blazor) | 2026-06-14 | Giao diện bảng danh sách sự kiện cho Organizer, form thêm mới/sửa sự kiện, xử lý lỗi cấu hình API CORS & Firestore Serialization. |
 
 ---
 
@@ -82,3 +84,36 @@ Tài liệu này ghi nhận chi tiết kỹ thuật các tính năng và nhiệm
     *   `src/EMS.BlazorWASM/Pages/Login.razor`
     *   `src/EMS.BlazorWASM/Shared/TenantSwitcher.razor`
     *   `src/EMS.BlazorWASM/wwwroot/css/app.css` (Dark theme design system)
+
+---
+
+### 6. Event CRUD & Approval APIs (Task EMS-10)
+*   **Mô tả**: Thiết lập Web API RESTful quản lý vòng đời sự kiện, tích hợp phê duyệt sự kiện và phân lập dữ liệu.
+*   **Chi tiết thực hiện**:
+    *   Tạo `Event` entity và DTO (CreateEventDto, UpdateEventDto, EventResponseDto...).
+    *   Cài đặt `FirestoreEventService` thực hiện CRUD trên collection `events` của Firebase.
+    *   Tích hợp isolation đa khách hàng: API yêu cầu gửi `tenantId`, chặn lấy/xóa dữ liệu khác tenant.
+    *   Viết endpoint riêng `POST /{id}/approve` và `POST /{id}/reject` dành cho Admin/Manager.
+*   **Các file quan trọng**:
+    *   `src/EMS.WebAPI/Controllers/EventsController.cs`
+    *   `src/EMS.Infrastructure/Services/FirestoreEventService.cs`
+    *   `src/EMS.Core/Entities/Event.cs`
+
+---
+
+### 7. MyEvents & Event Forms UI (Task EMS-12)
+*   **Mô tả**: Xây dựng giao diện Frontend Blazor WASM cho Organizer thao tác với sự kiện.
+*   **Chi tiết thực hiện**:
+    *   Tạo `EventServiceClient` đóng gói logic HTTP gọi lên API.
+    *   Trang **MyEvents** (`/organizer/my-events`): Bảng danh sách sự kiện kèm nút Edit/Delete (có xác thực Authorization Role).
+    *   Trang **Create/Edit Event**: Form nhập thông tin ứng dụng EditForm của Blazor, validate Model.
+    *   **Bug Fixes ngoài lề**: 
+        *   Cập nhật `ApiBaseUrl` của Frontend trùng khớp port `7296` của Backend.
+        *   Sửa lỗi CORS: thêm `7115` vào `AllowedOrigins`.
+        *   Cập nhật hàm `ToFirestoreDocument()` của `Event.cs` và `User.cs`: chặn đưa `DateTime.MinValue` lên Firestore để tránh lỗi serialize; sử dụng UTC theo yêu cầu của Google Cloud.
+        *   Sửa lỗi fallback Localhost của `TenantResolver` khi domain không có dấu ".".
+*   **Các file quan trọng**:
+    *   `src/EMS.BlazorWASM/Pages/Organizer/MyEvents.razor`
+    *   `src/EMS.BlazorWASM/Pages/Organizer/CreateEvent.razor`
+    *   `src/EMS.BlazorWASM/Pages/Organizer/EditEvent.razor`
+    *   `src/EMS.BlazorWASM/Services/EventServiceClient.cs`
