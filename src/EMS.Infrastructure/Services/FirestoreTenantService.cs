@@ -106,6 +106,25 @@ public class FirestoreTenantService : ITenantService
         }
     }
 
+    public async Task<List<Tenant>> GetTenantsAsync()
+    {
+        try
+        {
+            var snapshot = await _firestoreDb.Collection(CollectionName).GetSnapshotAsync();
+            var tenants = new List<Tenant>();
+            foreach (var doc in snapshot.Documents)
+            {
+                tenants.Add(MapToTenant(doc));
+            }
+            return tenants;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all tenants");
+            return new List<Tenant>();
+        }
+    }
+
     private Tenant MapToTenant(DocumentSnapshot snapshot)
     {
         var dict = snapshot.ToDictionary();
