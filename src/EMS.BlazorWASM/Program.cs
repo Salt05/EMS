@@ -48,5 +48,6 @@ builder.Services.AddScoped(sp =>
 // ============ SERVICES ============
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITenantServiceClient, TenantServiceClient>();
+builder.Services.AddScoped<IEventServiceClient, EventServiceClient>();
 
 await builder.Build().RunAsync();

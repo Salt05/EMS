@@ -27,25 +27,28 @@ public class Event
 
     public Dictionary<string, object> ToFirestoreDocument()
     {
-        return new Dictionary<string, object>
+        var doc = new Dictionary<string, object>
         {
             { "id", Id },
             { "tenantId", TenantId },
             { "title", Title },
             { "description", Description },
             { "location", Location },
-            { "venueId", VenueId ?? "" },
-            { "startTime", StartTime },
-            { "endTime", EndTime },
+            { "startTime", StartTime.ToUniversalTime() },
+            { "endTime", EndTime.ToUniversalTime() },
             { "capacity", Capacity },
-            { "imageUrl", ImageUrl ?? "" },
             { "organizerId", OrganizerId },
             { "status", (int)Status },
-            { "approvedById", ApprovedById ?? "" },
-            { "approvedAt", ApprovedAt ?? DateTime.MinValue },
-            { "rejectionReason", RejectionReason ?? "" },
-            { "createdAt", CreatedAt },
-            { "updatedAt", UpdatedAt }
+            { "createdAt", CreatedAt.ToUniversalTime() },
+            { "updatedAt", UpdatedAt.ToUniversalTime() }
         };
+
+        if (VenueId != null) doc["venueId"] = VenueId;
+        if (ImageUrl != null) doc["imageUrl"] = ImageUrl;
+        if (ApprovedById != null) doc["approvedById"] = ApprovedById;
+        if (ApprovedAt.HasValue) doc["approvedAt"] = ApprovedAt.Value.ToUniversalTime();
+        if (RejectionReason != null) doc["rejectionReason"] = RejectionReason;
+
+        return doc;
     }
 }
