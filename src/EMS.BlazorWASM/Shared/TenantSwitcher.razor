@@ -1,0 +1,88 @@
+@inject ITenantServiceClient TenantService
+@inject ILogger<TenantSwitcher> Logger
+
+<AuthorizeView Roles="SuperAdmin,Admin">
+    <Authorized>
+        <div class="tenant-switcher">
+            <label class="tenant-label">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+                Tenant:
+            </label>
+            <select class="tenant-select"
+                    value="@_selectedTenantId"
+                    @onchange="OnTenantChanged"
+                    disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <option>Đang tải...</option>
+                }
+                else if (_tenants.Count == 0)
+                {
+                    <option>Không có tenant</option>
+                }
+                else
+                {
+                    @foreach (var tenant in _tenants)
+                    {
+                        <option value="@tenant.Id">@tenant.Name</option>
+                    }
+                }
+            </select>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<EMS.Shared.DTOs.TenantDTO> _tenants = new();
+    private string _selectedTenantId = string.Empty;
+    private bool _isLoading = true;
+
+    [Parameter]
+    public EventCallback<string> OnTenantSwitched { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _tenants = await TenantService.GetTenantsAsync();
+
+            var currentTenantId = await TenantService.GetCurrentTenantIdAsync();
+            if (!string.IsNullOrEmpty(currentTenantId))
+            {
+                _selectedTenantId = currentTenantId;
+            }
+            else if (_tenants.Count > 0)
+            {
+                _selectedTenantId = _tenants[0].Id;
+                await TenantService.SetCurrentTenantAsync(_selectedTenantId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading tenants");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnTenantChanged(ChangeEventArgs e)
+    {
+        var newTenantId = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(newTenantId) && newTenantId != _selectedTenantId)
+        {
+            _selectedTenantId = newTenantId;
+            await TenantService.SetCurrentTenantAsync(newTenantId);
+            Logger.LogInformation("Tenant switched to: {TenantId}", newTenantId);
+
+            if (OnTenantSwitched.HasDelegate)
+            {
+                await OnTenantSwitched.InvokeAsync(newTenantId);
+            }
+        }
+    }
+}
