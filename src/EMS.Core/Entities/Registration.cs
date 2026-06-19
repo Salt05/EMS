@@ -21,12 +21,22 @@ public class Registration
     // Cancellation tracking
     public DateTime? CancelledAt { get; set; }
 
+    // Check-in tracking
+    public string? CheckInCode { get; set; }
+    public DateTime? CheckInCodeExpiresAt { get; set; }
+    public bool CheckedIn { get; set; }
+    public DateTime? CheckedInAt { get; set; }
+
+    // Reminder tracking (set by the background reminder job)
+    public bool ReminderSent { get; set; }
+    public DateTime? ReminderSentAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public Dictionary<string, object> ToFirestoreDocument()
     {
-        return new Dictionary<string, object>
+        var doc = new Dictionary<string, object>
         {
             { "id", Id },
             { "tenantId", TenantId },
@@ -34,13 +44,23 @@ public class Registration
             { "userId", UserId },
             { "note", Note ?? "" },
             { "status", (int)Status },
-            { "registeredAt", RegisteredAt },
+            { "registeredAt", RegisteredAt.ToUniversalTime() },
             { "processedById", ProcessedById ?? "" },
-            { "processedAt", ProcessedAt ?? DateTime.MinValue },
             { "rejectionReason", RejectionReason ?? "" },
-            { "cancelledAt", CancelledAt ?? DateTime.MinValue },
-            { "createdAt", CreatedAt },
-            { "updatedAt", UpdatedAt }
+            { "checkInCode", CheckInCode ?? "" },
+            { "checkedIn", CheckedIn },
+            { "reminderSent", ReminderSent },
+            { "createdAt", CreatedAt.ToUniversalTime() },
+            { "updatedAt", UpdatedAt.ToUniversalTime() }
         };
+
+        // Omit nullable timestamps when unset to avoid pushing DateTime.MinValue to Firestore.
+        if (ProcessedAt.HasValue) doc["processedAt"] = ProcessedAt.Value.ToUniversalTime();
+        if (CancelledAt.HasValue) doc["cancelledAt"] = CancelledAt.Value.ToUniversalTime();
+        if (CheckInCodeExpiresAt.HasValue) doc["checkInCodeExpiresAt"] = CheckInCodeExpiresAt.Value.ToUniversalTime();
+        if (CheckedInAt.HasValue) doc["checkedInAt"] = CheckedInAt.Value.ToUniversalTime();
+        if (ReminderSentAt.HasValue) doc["reminderSentAt"] = ReminderSentAt.Value.ToUniversalTime();
+
+        return doc;
     }
 }

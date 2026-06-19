@@ -208,6 +208,88 @@ public class FirestoreRegistrationService : IRegistrationService
         return true;
     }
 
+    public async Task<(Registration? Registration, string? Error)> GenerateCheckInCodeAsync(string eventId, string tenantId, string userId)
+    {
+        try
+        {
+            var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
+            if (ev == null) return (null, "Event not found");
+
+            var registrations = await GetRegistrationsByEventAsync(eventId, tenantId);
+            var reg = registrations.FirstOrDefault(r => r.UserId == userId);
+            if (reg == null) return (null, "You are not registered for this event");
+
+            // Only confirmed attendees get a check-in code.
+            if (reg.Status != RegistrationStatus.Confirmed)
+                return (null, "Registration is not confirmed");
+
+            reg.CheckInCode = GenerateCode();
+            // Code stays valid until the event ends.
+            reg.CheckInCodeExpiresAt = ev.EndTime.ToUniversalTime();
+
+            var success = await SaveAsync(reg);
+            if (!success) return (null, "Failed to generate check-in code");
+
+            return (reg, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error generating check-in code for user {userId} event {eventId}");
+            return (null, "Failed to generate check-in code");
+        }
+    }
+
+    public async Task<(Registration? Registration, string? Error)> ValidateCheckInAsync(
+        string code, string tenantId, string requesterUserId, bool requesterIsAdminOrManager)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return (null, "Check-in code is required");
+
+        try
+        {
+            var snapshot = await _firestoreDb.Collection(CollectionName)
+                .WhereEqualTo("tenantId", tenantId)
+                .WhereEqualTo("checkInCode", code)
+                .GetSnapshotAsync();
+
+            var reg = snapshot.Documents.Select(MapToRegistration).FirstOrDefault();
+            if (reg == null) return (null, "Invalid check-in code");
+
+            // Only the event's organizer or an admin/manager may check attendees in.
+            if (!requesterIsAdminOrManager)
+            {
+                var ev = await _eventService.GetEventByIdAsync(reg.EventId, tenantId);
+                if (ev == null || ev.OrganizerId != requesterUserId)
+                    return (null, IRegistrationService.ForbiddenError);
+            }
+
+            if (reg.Status != RegistrationStatus.Confirmed)
+                return (null, "Registration is not confirmed");
+
+            if (reg.CheckInCodeExpiresAt.HasValue && reg.CheckInCodeExpiresAt.Value < DateTime.UtcNow)
+                return (null, "Check-in code has expired");
+
+            if (reg.CheckedIn)
+                return (null, "Already checked in");
+
+            reg.CheckedIn = true;
+            reg.CheckedInAt = DateTime.UtcNow;
+
+            var success = await SaveAsync(reg);
+            if (!success) return (null, "Failed to check in");
+
+            _logger.LogInformation($"Checked in registration {reg.Id} (event {reg.EventId}, user {reg.UserId})");
+            return (reg, null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating check-in code");
+            return (null, "Failed to check in");
+        }
+    }
+
+    // Short, human-typable, unique-enough code (uppercased hex from a GUID).
+    private static string GenerateCode() => Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+
     // Promotes the earliest-registered waitlisted entry to Pending when a seat frees up.
     private async Task PromoteFromWaitlistAsync(string eventId, string tenantId)
     {
@@ -261,6 +343,12 @@ public class FirestoreRegistrationService : IRegistrationService
             ProcessedAt = dict.TryGetValue("processedAt", out var pAt) && pAt is Timestamp pAtTs && pAtTs.ToDateTime() != DateTime.MinValue ? pAtTs.ToDateTime() : null,
             RejectionReason = dict.TryGetValue("rejectionReason", out var rej) && !string.IsNullOrEmpty(rej?.ToString()) ? rej!.ToString() : null,
             CancelledAt = dict.TryGetValue("cancelledAt", out var cAt) && cAt is Timestamp cAtTs && cAtTs.ToDateTime() != DateTime.MinValue ? cAtTs.ToDateTime() : null,
+            CheckInCode = dict.TryGetValue("checkInCode", out var code) && !string.IsNullOrEmpty(code?.ToString()) ? code!.ToString() : null,
+            CheckInCodeExpiresAt = dict.TryGetValue("checkInCodeExpiresAt", out var exp) && exp is Timestamp expTs && expTs.ToDateTime() != DateTime.MinValue ? expTs.ToDateTime() : null,
+            CheckedIn = dict.TryGetValue("checkedIn", out var ci) && ci is bool ciBool && ciBool,
+            CheckedInAt = dict.TryGetValue("checkedInAt", out var ciAt) && ciAt is Timestamp ciAtTs && ciAtTs.ToDateTime() != DateTime.MinValue ? ciAtTs.ToDateTime() : null,
+            ReminderSent = dict.TryGetValue("reminderSent", out var rs) && rs is bool rsBool && rsBool,
+            ReminderSentAt = dict.TryGetValue("reminderSentAt", out var rsAt) && rsAt is Timestamp rsAtTs && rsAtTs.ToDateTime() != DateTime.MinValue ? rsAtTs.ToDateTime() : null,
             CreatedAt = dict.TryGetValue("createdAt", out var created) && created is Timestamp createdTs ? createdTs.ToDateTime() : DateTime.UtcNow,
             UpdatedAt = dict.TryGetValue("updatedAt", out var updated) && updated is Timestamp updatedTs ? updatedTs.ToDateTime() : DateTime.UtcNow
         };

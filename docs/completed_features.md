@@ -15,6 +15,8 @@ Tài liệu này ghi nhận chi tiết kỹ thuật các tính năng và nhiệm
 | 5 | `P1_E7` | Blazor WASM Authentication UI | 2026-06-12 | Trang Đăng nhập/Đăng xuất Blazor, phân quyền router, auto-attach token & Tenant ID vào HTTP Header. |
 | 6 | `EMS-10` | Event CRUD & Approval APIs | 2026-06-14 | Các API RESTful quản lý vòng đời sự kiện, tích hợp phê duyệt/từ chối từ Admin và isolation dữ liệu theo Tenant. |
 | 7 | `EMS-12` | MyEvents & Event Forms (Blazor) | 2026-06-14 | Giao diện bảng danh sách sự kiện cho Organizer, form thêm mới/sửa sự kiện, xử lý lỗi cấu hình API CORS & Firestore Serialization. |
+| 8 | `EMS-13` | Registration APIs | 2026-06-19 | API đăng ký/huỷ/waitlist tham gia sự kiện và duyệt/từ chối đăng ký, isolation theo Tenant, tự động đẩy waitlist khi có chỗ trống. |
+| 9 | `EMS-14` | Check-in API & Background Jobs | 2026-06-19 | API sinh/validate mã check-in, thiết lập Hangfire (in-memory) và job gửi email nhắc lịch cho người tham dự trước 24h. |
 
 ---
 
@@ -117,3 +119,36 @@ Tài liệu này ghi nhận chi tiết kỹ thuật các tính năng và nhiệm
     *   `src/EMS.BlazorWASM/Pages/Organizer/CreateEvent.razor`
     *   `src/EMS.BlazorWASM/Pages/Organizer/EditEvent.razor`
     *   `src/EMS.BlazorWASM/Services/EventServiceClient.cs`
+
+---
+
+### 8. Registration APIs (Task EMS-13)
+*   **Mô tả**: API quản lý đăng ký tham gia sự kiện kèm luồng duyệt và danh sách chờ (waitlist).
+*   **Chi tiết thực hiện**:
+    *   Tạo `Registration` entity, enum `RegistrationStatus` (Pending/Confirmed/Waitlisted/Cancelled/Rejected) và các DTO (Create/Reject/Response).
+    *   `FirestoreRegistrationService` lưu trên collection `registrations`, isolation theo `tenantId` ở mọi thao tác.
+    *   **Register**: chỉ cho sự kiện đã `Approved`, chặn đăng ký trùng; tự xếp `Waitlisted` khi số đăng ký active ≥ `Capacity` (Capacity ≤ 0 = không giới hạn), ngược lại `Pending`.
+    *   **Cancel/Reject**: khi giải phóng một chỗ, tự động đẩy người waitlist sớm nhất (theo `RegisteredAt`) lên `Pending`.
+    *   **Approve/Reject**: chỉ organizer của sự kiện hoặc admin/manager mới được thao tác.
+    *   Endpoint: `POST /api/registrations`, `POST /api/registrations/{id}/cancel|approve|reject`, `GET /api/registrations/me|event/{eventId}|{id}`.
+*   **Các file quan trọng**:
+    *   `src/EMS.Core/Entities/Registration.cs`, `src/EMS.Core/Entities/Enums/RegistrationStatus.cs`
+    *   `src/EMS.Infrastructure/Services/FirestoreRegistrationService.cs`
+    *   `src/EMS.WebAPI/Controllers/RegistrationsController.cs`
+
+---
+
+### 9. Check-in API & Background Jobs (Task EMS-14)
+*   **Mô tả**: Sinh/validate mã check-in tại sự kiện và hạ tầng tác vụ nền gửi email nhắc lịch.
+*   **Chi tiết thực hiện**:
+    *   Mở rộng `Registration` thêm các trường check-in (`CheckInCode`, `CheckInCodeExpiresAt`, `CheckedIn`, `CheckedInAt`) và cờ nhắc lịch (`ReminderSent`, `ReminderSentAt`).
+    *   **Generate** (`POST /api/checkin/generate`): người dùng tự sinh mã check-in cho đăng ký đã `Confirmed`; mã hết hạn khi sự kiện kết thúc.
+    *   **Validate** (`POST /api/checkin/validate`): organizer/admin quét mã, đánh dấu đã tham dự; kiểm quyền **bên trong service** để thao tác atomic (tránh side-effect trước khi check quyền), chặn mã hết hạn / đã check-in / chưa confirmed.
+    *   **Hangfire**: cấu hình `Hangfire.MemoryStorage` (project dùng Firestore, không có SQL), bật Hangfire Server + Dashboard tại `/hangfire`.
+    *   **Email reminder job**: `IEmailService`/`SmtpEmailService` (đọc section `Email`, **no-op an toàn** khi chưa cấu hình SMTP) và `EventReminderJob` chạy mỗi giờ (`Cron.Hourly`), quét cross-tenant các sự kiện `Approved` bắt đầu trong 24h tới, gửi email cho người `Confirmed` chưa được nhắc và đặt cờ `reminderSent`.
+*   **Các file quan trọng**:
+    *   `src/EMS.Core/Interfaces/Services/IEmailService.cs`
+    *   `src/EMS.Infrastructure/Services/SmtpEmailService.cs`
+    *   `src/EMS.Infrastructure/Jobs/EventReminderJob.cs`
+    *   `src/EMS.WebAPI/Controllers/CheckInController.cs`
+    *   `src/EMS.WebAPI/Program.cs` (Hangfire setup + recurring job), `src/EMS.WebAPI/appsettings.json` (section `Email`)

@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Firebase.Auth;
 using EMS.Infrastructure.Services;
+using EMS.Infrastructure.Jobs;
 using EMS.Core.Interfaces.Services;
 using EMS.WebAPI.Middleware;
+using Hangfire;
+using Hangfire.MemoryStorage;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -56,6 +59,18 @@ builder.Services.AddScoped<IEventService, FirestoreEventService>();
 builder.Services.AddScoped<IRegistrationService, FirestoreRegistrationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<EventReminderJob>();
+
+// ============ HANGFIRE (background jobs) ============
+// In-memory storage: the project uses Firestore, so there is no relational DB for Hangfire.
+// Jobs are not persisted across restarts, which is fine for the recurring reminder schedule.
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseMemoryStorage());
+builder.Services.AddHangfireServer();
 
 // ============ HTTP CONTEXT ============
 builder.Services.AddHttpContextAccessor();
@@ -121,6 +136,15 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// ============ HANGFIRE DASHBOARD & RECURRING JOBS ============
+app.UseHangfireDashboard("/hangfire");
+
+// Email reminders for events starting within the next 24h — runs hourly.
+RecurringJob.AddOrUpdate<EventReminderJob>(
+    "event-reminders",
+    job => job.SendUpcomingEventRemindersAsync(),
+    Cron.Hourly);
 
 app.Run();
 
