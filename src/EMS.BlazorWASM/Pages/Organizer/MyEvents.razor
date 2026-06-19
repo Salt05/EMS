@@ -1,0 +1,81 @@
+@page "/organizer/my-events"
+@using EMS.Shared.DTOs.Events
+@using EMS.BlazorWASM.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject IEventServiceClient EventService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize(Roles = "organizer,admin,manager")]
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>My Events</h3>
+    <button class="btn btn-primary" @onclick="CreateNewEvent">Create New Event</button>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading events...</p>
+}
+else if (events == null || !events.Any())
+{
+    <div class="alert alert-info">You haven't created any events yet.</div>
+}
+else
+{
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Title</th>
+                <th>Start Time</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ev in events)
+            {
+                <tr>
+                    <td>@ev.Title</td>
+                    <td>@ev.StartTime.ToLocalTime().ToString("g")</td>
+                    <td><span class="badge bg-secondary">@ev.StatusName</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info me-2" @onclick="() => EditEvent(ev.Id)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteEvent(ev.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<EventResponseDto>? events;
+    private bool isLoading = true;
+    private string currentUserId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserId = authState.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? "";
+        await LoadEvents();
+    }
+
+    private async Task LoadEvents()
+    {
+        isLoading = true;
+        var allEvents = await EventService.GetEventsAsync();
+        // Lọc hiển thị event do chính user này tạo
+        events = allEvents.Where(e => e.OrganizerId == currentUserId).ToList();
+        isLoading = false;
+    }
+
+    private void CreateNewEvent() => NavigationManager.NavigateTo("/organizer/events/create");
+    private void EditEvent(string id) => NavigationManager.NavigateTo($"/organizer/events/edit/{id}");
+    
+    private async Task DeleteEvent(string id)
+    {
+        var success = await EventService.DeleteEventAsync(id);
+        if (success) await LoadEvents();
+    }
+}

@@ -20,21 +20,24 @@ public class User
 
     public Dictionary<string, object> ToFirestoreDocument()
     {
-        return new Dictionary<string, object>
+        var doc = new Dictionary<string, object>
         {
             { "id", Id },
             { "firebaseUid", FirebaseUid },
             { "email", Email },
             { "fullName", FullName },
-            { "phoneNumber", PhoneNumber ?? "" },
-            { "mssv", MSSV ?? "" },
-            { "department", Department ?? "" },
             { "tenantId", TenantId },
             { "roleIds", RoleIds },
             { "status", (int)Status },
-            { "createdAt", CreatedAt },
-            { "updatedAt", UpdatedAt },
-            { "lastLoginAt", LastLoginAt ?? DateTime.MinValue }
+            { "createdAt", CreatedAt.ToUniversalTime() },
+            { "updatedAt", UpdatedAt.ToUniversalTime() }
         };
+
+        if (PhoneNumber != null) doc["phoneNumber"] = PhoneNumber;
+        if (MSSV != null) doc["mssv"] = MSSV;
+        if (Department != null) doc["department"] = Department;
+        if (LastLoginAt.HasValue) doc["lastLoginAt"] = LastLoginAt.Value.ToUniversalTime();
+
+        return doc;
     }
 }

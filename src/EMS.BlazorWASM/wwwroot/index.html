@@ -1,22 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>EMS.BlazorWASM</title>
+    <meta name="description" content="EMS — Hệ thống Quản lý Sự kiện dành cho Admin và Organizer" />
+    <title>EMS Dashboard</title>
     <base href="/" />
-    <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Styles -->
     <link href="css/app.css" rel="stylesheet" />
     <link href="EMS.BlazorWASM.styles.css" rel="stylesheet" />
 </head>
 
 <body>
-    <div id="app">Loading...</div>
+    <div id="app">
+        <!-- Loading screen -->
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:#e2e8f0;font-family:Inter,sans-serif;">
+            <svg width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:1rem;">
+                <rect width="48" height="48" rx="12" fill="url(#g)"/>
+                <text x="50%" y="55%" text-anchor="middle" fill="white" font-size="20" font-weight="700" dy=".1em">E</text>
+                <defs><linearGradient id="g" x1="0" y1="0" x2="48" y2="48"><stop offset="0%" stop-color="#6366F1"/><stop offset="100%" stop-color="#8B5CF6"/></linearGradient></defs>
+            </svg>
+            <div style="width:40px;height:40px;border:3px solid rgba(99,102,241,0.3);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;"></div>
+            <p style="margin-top:1rem;opacity:0.7;font-size:0.875rem;">Đang tải ứng dụng...</p>
+            <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+        </div>
+    </div>
 
     <div id="blazor-error-ui">
-        An unhandled error has occurred.
-        <a href="" class="reload">Reload</a>
+        Đã xảy ra lỗi không mong muốn.
+        <a href="" class="reload">Tải lại</a>
         <a class="dismiss">🗙</a>
     </div>
     <script src="_framework/blazor.webassembly.js"></script>

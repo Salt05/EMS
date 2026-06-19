@@ -1,0 +1,120 @@
+@page "/organizer/events/edit/{Id}"
+@using EMS.Shared.DTOs.Events
+@using EMS.BlazorWASM.Services
+@inject IEventServiceClient EventService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = "organizer,admin,manager")]
+
+<h3>Edit Event</h3>
+<hr />
+
+@if (isLoading)
+{
+    <p>Loading event data...</p>
+}
+else if (eventDto == null)
+{
+    <div class="alert alert-danger">Event not found or you lack permissions.</div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8">
+            <EditForm Model="eventDto" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                
+                <div class="mb-3">
+                    <label class="form-label">Title <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="eventDto.Title" class="form-control" />
+                    <ValidationMessage For="@(() => eventDto.Title)" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <InputTextArea @bind-Value="eventDto.Description" class="form-control" rows="4" />
+                    <ValidationMessage For="@(() => eventDto.Description)" class="text-danger" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Location</label>
+                    <InputText @bind-Value="eventDto.Location" class="form-control" />
+                    <ValidationMessage For="@(() => eventDto.Location)" class="text-danger" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Start Time <span class="text-danger">*</span></label>
+                        <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.StartTime" class="form-control" />
+                        <ValidationMessage For="@(() => eventDto.StartTime)" class="text-danger" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">End Time <span class="text-danger">*</span></label>
+                        <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.EndTime" class="form-control" />
+                        <ValidationMessage For="@(() => eventDto.EndTime)" class="text-danger" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Capacity (0 = unlimited)</label>
+                    <InputNumber @bind-Value="eventDto.Capacity" class="form-control" />
+                    <ValidationMessage For="@(() => eventDto.Capacity)" class="text-danger" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Save Changes</button>
+                    <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+
+    private UpdateEventDto? eventDto;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ev = await EventService.GetEventByIdAsync(Id);
+        if (ev != null)
+        {
+            eventDto = new UpdateEventDto
+            {
+                Title = ev.Title, Description = ev.Description,
+                Location = ev.Location, VenueId = ev.VenueId,
+                StartTime = ev.StartTime.ToLocalTime(), EndTime = ev.EndTime.ToLocalTime(),
+                Capacity = ev.Capacity, ImageUrl = ev.ImageUrl
+            };
+        }
+        isLoading = false;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (eventDto!.EndTime <= eventDto.StartTime)
+        {
+            errorMessage = "End Time must be after Start Time.";
+            return;
+        }
+
+        isSubmitting = true;
+        var success = await EventService.UpdateEventAsync(Id, eventDto);
+        if (success) NavigationManager.NavigateTo("/organizer/my-events");
+        else
+        {
+            errorMessage = "Update failed. Check permissions and try again.";
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel() => NavigationManager.NavigateTo("/organizer/my-events");
+}

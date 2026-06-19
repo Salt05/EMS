@@ -24,6 +24,10 @@ public class TenantResolver : ITenantResolver
 
             if (parts.Length < 2)
             {
+                if (host.StartsWith("localhost", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "default"; // Fallback for local development
+                }
                 _logger.LogWarning($"Invalid host format: {host}");
                 return null;
             }
@@ -33,7 +37,7 @@ public class TenantResolver : ITenantResolver
             // Skip if it's localhost or main domain
             if (subdomain == "localhost" || subdomain == "ems")
             {
-                return null;
+                return "default"; // Fallback for local development
             }
 
             _logger.LogInformation($"Resolved tenant subdomain: {subdomain} from host: {host}");
