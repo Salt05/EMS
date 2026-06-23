@@ -1,0 +1,129 @@
+using EMS.Core.Entities;
+using EMS.Core.Entities.Enums;
+using EMS.Core.Exceptions;
+using EMS.Core.Interfaces.Services;
+
+namespace EMS.Mvc.Services;
+
+/// <summary>
+/// In-memory implementation of IRegistrationService for Development environment.
+/// </summary>
+public class DevInMemoryRegistrationService : IRegistrationService
+{
+    private static readonly List<Registration> Registrations = new();
+    private readonly IEventService _eventService;
+
+    public DevInMemoryRegistrationService(IEventService eventService)
+    {
+        _eventService = eventService;
+    }
+
+    public Task<Registration?> GetRegistrationByIdAsync(string registrationId, string tenantId)
+    {
+        var reg = Registrations.FirstOrDefault(r => r.Id == registrationId && r.TenantId == tenantId);
+        return Task.FromResult(reg);
+    }
+
+    public Task<List<Registration>> GetRegistrationsByStudentAsync(string studentEmail, string tenantId)
+    {
+        var result = Registrations
+            .Where(r => r.StudentEmail.Equals(studentEmail, StringComparison.OrdinalIgnoreCase) && r.TenantId == tenantId)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task<List<Registration>> GetRegistrationsByEventAsync(string eventId, string tenantId)
+    {
+        var result = Registrations
+            .Where(r => r.EventId == eventId && r.TenantId == tenantId)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
+    public async Task<Registration?> RegisterForEventAsync(string tenantId, string eventId, string studentEmail, string studentName)
+    {
+        var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
+        if (ev == null)
+        {
+            throw new NotFoundException("Không tìm thấy sự kiện.");
+        }
+
+        if (ev.Status != EventStatus.Approved)
+        {
+            throw new BusinessRuleException("Sự kiện chưa được phê duyệt nên không thể đăng ký.");
+        }
+
+        if (ev.EndTime < DateTime.UtcNow)
+        {
+            throw new BusinessRuleException("Sự kiện đã kết thúc.");
+        }
+
+        var existingReg = Registrations.FirstOrDefault(r => 
+            r.EventId == eventId && 
+            r.TenantId == tenantId && 
+            r.StudentEmail.Equals(studentEmail, StringComparison.OrdinalIgnoreCase));
+
+        if (existingReg != null)
+        {
+            if (existingReg.Status == RegistrationStatus.Approved || existingReg.Status == RegistrationStatus.Pending)
+            {
+                throw new BusinessRuleException("Bạn đã đăng ký tham gia sự kiện này rồi.");
+            }
+        }
+
+        var approvedCount = Registrations.Count(r => 
+            r.EventId == eventId && 
+            r.TenantId == tenantId && 
+            r.Status == RegistrationStatus.Approved);
+
+        if (approvedCount >= ev.Capacity)
+        {
+            throw new BusinessRuleException("Sự kiện đã hết chỗ.");
+        }
+
+        if (existingReg != null)
+        {
+            existingReg.Status = RegistrationStatus.Approved;
+            existingReg.UpdatedAt = DateTime.UtcNow;
+            return existingReg;
+        }
+
+        var reg = new Registration
+        {
+            TenantId = tenantId,
+            EventId = eventId,
+            StudentEmail = studentEmail,
+            StudentName = studentName,
+            Status = RegistrationStatus.Approved,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        Registrations.Add(reg);
+        return reg;
+    }
+
+    public Task<bool> CancelRegistrationAsync(string tenantId, string eventId, string studentEmail)
+    {
+        var reg = Registrations.FirstOrDefault(r => 
+            r.EventId == eventId && 
+            r.TenantId == tenantId && 
+            r.StudentEmail.Equals(studentEmail, StringComparison.OrdinalIgnoreCase));
+
+        if (reg == null)
+        {
+            throw new NotFoundException("Không tìm thấy thông tin đăng ký của bạn cho sự kiện này.");
+        }
+
+        if (reg.Status == RegistrationStatus.Cancelled)
+        {
+            return Task.FromResult(true);
+        }
+
+        reg.Status = RegistrationStatus.Cancelled;
+        reg.UpdatedAt = DateTime.UtcNow;
+        return Task.FromResult(true);
+    }
+}

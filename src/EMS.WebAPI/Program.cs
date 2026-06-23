@@ -25,24 +25,55 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // ============ FIREBASE ADMIN SDK & FIRESTORE ============
-var firebaseKeyFilePath = Path.Combine(builder.Environment.ContentRootPath, "firebase-key.json");
-if (File.Exists(firebaseKeyFilePath))
+var projectId = builder.Configuration["Firebase:ProjectId"] ?? "ems-project";
+FirestoreDb firestoreDb;
+
+if (builder.Environment.IsDevelopment())
 {
-    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", firebaseKeyFilePath);
-    FirebaseAdmin.FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+    // Force emulator hosts in development code-level fallback
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FIRESTORE_EMULATOR_HOST")))
     {
-        Credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(firebaseKeyFilePath)
+        Environment.SetEnvironmentVariable("FIRESTORE_EMULATOR_HOST", "localhost:8080");
+    }
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FIREBASE_AUTH_EMULATOR_HOST")))
+    {
+        Environment.SetEnvironmentVariable("FIREBASE_AUTH_EMULATOR_HOST", "localhost:9099");
+    }
+
+    // Dummy credentials to satisfy FirebaseAdmin SDK in local emulator
+    FirebaseAdmin.FirebaseApp.Create(new FirebaseAdmin.AppOptions
+    {
+        Credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromAccessToken("dummy-token"),
+        ProjectId = projectId
     });
+
+    firestoreDb = new FirestoreDbBuilder
+    {
+        ProjectId = projectId,
+        EmulatorDetection = Google.Api.Gax.EmulatorDetection.EmulatorOnly
+    }.Build();
 }
 else
 {
-    FirebaseAdmin.FirebaseApp.Create();
+    var firebaseKeyFilePath = Path.Combine(builder.Environment.ContentRootPath, "firebase-key.json");
+    if (File.Exists(firebaseKeyFilePath))
+    {
+        Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", firebaseKeyFilePath);
+        FirebaseAdmin.FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+        {
+            Credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(firebaseKeyFilePath)
+        });
+    }
+    else
+    {
+        FirebaseAdmin.FirebaseApp.Create();
+    }
+
+    firestoreDb = FirestoreDb.Create(projectId);
 }
 
 builder.Services.AddSingleton(FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance);
-
-var projectId = builder.Configuration["Firebase:ProjectId"] ?? "ems-project";
-builder.Services.AddSingleton(FirestoreDb.Create(projectId));
+builder.Services.AddSingleton(firestoreDb);
 
 // ============ FIREBASE CLIENT AUTH ============
 var firebaseApiKey = builder.Configuration["Firebase:ApiKey"] ?? throw new ArgumentException("Firebase:ApiKey must be set");

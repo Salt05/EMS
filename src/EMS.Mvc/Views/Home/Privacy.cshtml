@@ -1,6 +1,96 @@
 ﻿@{
-    ViewData["Title"] = "Privacy Policy";
+    ViewData["Title"] = "Chính sách bảo mật";
+    string tenantName = Context.Items["TenantName"]?.ToString() ?? "EMS";
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<div class="container my-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <span class="feature-tag">Pháp lý & Quyền riêng tư</span>
+            <h1 class="fw-bold mb-2">Chính sách bảo mật</h1>
+            <p class="text-muted mb-4">
+                Cập nhật lần cuối: @DateTime.Now.ToString("dd/MM/yyyy") &mdash; Áp dụng cho cổng sinh viên <strong>@tenantName</strong>.
+            </p>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <p class="text-secondary mb-0">
+                    Chúng tôi tôn trọng quyền riêng tư của bạn. Tài liệu này giải thích theo cách đơn giản
+                    về thông tin chúng tôi thu thập, cách sử dụng và quyền của bạn khi dùng hệ thống quản lý sự kiện EMS.
+                </p>
+            </div>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <h4 class="fw-bold mb-3"><i class="bi bi-collection me-2 text-primary"></i>1. Thông tin chúng tôi thu thập</h4>
+                <ul class="text-secondary mb-0">
+                    <li class="mb-2"><strong>Thông tin tài khoản:</strong> Họ tên, email, mã sinh viên (MSSV) khi bạn đăng ký hoặc đăng nhập.</li>
+                    <li class="mb-2"><strong>Thông tin sự kiện:</strong> Sự kiện bạn xem, tìm kiếm hoặc đăng ký tham gia.</li>
+                    <li class="mb-2"><strong>Thông tin kỹ thuật:</strong> Loại trình duyệt, thời gian truy cập, cookie phiên đăng nhập (nếu có).</li>
+                </ul>
+            </div>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <h4 class="fw-bold mb-3"><i class="bi bi-gear me-2 text-primary"></i>2. Mục đích sử dụng</h4>
+                <p class="text-secondary">Chúng tôi dùng thông tin của bạn để:</p>
+                <ul class="text-secondary mb-0">
+                    <li class="mb-2">Cung cấp dịch vụ đăng nhập, đăng ký và quản lý sự kiện.</li>
+                    <li class="mb-2">Hiển thị danh sách sự kiện phù hợp với tổ chức (tenant) bạn thuộc về.</li>
+                    <li class="mb-2">Gửi thông báo liên quan đến sự kiện (xác nhận đăng ký, nhắc lịch) khi tính năng được bật.</li>
+                    <li class="mb-2">Cải thiện trải nghiệm và bảo mật hệ thống.</li>
+                </ul>
+            </div>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <h4 class="fw-bold mb-3"><i class="bi bi-share me-2 text-primary"></i>3. Chia sẻ thông tin</h4>
+                <p class="text-secondary mb-2">
+                    Chúng tôi <strong>không bán</strong> thông tin cá nhân của bạn. Thông tin chỉ được chia sẻ trong các trường hợp:
+                </p>
+                <ul class="text-secondary mb-0">
+                    <li class="mb-2">Với ban tổ chức sự kiện thuộc cùng tổ chức, để quản lý danh sách tham dự.</li>
+                    <li class="mb-2">Với nhà cung cấp dịch vụ kỹ thuật (ví dụ: Firebase) để vận hành hệ thống, theo hợp đồng bảo mật.</li>
+                    <li class="mb-2">Khi pháp luật yêu cầu.</li>
+                </ul>
+            </div>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <h4 class="fw-bold mb-3"><i class="bi bi-shield-lock me-2 text-primary"></i>4. Bảo mật & Lưu trữ</h4>
+                <p class="text-secondary mb-0">
+                    Dữ liệu được lưu trên hạ tầng cloud có mã hóa và phân quyền truy cập. Mật khẩu được xử lý
+                    qua Firebase Authentication, không lưu dạng văn bản thuần trên hệ thống. Chúng tôi khuyến khích
+                    bạn dùng mật khẩu mạnh và không chia sẻ tài khoản với người khác.
+                </p>
+            </div>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <h4 class="fw-bold mb-3"><i class="bi bi-cookie me-2 text-primary"></i>5. Cookie</h4>
+                <p class="text-secondary mb-0">
+                    Website có thể dùng cookie để ghi nhớ trạng thái đăng nhập (phiên làm việc). Bạn có thể xóa cookie
+                    trong cài đặt trình duyệt; tuy nhiên một số tính năng (như đăng ký sự kiện) có thể không hoạt động
+                    nếu bạn chưa đăng nhập.
+                </p>
+            </div>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <h4 class="fw-bold mb-3"><i class="bi bi-person-check me-2 text-primary"></i>6. Quyền của bạn</h4>
+                <ul class="text-secondary mb-0">
+                    <li class="mb-2">Xem và cập nhật thông tin cá nhân trong tài khoản.</li>
+                    <li class="mb-2">Yêu cầu xóa tài khoản hoặc dữ liệu liên quan (qua bộ phận quản trị tổ chức).</li>
+                    <li class="mb-2">Từ chối nhận email thông báo không bắt buộc (nếu có tùy chọn).</li>
+                </ul>
+            </div>
+
+            <div class="premium-card p-4 p-md-5 mb-4">
+                <h4 class="fw-bold mb-3"><i class="bi bi-envelope me-2 text-primary"></i>7. Liên hệ</h4>
+                <p class="text-secondary mb-0">
+                    Nếu có câu hỏi về chính sách bảo mật, vui lòng liên hệ ban quản trị hệ thống của tổ chức bạn
+                    hoặc gửi email đến <a href="mailto:contact@ems.com" class="text-primary">contact@ems.com</a>.
+                </p>
+            </div>
+
+            <div class="text-center">
+                <a asp-controller="Home" asp-action="Index" class="btn btn-premium px-4">
+                    <i class="bi bi-house me-2"></i>Về trang chủ
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

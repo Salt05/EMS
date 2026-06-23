@@ -1,4 +1,6 @@
 using EMS.Core.Entities.Enums;
+using System;
+using System.Collections.Generic;
 
 namespace EMS.Core.Entities;
 
@@ -31,6 +33,10 @@ public class Registration
     public bool ReminderSent { get; set; }
     public DateTime? ReminderSentAt { get; set; }
 
+    // Incoming branch fields (for Student Portal compatibility)
+    public string StudentEmail { get; set; } = string.Empty;
+    public string StudentName { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -50,6 +56,8 @@ public class Registration
             { "checkInCode", CheckInCode ?? "" },
             { "checkedIn", CheckedIn },
             { "reminderSent", ReminderSent },
+            { "studentEmail", StudentEmail },
+            { "studentName", StudentName },
             { "createdAt", CreatedAt.ToUniversalTime() },
             { "updatedAt", UpdatedAt.ToUniversalTime() }
         };
