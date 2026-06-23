@@ -435,8 +435,8 @@
     private string userEmail = "";
     private string? userMssv = "21520123";
     private string? userPhone = "0901 234 567";
-    private string? _subdomain;
-    private string? _tenantName;
+    private string? _subdomain = "default";
+    private string? _tenantName = "EMS Mặc định";
 
     // Admin properties
     private List<EventResponseDto> events = new();
@@ -479,41 +479,32 @@
                     return;
                 }
 
-                isAdminOrManager = IsAdminOrManager(user);
-                userFullName = user.FindFirst(ClaimTypes.Name)?.Value ?? "Sinh viên";
-                userEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
-
-                // Get sub-details if available in custom claims (falling back to placeholders otherwise)
-                userMssv = user.FindFirst("mssv")?.Value ?? "21520123";
-                userPhone = user.FindFirst("phoneNumber")?.Value ?? "0901 234 567";
-                
-                // Try to get tenant details from subdomain
-                var uri = new Uri(Navigation.Uri);
-                var host = uri.Host;
-                var parts = host.Split('.');
-                if (parts.Length >= 2 && parts[0] != "localhost" && parts[0] != "ems")
+                // Redirect Level 4 (student/employee) user to the MVC Student Portal
+                var currentUri = new Uri(Navigation.Uri);
+                string studentPortalUrl;
+                if (currentUri.Host.Contains("localhost"))
                 {
-                    _subdomain = parts[0];
-                    var tenants = await TenantService.GetTenantsAsync();
-                    var tenant = tenants.FirstOrDefault(t => t.Subdomain.Equals(_subdomain, StringComparison.OrdinalIgnoreCase));
-                    if (tenant != null)
+                    studentPortalUrl = $"https://{currentUri.Host}:7032";
+                }
+                else
+                {
+                    // Production redirect (stripping admin subdomain)
+                    if (currentUri.Host.StartsWith("admin.", StringComparison.OrdinalIgnoreCase))
                     {
-                        _tenantName = tenant.Name;
+                        studentPortalUrl = $"https://{currentUri.Host.Substring(6)}";
+                    }
+                    else if (currentUri.Host.Contains(".admin."))
+                    {
+                        studentPortalUrl = $"https://{currentUri.Host.Replace(".admin.", ".")}";
+                    }
+                    else
+                    {
+                        studentPortalUrl = $"https://{currentUri.Host}";
                     }
                 }
-                else
-                {
-                    _subdomain = "default";
-                }
 
-                if (isAdminOrManager)
-                {
-                    await LoadAdminDataAsync();
-                }
-                else
-                {
-                    await LoadStudentDataAsync();
-                }
+                Navigation.NavigateTo(studentPortalUrl, forceLoad: true);
+                return;
             }
         }
         catch (Exception ex)
@@ -562,12 +553,6 @@
         {
             Console.WriteLine($"Error loading admin dashboard data: {ex.Message}");
         }
-    }
-
-    private Task LoadStudentDataAsync()
-    {
-        // Student portal data loading logic placeholder (to connect to backend user API in future)
-        return Task.CompletedTask;
     }
 
     private bool IsAdminOrManager(ClaimsPrincipal user) =>
