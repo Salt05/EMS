@@ -15,6 +15,8 @@ Tài liệu này ghi nhận chi tiết kỹ thuật các tính năng và nhiệm
 | 5 | `P1_E7` | Blazor WASM Authentication UI | 2026-06-12 | Trang Đăng nhập/Đăng xuất Blazor, phân quyền router, auto-attach token & Tenant ID vào HTTP Header. |
 | 6 | `EMS-10` | Event CRUD & Approval APIs | 2026-06-14 | Các API RESTful quản lý vòng đời sự kiện, tích hợp phê duyệt/từ chối từ Admin và isolation dữ liệu theo Tenant. |
 | 7 | `EMS-12` | MyEvents & Event Forms (Blazor) | 2026-06-14 | Giao diện bảng danh sách sự kiện cho Organizer, form thêm mới/sửa sự kiện, xử lý lỗi cấu hình API CORS & Firestore Serialization. |
+| 8 | `EMS-13` | Event Listing (Cards) & Detail Page (MVC) | 2026-06-21 | Trang danh sách sự kiện và chi tiết sự kiện cho Cổng sinh viên (MVC) tích hợp dữ liệu Firestore, lọc tìm kiếm từ khóa, tự động định danh Tenant và giao diện Glassmorphism. |
+| 9 | `EMS-14` | Student MyEvents & Registration Flow | 2026-06-23 | Tính năng đăng ký, hủy tham gia sự kiện và dashboard xem các sự kiện đã đăng ký của sinh viên (MVC). |
 
 ---
 
@@ -117,3 +119,44 @@ Tài liệu này ghi nhận chi tiết kỹ thuật các tính năng và nhiệm
     *   `src/EMS.BlazorWASM/Pages/Organizer/CreateEvent.razor`
     *   `src/EMS.BlazorWASM/Pages/Organizer/EditEvent.razor`
     *   `src/EMS.BlazorWASM/Services/EventServiceClient.cs`
+
+---
+
+### 8. Event Listing & Detail Page (MVC) (Task EMS-13)
+*   **Mô tả**: Xây dựng giao diện Frontend ASP.NET Core MVC cho Student Portal để tìm kiếm và xem chi tiết sự kiện.
+*   **Chi tiết thực hiện**:
+    *   Tích hợp Firestore: Cấu hình Firebase Project trong `appsettings.json`, đăng ký các dịch vụ `FirestoreDb`, `ITenantService`, `IEventService` trong `Program.cs`.
+    *   Tenant resolution: Viết `TenantMiddleware` bóc tách subdomain để tự động phân giải Tenant ID và Tenant Name cho mỗi request, có cơ chế fallback thông minh cho môi trường local.
+    *   Trang chủ: Cập nhật `HomeController` và `Index.cshtml` hiển thị các sự kiện thực tế có trạng thái `Approved` từ Firestore.
+    *   Trang danh sách: Tạo `EventsController` và view `Events/Index` tích hợp bộ tìm kiếm từ khóa (tên, mô tả, địa điểm) với thiết kế Glassmorphism và micro-animations.
+    *   Trang chi tiết: Tạo view `Events/Detail` hiển thị toàn bộ thông tin sự kiện (thời gian, địa điểm, sức chứa, lệ phí miễn phí) với tính năng kiểm tra đăng nhập trước khi hiển thị nút đăng ký.
+*   **Các file quan trọng**:
+    *   `src/EMS.Mvc/Program.cs`
+    *   `src/EMS.Mvc/Middlewares/TenantMiddleware.cs`
+    *   `src/EMS.Mvc/Controllers/EventsController.cs`
+    *   `src/EMS.Mvc/Views/Events/Index.cshtml`
+    *   `src/EMS.Mvc/Views/Events/Detail.cshtml`
+
+---
+
+### 9. Student MyEvents & Registration Flow (Task EMS-14)
+*   **Mô tả**: Thiết lập cơ chế đăng ký và hủy tham gia sự kiện của sinh viên, cùng với dashboard quản lý vé hoạt động và lịch sử đăng ký.
+*   **Chi tiết thực hiện**:
+    *   **Core Entity**: Tạo `RegistrationStatus` enum và `Registration` entity lưu giữ thông tin đăng ký (EventId, StudentEmail, StudentName, Status, CreatedAt, UpdatedAt) kèm Firestore mapping.
+    *   **Custom Exceptions**: Tạo `BusinessRuleException` và `NotFoundException` để biểu diễn các lỗi logic nghiệp vụ.
+    *   **Service Layer**: Thiết lập `IRegistrationService` và triển khai song song `FirestoreRegistrationService` (quản lý Firestore cách ly theo Tenant) và `DevInMemoryRegistrationService` (lưu trữ in-memory phục vụ debug nhanh local).
+    *   **Dependency Injection**: Cấu hình đăng ký `IRegistrationService` trong cả WebAPI và MVC `Program.cs`.
+    *   **MVC Controller**: Bổ sung các action `Register` (đăng ký kèm kiểm tra sức chứa và trạng thái sự kiện), `Cancel` (hủy vé), và `MyEvents` (xem danh sách vé cá nhân) vào `EventsController.cs`.
+    *   **Giao diện Portal**:
+        *   Cập nhật `Detail.cshtml`: Cho phép hiển thị nút Đăng ký / Hủy đăng ký hoặc trạng thái chờ/từ chối động tùy theo thông tin đăng ký của sinh viên đang đăng nhập.
+        *   Tạo mới `MyEvents.cshtml`: Dashboard phân chia thành 2 tab "Vé hoạt động" (Đã xác nhận, Chờ duyệt) và "Lịch sử & Đã hủy" cực kỳ trực quan và đồng bộ phong cách Glassmorphism.
+        *   Cập nhật `_Layout.cshtml`: Thêm link "Sự kiện của tôi" trên thanh menu điều hướng khi sinh viên đăng nhập.
+*   **Các file quan trọng**:
+    *   `src/EMS.Core/Entities/Registration.cs` & `Enums/RegistrationStatus.cs`
+    *   `src/EMS.Core/Interfaces/Services/IRegistrationService.cs`
+    *   `src/EMS.Infrastructure/Services/FirestoreRegistrationService.cs`
+    *   `src/EMS.Mvc/Services/DevInMemoryRegistrationService.cs`
+    *   `src/EMS.Mvc/Controllers/EventsController.cs`
+    *   `src/EMS.Mvc/Views/Events/Detail.cshtml`
+    *   `src/EMS.Mvc/Views/Events/MyEvents.cshtml`
+    *   `src/EMS.Mvc/Views/Shared/_Layout.cshtml`

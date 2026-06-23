@@ -1,8 +1,290 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@model List<EMS.Core.Entities.Event>
+@{
+    ViewData["Title"] = "Trang chủ";
+    string? userSession = Context.Request.Cookies["user_session"];
+    string? displayName = null;
+    if (!string.IsNullOrEmpty(userSession))
+    {
+        displayName = userSession.Split('|')[0];
+    }
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+@functions {
+    string GetEventBadgeClass(string title, string description)
+    {
+        var text = (title + " " + description).ToLower();
+        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
+            return "bg-primary text-white";
+        if (text.Contains("nhiếp ảnh") || text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa"))
+            return "bg-success text-white";
+        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run"))
+            return "bg-warning text-dark";
+        if (text.Contains("tình nguyện") || text.Contains("xanh") || text.Contains("môi trường"))
+            return "bg-success text-white";
+        if (text.Contains("hackathon") || text.Contains("innovation") || text.Contains("lập trình"))
+            return "bg-dark text-white";
+        return "bg-info text-white";
+    }
+
+    string GetEventBadgeName(string title, string description)
+    {
+        var text = (title + " " + description).ToLower();
+        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
+            return "Học thuật";
+        if (text.Contains("nhiếp ảnh")) return "Nghệ thuật";
+        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa"))
+            return "Nghệ thuật";
+        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run"))
+            return "Thể thao";
+        if (text.Contains("tình nguyện") || text.Contains("xanh") || text.Contains("môi trường"))
+            return "Tình nguyện";
+        if (text.Contains("hackathon") || text.Contains("innovation") || text.Contains("lập trình"))
+            return "Công nghệ";
+        return "Sự kiện";
+    }
+}
+
+<!-- Hero Section -->
+<div class="hero-section">
+    <span class="feature-tag">Hệ Thống Quản Lý Sự Kiện EMS</span>
+    @if (displayName != null)
+    {
+        <h1 class="hero-title">Chào mừng trở lại, <br/><span class="text-primary">@displayName!</span></h1>
+        <p class="hero-subtitle">Khám phá các sự kiện học thuật, câu lạc bộ, nghệ thuật nổi bật nhất dành riêng cho bạn tuần này.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="#events" class="btn btn-premium px-4 py-2.5">
+                <i class="bi bi-calendar-range me-2"></i>Xem sự kiện
+            </a>
+            <a asp-controller="Events" asp-action="MyEvents" class="btn btn-premium-outline px-4 py-2.5">
+                <i class="bi bi-ticket-detailed me-2"></i>Vé của tôi
+            </a>
+        </div>
+    }
+    else
+    {
+        <h1 class="hero-title">Kết nối sinh viên &<br/>Khám phá sự kiện học đường</h1>
+        <p class="hero-subtitle">Đăng ký tham gia, điểm danh QR-code và tích lũy điểm rèn luyện thông qua các hoạt động ngoại khóa một cách dễ dàng.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <a asp-controller="Auth" asp-action="Register" class="btn btn-premium px-4 py-2.5">
+                <i class="bi bi-rocket-takeoff me-2"></i>Bắt đầu ngay
+            </a>
+            <a href="#events" class="btn btn-premium-outline px-4 py-2.5">
+                <i class="bi bi-compass me-2"></i>Tìm hiểu thêm
+            </a>
+        </div>
+    }
 </div>
+
+<!-- Statistics Cards -->
+<div class="row g-4 mb-5 justify-content-center">
+    <div class="col-md-3 col-sm-6">
+        <div class="premium-card p-4 text-center">
+            <h3 class="fw-bold text-primary mb-1">@(Model?.Count ?? 0)+</h3>
+            <p class="text-muted small mb-0">Sự kiện đang mở</p>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="premium-card p-4 text-center">
+            <h3 class="fw-bold text-success mb-1">1,500+</h3>
+            <p class="text-muted small mb-0">Sinh viên đăng ký</p>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="premium-card p-4 text-center">
+            <h3 class="fw-bold text-warning mb-1">98%</h3>
+            <p class="text-muted small mb-0">Phản hồi tích cực</p>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Event Slider Section ══ -->
+<div class="my-5" id="events">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-fire text-danger me-2"></i>Sự kiện đang nổi bật</h2>
+            <p class="text-muted mb-0">Danh sách sự kiện đang mở đăng ký tham gia</p>
+        </div>
+        <a asp-controller="Events" asp-action="Index" class="text-primary fw-semibold text-decoration-none small d-none d-sm-inline-block">
+            Xem tất cả <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    @{
+        var allEvents = Model?.ToList() ?? new List<EMS.Core.Entities.Event>();
+        int pageSize  = 3;
+        int pageCount = allEvents.Count == 0 ? 1 : (int)Math.Ceiling(allEvents.Count / (double)pageSize);
+    }
+
+    @if (!allEvents.Any())
+    {
+        <div class="text-center py-5">
+            <div class="mb-3 text-muted fs-1"><i class="bi bi-calendar-x"></i></div>
+            <h5 class="text-secondary">Hiện tại chưa có sự kiện nào.</h5>
+        </div>
+    }
+    else
+    {
+        <!-- Slider outer -->
+        <div class="evt-slider-outer">
+            <!-- Viewport -->
+            <div class="evt-viewport">
+                <!-- Track width = pageCount × 100% of viewport -->
+                <div class="evt-track" id="evtTrack"
+                     style="display:flex; width:@(pageCount * 100)%; transition:transform 0.6s cubic-bezier(0.4,0,0.2,1); will-change:transform;">
+                    @for (int p = 0; p < pageCount; p++)
+                    {
+                        var pageEvts = allEvents.Skip(p * pageSize).Take(pageSize).ToList();
+                        <!-- Each slide = (100/pageCount)% of track = 100% of viewport -->
+                        <div style="flex-shrink:0; width:@(Math.Round(100.0/pageCount,6))%; box-sizing:border-box; padding:4px 0;">
+                            <div class="row g-4">
+                                @foreach (var ev in pageEvts)
+                                {
+                                    <div class="col-lg-4 col-md-6 col-12">
+                                        <div class="premium-card event-card position-relative h-100 d-flex flex-column">
+                                            <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)"
+                                                 class="card-img-top event-image" alt="@ev.Title"
+                                                 onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
+                                            <span class="event-badge @GetEventBadgeClass(ev.Title, ev.Description ?? "")">@GetEventBadgeName(ev.Title, ev.Description ?? "")</span>
+                                            <div class="p-4 flex-grow-1">
+                                                <h5 class="fw-bold text-dark mb-2">@ev.Title</h5>
+                                                <p class="text-muted small mb-3">
+                                                    <i class="bi bi-calendar-event me-1"></i> @ev.StartTime.ToString("dd/MM/yyyy HH:mm") – @ev.EndTime.ToString("HH:mm")<br />
+                                                    <i class="bi bi-geo-alt me-1"></i> @ev.Location
+                                                </p>
+                                                @{
+                                                    var dsc = (ev.Description?.Length > 110)
+                                                        ? ev.Description.Substring(0, 107) + "..."
+                                                        : (ev.Description ?? "");
+                                                }
+                                                <p class="text-secondary small mb-0">@dsc</p>
+                                            </div>
+                                            <div class="event-footer d-flex justify-content-between align-items-center mt-auto">
+                                                <span class="small text-muted"><i class="bi bi-people me-1"></i> Sức chứa: @ev.Capacity</span>
+                                                <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id"
+                                                   class="btn btn-sm btn-premium py-1 px-3">Chi tiết</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Arrow buttons -->
+            <button class="evt-arrow evt-arrow-prev" id="evtPrev" aria-label="Trước">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="evt-arrow evt-arrow-next" id="evtNext" aria-label="Tiếp">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+
+        <!-- Dots -->
+        <div class="evt-dots mt-4" id="evtDots">
+            @for (int p = 0; p < pageCount; p++)
+            {
+                <button class="evt-dot @(p == 0 ? "active" : "")"
+                        data-page="@p" aria-label="Trang @(p+1)"></button>
+            }
+        </div>
+
+
+    }
+</div>
+
+<style>
+    .evt-slider-outer {
+        position: relative;
+        padding: 0 52px;
+    }
+    .evt-viewport {
+        overflow: hidden;
+        border-radius: 12px;
+    }
+    .evt-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-55%);
+        width: 46px; height: 46px;
+        border-radius: 50%;
+        border: none;
+        background: #fff;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        color: #6366f1;
+        font-size: 1.2rem;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        padding: 0;
+        transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
+        line-height: 1;
+    }
+    .evt-arrow:hover {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+        box-shadow: 0 6px 24px rgba(99,102,241,0.4);
+        transform: translateY(-55%) scale(1.1);
+    }
+    .evt-arrow-prev { left: 0; }
+    .evt-arrow-next { right: 0; }
+    @@media (max-width: 575px) {
+        .evt-slider-outer { padding: 0 38px; }
+        .evt-arrow { width: 36px; height: 36px; font-size: 1rem; }
+    }
+    .evt-dots { display: flex; justify-content: center; gap: 8px; }
+    .evt-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #d1d5db;
+        border: none; padding: 0; cursor: pointer;
+        transition: background 0.25s, width 0.3s, border-radius 0.3s;
+    }
+    .evt-dot.active { background: #6366f1; width: 26px; border-radius: 4px; }
+
+</style>
+
+@section Scripts {
+<script>
+(function () {
+    var INTERVAL = 30000; // 30 giây
+
+    var track   = document.getElementById('evtTrack');
+    var prev    = document.getElementById('evtPrev');
+    var next    = document.getElementById('evtNext');
+    var dotsWrap= document.getElementById('evtDots');
+    if (!track || !prev || !next) return;
+
+    var dots    = dotsWrap ? Array.from(dotsWrap.querySelectorAll('.evt-dot')) : [];
+    var total   = dots.length || 1;
+    var cur     = 0;
+    var timer   = null;
+
+    function goTo(n) {
+        cur = ((n % total) + total) % total;
+        // Each slide = (1/total) of track => shift = cur/total of track = cur*(100/total)% of track
+        track.style.transform = 'translateX(-' + (cur * 100 / total) + '%)';
+        dots.forEach(function(d, i) { d.classList.toggle('active', i === cur); });
+    }
+
+    function startAuto() {
+        clearInterval(timer);
+        timer = setInterval(function() { goTo(cur + 1); }, INTERVAL);
+    }
+
+    prev.addEventListener('click', function() { goTo(cur - 1); startAuto(); });
+    next.addEventListener('click', function() { goTo(cur + 1); startAuto(); });
+    dots.forEach(function(d) {
+        d.addEventListener('click', function() { goTo(+d.dataset.page); startAuto(); });
+    });
+
+    // Pause on hover
+    track.addEventListener('mouseenter', function() { clearInterval(timer); });
+    track.addEventListener('mouseleave', startAuto);
+
+    goTo(0);
+    startAuto();
+})();
+</script>
+}

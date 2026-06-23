@@ -1,0 +1,127 @@
+@model List<EMS.Core.Entities.Event>
+@{
+    ViewData["Title"] = "Khám phá Sự kiện";
+    var searchString = ViewData["SearchString"] as string;
+}
+
+@functions {
+    string GetEventBadgeClass(string title, string description)
+    {
+        var text = (title + " " + description).ToLower();
+        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
+            return "bg-primary text-white";
+        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
+            return "bg-success text-white";
+        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
+            return "bg-warning text-dark";
+        return "bg-info text-white";
+    }
+
+    string GetEventBadgeName(string title, string description)
+    {
+        var text = (title + " " + description).ToLower();
+        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
+            return "Học thuật";
+        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
+            return "Nghệ thuật";
+        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
+            return "Thể thao";
+        return "Sự kiện";
+    }
+}
+
+<div class="container my-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <span class="feature-tag">Cổng sinh viên</span>
+            <h1 class="fw-bold mb-2">Khám phá các sự kiện</h1>
+            <p class="text-muted">Tìm kiếm và đăng ký tham gia các hoạt động ngoại khóa, câu lạc bộ, học thuật.</p>
+        </div>
+    </div>
+
+    <!-- Search Section -->
+    <div class="premium-card p-4 mb-5">
+        <form method="get" asp-controller="Events" asp-action="Index" class="row g-3">
+            <div class="col-md-9">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted" style="border-radius: 12px 0 0 12px; border: 1px solid #d1d5db; height: 100%;">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" name="searchString" class="form-control premium-form-control border-start-0" 
+                           style="border-radius: 0 12px 12px 0; padding-left: 0;"
+                           placeholder="Tìm kiếm theo tên sự kiện, nội dung hoặc địa điểm..." 
+                           value="@searchString" />
+                </div>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-premium w-100 h-100 py-2.5">
+                    <i class="bi bi-funnel me-2"></i>Tìm kiếm
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Result Banner -->
+    @if (!string.IsNullOrEmpty(searchString))
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="text-secondary">
+                Tìm thấy <strong>@Model.Count</strong> kết quả cho từ khóa <span class="badge bg-light text-dark font-monospace">"@searchString"</span>
+            </div>
+            <a asp-action="Index" class="text-decoration-none text-primary small"><i class="bi bi-x-circle me-1"></i>Xóa tìm kiếm</a>
+        </div>
+    }
+
+    <!-- Event Cards Grid -->
+    <div class="row g-4">
+        @if (Model == null || !Model.Any())
+        {
+            <div class="col-12 text-center py-5">
+                <div class="premium-card p-5 max-w-600 mx-auto">
+                    <div class="mb-4 text-muted" style="font-size: 4rem;">
+                        <i class="bi bi-search-heart"></i>
+                    </div>
+                    <h4 class="fw-bold mb-2">Không tìm thấy sự kiện nào</h4>
+                    <p class="text-muted mb-4">Không có sự kiện nào khớp với từ khóa tìm kiếm của bạn hoặc chưa có sự kiện được đăng lên hệ thống.</p>
+                    <a asp-action="Index" class="btn btn-premium btn-sm">Xem tất cả sự kiện</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            @foreach (var ev in Model)
+            {
+                <div class="col-lg-4 col-md-6">
+                    <div class="premium-card event-card position-relative">
+                        <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)" 
+                             class="card-img-top event-image" alt="@ev.Title"
+                             onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
+                        <span class="event-badge @GetEventBadgeClass(ev.Title, ev.Description)">@GetEventBadgeName(ev.Title, ev.Description)</span>
+                        
+                        <div class="p-4">
+                            <h5 class="fw-bold text-dark mb-2">@ev.Title</h5>
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-calendar-event me-1"></i> @ev.StartTime.ToString("dd/MM/yyyy HH:mm") - @ev.EndTime.ToString("HH:mm")<br/>
+                                <i class="bi bi-geo-alt me-1"></i> @ev.Location
+                            </p>
+                            @{
+                                var displayDesc = ev.Description;
+                                if (displayDesc.Length > 120)
+                                {
+                                    displayDesc = displayDesc.Substring(0, 117) + "...";
+                                }
+                            }
+                            <p class="text-secondary small mb-0">@displayDesc</p>
+                        </div>
+
+                        <div class="event-footer d-flex justify-content-between align-items-center">
+                            <span class="small text-muted"><i class="bi bi-people me-1"></i> Sức chứa: @ev.Capacity</span>
+                            <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id" class="btn btn-sm btn-premium py-1.5 px-3">Chi tiết</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

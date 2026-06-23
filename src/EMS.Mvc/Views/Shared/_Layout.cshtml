@@ -1,46 +1,163 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@{
+    string? userSession = Context.Request.Cookies["user_session"];
+    string? displayName = null;
+    string? userEmail = null;
+    string? userRole = null;
+    if (!string.IsNullOrEmpty(userSession))
+    {
+        var parts = userSession.Split('|');
+        if (parts.Length >= 3)
+        {
+            displayName = parts[0];
+            userEmail = parts[1];
+            userRole = parts[2];
+        }
+    }
+    string tenantName = Context.Items["TenantName"]?.ToString() ?? "EMS";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - EMS.Mvc</title>
+    <title>@ViewData["Title"] - @tenantName</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <!-- Google Fonts & Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/EMS.Mvc.styles.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">EMS.Mvc</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+        <nav class="navbar navbar-expand-md navbar-light custom-nav py-3">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center" asp-controller="Home" asp-action="Index">
+                    <i class="bi bi-calendar-event-fill me-2 text-primary"></i>
+                    <span>@tenantName</span>
+                </a>
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" 
+                        aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-md-0">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")" 
+                               asp-controller="Home" asp-action="Index">Trang chủ</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Events" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")" 
+                               asp-controller="Events" asp-action="Index">Sự kiện</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Privacy" ? "active" : "")" 
+                               asp-controller="Home" asp-action="Privacy">Chính sách bảo mật</a>
+                        </li>
+                    </ul>
+                    
+                    <ul class="navbar-nav align-items-center">
+                        @if (displayName != null)
+                        {
+                            <li class="nav-item me-3 mb-2 mb-md-0">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Events" && ViewContext.RouteData.Values["action"]?.ToString() == "MyEvents" ? "active" : "")" 
+                                   asp-controller="Events" asp-action="MyEvents">
+                                    <i class="bi bi-ticket-detailed me-1"></i>Sự kiện của tôi
+                                </a>
+                            </li>
+                            <li class="nav-item dropdown me-3 mb-2 mb-md-0">
+                                <a class="d-inline-flex align-items-center text-dark px-3 py-1.5 rounded-pill bg-light border dropdown-toggle text-decoration-none" 
+                                   href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-person-circle text-primary me-2"></i>
+                                    <span>Chào, <strong>@displayName</strong></span>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-3 p-2 mt-2" aria-labelledby="userDropdown">
+                                    <li>
+                                        <a class="dropdown-item rounded-3 py-2 text-secondary hover-primary-item" href="#">
+                                            <i class="bi bi-person me-2"></i>Thông tin cá nhân
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item rounded-3 py-2 text-secondary hover-primary-item" href="#">
+                                            <i class="bi bi-gear me-2"></i>Cài đặt
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn btn-sm btn-outline-danger px-3 py-2 rounded-3" asp-controller="Auth" asp-action="Logout">
+                                    <i class="bi bi-box-arrow-right me-1"></i> Đăng xuất
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item me-md-2 mb-2 mb-md-0">
+                                <a class="nav-link px-3" asp-controller="Auth" asp-action="Login">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn btn-sm btn-premium px-3 py-2" asp-controller="Auth" asp-action="Register">
+                                    <i class="bi bi-person-plus me-1"></i> Đăng ký
+                                </a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+
+    <div class="container main-content">
+        <main role="main">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
+    <!-- Success Toast Notification -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="custom-toast p-3 d-flex align-items-center" id="successToast" style="width: 350px;">
+            <div class="me-3 text-success fs-4">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-bold text-dark">Thành công</div>
+                <div class="text-muted small">@TempData["SuccessMessage"]</div>
+            </div>
+            <button type="button" class="btn-close ms-auto p-1" onclick="document.getElementById('successToast').style.display='none'" aria-label="Close"></button>
+        </div>
+
+        <script>
+            setTimeout(function() {
+                var toast = document.getElementById('successToast');
+                if (toast) {
+                    toast.style.transition = 'all 0.5s ease';
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(100px)';
+                    setTimeout(function() {
+                        toast.remove();
+                    }, 500);
+                }
+            }, 4000);
+        </script>
+    }
+
+    <footer class="mt-auto py-4">
         <div class="container">
-            &copy; 2026 - EMS.Mvc - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+            <div class="row align-items-center">
+                <div class="col-md-6 text-md-start text-center mb-3 mb-md-0">
+                    <span class="fw-bold text-primary">EMS</span> - Event Management System &copy; 2026.
+                </div>
+                <div class="col-md-6 text-md-end text-center">
+                    <a asp-controller="Home" asp-action="Privacy" class="text-decoration-none text-muted me-3">Chính sách bảo mật</a>
+                    <a href="#" class="text-decoration-none text-muted">Điều khoản sử dụng</a>
+                </div>
+            </div>
         </div>
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
