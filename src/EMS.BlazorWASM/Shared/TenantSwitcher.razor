@@ -1,7 +1,7 @@
 @inject ITenantServiceClient TenantService
 @inject ILogger<TenantSwitcher> Logger
 
-<AuthorizeView Roles="SuperAdmin,Admin">
+<AuthorizeView Roles="superadmin,admin">
     <Authorized>
         <div class="tenant-switcher">
             <label class="tenant-label">

@@ -16,7 +16,7 @@ namespace EMS.WebAPI.Controllers.Admin;
 /// </summary>
 [ApiController]
 [Route("api/admin/users")]
-[Authorize(Roles = "admin,superadmin,Admin,SuperAdmin")]
+[Authorize(Roles = "admin,superadmin")]
 public class AdminUsersController : ControllerBase
 {
     private readonly IAdminUserService _adminUserService;
@@ -259,7 +259,7 @@ public class AdminUsersController : ControllerBase
     /// SuperAdmin có thể set mọi role. TenantAdmin chỉ có thể set employee/manager cho user trong tenant của mình.
     /// </summary>
     [HttpPut("{id}/role")]
-    [Authorize(Roles = "superadmin,SuperAdmin,admin,Admin")]
+    [Authorize(Roles = "superadmin,admin")]
     public async Task<IActionResult> ChangeRole(string id, [FromBody] AdminUpdateRoleRequestDto dto)
     {
         try
@@ -330,7 +330,7 @@ public class AdminUsersController : ControllerBase
     /// PUT /api/admin/users/{id}/tenant — Chuyển tenant (chỉ SuperAdmin).
     /// </summary>
     [HttpPut("{id}/tenant")]
-    [Authorize(Roles = "superadmin,SuperAdmin")]
+    [Authorize(Roles = "superadmin")]
     public async Task<IActionResult> ChangeTenant(string id, [FromBody] AdminChangeTenantRequestDto dto)
     {
         try
@@ -361,7 +361,7 @@ public class AdminUsersController : ControllerBase
     // ============ HELPERS ============
 
     private bool IsSuperAdmin() =>
-        User.IsInRole("superadmin") || User.IsInRole("SuperAdmin");
+        User.IsInRole("superadmin");
 
     private string GetCurrentUserId() =>
         User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;

@@ -51,4 +51,46 @@ public class RegistrationServiceClient : IRegistrationServiceClient
             return false;
         }
     }
+
+    public async Task<List<RegistrationResponseDto>> GetMyRegistrationsAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<RegistrationResponseDto>>("/api/registrations/me") ?? new List<RegistrationResponseDto>();
+        }
+        catch (Exception)
+        {
+            return new List<RegistrationResponseDto>();
+        }
+    }
+
+    public async Task<RegistrationResponseDto?> RegisterAsync(CreateRegistrationDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("/api/registrations", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<RegistrationResponseDto>();
+            }
+            return null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> CancelRegistrationAsync(string registrationId)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"/api/registrations/{registrationId}/cancel", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 }

@@ -12,8 +12,8 @@ public interface IAuthService
     /// Đăng nhập bằng email và password, gọi WebAPI.
     /// </summary>
     /// <param name="request">Thông tin đăng nhập</param>
-    /// <returns>LoginResponse nếu thành công, null nếu thất bại</returns>
-    Task<LoginResponse?> LoginAsync(LoginRequest request);
+    /// <returns>LoginResponse nếu thành công và thông báo lỗi (nếu có)</returns>
+    Task<(LoginResponse? Response, string? ErrorMessage)> LoginAsync(LoginRequest request);
 
     /// <summary>
     /// Đăng xuất, xóa token khỏi localStorage.

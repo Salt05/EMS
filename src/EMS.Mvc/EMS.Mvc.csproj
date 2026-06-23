@@ -3,6 +3,11 @@
   <ItemGroup>
     <ProjectReference Include="..\EMS.Infrastructure\EMS.Infrastructure.csproj" />
     <ProjectReference Include="..\EMS.Shared\EMS.Shared.csproj" />
+    <ProjectReference Include="..\EMS.BlazorWASM\EMS.BlazorWASM.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

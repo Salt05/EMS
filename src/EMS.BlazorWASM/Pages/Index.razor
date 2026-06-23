@@ -1,462 +1,26 @@
 @page "/"
 @attribute [Authorize]
-@inject EMS.BlazorWASM.Services.IEventServiceClient EventService
-@inject EMS.BlazorWASM.Services.IRegistrationServiceClient RegistrationService
-@inject EMS.BlazorWASM.Services.ITenantServiceClient TenantService
 @inject NavigationManager Navigation
 @inject EMS.BlazorWASM.Services.IAuthService AuthService
-@using EMS.Shared.DTOs.Events
-@using EMS.Shared.DTOs.Registrations
-@using EMS.BlazorWASM.Services
 @using System.Security.Claims
 
 <PageTitle>Dashboard — EMS</PageTitle>
 
-<AuthorizeView>
-    <Authorized>
-        @if (isLoading)
-        {
-            <div class="flex justify-center items-center py-20">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-charcoal"></div>
-            </div>
-        }
-        else
-        {
-            @if (isAdminOrManager)
-            {
-                <!-- ========================================================================= -->
-                <!-- ============================ ADMIN DASHBOARD UI ========================= -->
-                <!-- ========================================================================= -->
-                
-                <!-- Top Title and Filter Row -->
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-border mb-6">
-                    <div>
-                        <h1 class="text-xl font-bold tracking-tight text-charcoal">Bảng điều khiển Tổng</h1>
-                        <p class="text-xs text-muted mt-1">Chỉ số trực tiếp và hàng đợi xử lý yêu cầu.</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="relative">
-                            <button class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-white border border-border rounded-md hover:bg-canvas transition-colors">
-                                <svg class="h-3.5 w-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" />
-                                </svg>
-                                <span>Hôm nay: @DateTime.Now.ToString("dd/MM/yyyy")</span>
-                            </button>
-                        </div>
-                        <a href="admin/events/new" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-charcoal rounded-md hover:bg-slate-800 transition-transform active:scale-[0.98]">
-                            Tạo sự kiện
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Bento Grid Metrics -->
-                <section class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-                    <!-- Metric 1: Total Registrations -->
-                    <article class="bg-white border border-border rounded-xl p-6 shadow-bento hover:shadow-bento-hover transition-all duration-200 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-medium text-muted uppercase tracking-wider">Tổng Đăng ký</span>
-                            </div>
-                            <p class="text-3xl font-bold tracking-tight text-charcoal mt-4">@totalRegistrations</p>
-                        </div>
-                    </article>
-
-                    <!-- Metric 2: Pending Approvals -->
-                    <article class="bg-white border border-border rounded-xl p-6 shadow-bento hover:shadow-bento-hover transition-all duration-200 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-medium text-muted uppercase tracking-wider">Chờ Duyệt</span>
-                                @if (pendingApprovalsCount > 0)
-                                {
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold font-mono bg-paleYellow-bg text-paleYellow-text">Cần xử lý</span>
-                                }
-                            </div>
-                            <p class="text-3xl font-bold tracking-tight text-charcoal mt-4">@pendingApprovalsCount</p>
-                        </div>
-                    </article>
-
-                    <!-- Metric 3: Checked In -->
-                    <article class="bg-white border border-border rounded-xl p-6 shadow-bento hover:shadow-bento-hover transition-all duration-200 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-medium text-muted uppercase tracking-wider">Đã Check-in</span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold font-mono bg-paleBlue-bg text-paleBlue-text">
-                                    @(totalRegistrations == 0 ? 0 : (checkedInCount * 100 / totalRegistrations))%
-                                </span>
-                            </div>
-                            <p class="text-3xl font-bold tracking-tight text-charcoal mt-4">@checkedInCount<span class="text-sm font-normal text-muted"> / @totalRegistrations</span></p>
-                        </div>
-                        <div class="mt-4 pt-3 border-t border-canvas">
-                            <div class="h-1.5 w-full bg-canvas rounded-full overflow-hidden">
-                                <div class="h-full bg-charcoal rounded-full" style="width: @(totalRegistrations == 0 ? 0 : (checkedInCount * 100 / totalRegistrations))%"></div>
-                            </div>
-                        </div>
-                    </article>
-
-                    <!-- Metric 4: Revenue -->
-                    <article class="bg-white border border-border rounded-xl p-6 shadow-bento hover:shadow-bento-hover transition-all duration-200 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-medium text-muted uppercase tracking-wider">Doanh thu Vé</span>
-                            </div>
-                            <p class="text-3xl font-bold tracking-tight text-charcoal mt-4">N/A</p>
-                        </div>
-                        <div class="mt-4 pt-3 border-t border-canvas text-[11px] text-muted flex justify-between">
-                            <span>Chưa tích hợp thanh toán</span>
-                        </div>
-                    </article>
-                </section>
-
-                <!-- Data Section (Asymmetric Bento Grid) -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Left: Pending Approvals -->
-                    <section class="lg:col-span-2 bg-white border border-border rounded-xl overflow-hidden shadow-bento flex flex-col">
-                        <div class="px-6 py-5 border-b border-border flex items-center justify-between bg-white">
-                            <div>
-                                <h3 class="text-sm font-bold text-charcoal">Hàng đợi xét duyệt</h3>
-                                <p class="text-xs text-muted mt-0.5">Duyệt, từ chối danh sách yêu cầu đăng ký vé.</p>
-                            </div>
-                        </div>
-
-                        <div class="flex-1 overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-canvas border-b border-border text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">
-                                        <th class="py-3 px-6">Người đăng ký</th>
-                                        <th class="py-3 px-3">Sự kiện</th>
-                                        <th class="py-3 px-3">Trạng thái</th>
-                                        <th class="py-3 px-6 text-right">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-border text-sm">
-                                    @if (pendingRegistrations.Count == 0)
-                                    {
-                                        <tr>
-                                            <td colspan="4" class="py-8 text-center text-muted">Không có yêu cầu chờ duyệt.</td>
-                                        </tr>
-                                    }
-                                    else
-                                    {
-                                        @foreach (var reg in pendingRegistrations)
-                                        {
-                                            var evt = events.FirstOrDefault(e => e.Id == reg.EventId);
-                                            <tr class="hover:bg-canvas/50 transition-colors">
-                                                <td class="py-4 px-6 flex items-center gap-3">
-                                                    <div class="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-700 uppercase">
-                                                        @(string.IsNullOrWhiteSpace(reg.UserFullName) ? "U" : reg.UserFullName.Substring(0, 1))
-                                                    </div>
-                                                    <div>
-                                                        <p class="font-semibold text-charcoal">@(string.IsNullOrWhiteSpace(reg.UserFullName) ? "Unknown User" : reg.UserFullName)</p>
-                                                        <p class="text-[10px] text-muted font-mono">@reg.UserEmail</p>
-                                                    </div>
-                                                </td>
-                                                <td class="py-4 px-3">
-                                                    <p class="font-medium text-charcoal">@(evt?.Title ?? "N/A")</p>
-                                                    @if (evt != null && evt.Id.Length > 5)
-                                                    {
-                                                        <p class="text-[10px] text-muted">Event ID: @(evt.Id.Substring(0, 5))...</p>
-                                                    }
-                                                </td>
-                                                <td class="py-4 px-3">
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium font-mono bg-paleYellow-bg text-paleYellow-text">
-                                                        Chờ duyệt
-                                                    </span>
-                                                </td>
-                                                <td class="py-4 px-6 text-right space-x-2">
-                                                    <button @onclick="() => HandleApprove(reg.Id)" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-charcoal hover:bg-paleGreen-bg hover:text-paleGreen-text border border-border rounded transition-all duration-150">
-                                                        Duyệt
-                                                    </button>
-                                                    <button @onclick="() => HandleReject(reg.Id)" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-muted hover:bg-paleRed-bg hover:text-paleRed-text border border-transparent rounded transition-all duration-150">
-                                                        Từ chối
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        }
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-
-                    <!-- Right: Recent Activities -->
-                    <section class="bg-white border border-border rounded-xl p-6 shadow-bento flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between pb-4 border-b border-border">
-                                <h3 class="text-sm font-bold text-charcoal">Hoạt động gần đây</h3>
-                                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            </div>
-                            
-                            <div class="mt-4 space-y-4">
-                                @if (recentActivities.Count == 0)
-                                {
-                                    <p class="text-xs text-muted text-center py-4">Chưa có hoạt động nào.</p>
-                                }
-                                else
-                                {
-                                    @foreach (var activity in recentActivities.Take(5))
-                                    {
-                                        <div class="flex gap-3 text-xs">
-                                            <div class="h-1.5 w-1.5 rounded-full bg-paleGreen-text mt-1.5"></div>
-                                            <div>
-                                                <p class="font-medium text-charcoal">@activity.Message</p>
-                                                <p class="text-[10px] text-muted mt-0.5">@activity.Time.ToString("g")</p>
-                                            </div>
-                                        </div>
-                                    }
-                                }
-                            </div>
-                        </div>
-                    </section>
-                </div>
-            }
-            else
-            {
-                <!-- ========================================================================= -->
-                <!-- ========================== STUDENT PORTAL UI (LEVEL 3) ================== -->
-                <!-- ========================================================================= -->
-                
-                <!-- Welcome Banner -->
-                <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-6 md:p-8 shadow-bento mb-8 relative overflow-hidden">
-                    <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
-                    <div class="absolute right-20 -bottom-20 w-60 h-60 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
-                    
-                    <div class="relative z-10">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-semibold font-mono bg-white/10 text-white border border-white/20 uppercase tracking-widest">
-                            Sinh viên & Người tham gia
-                        </span>
-                        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight mt-4">Chào mừng trở lại, @userFullName!</h1>
-                        <p class="text-sm text-slate-300 mt-2 max-w-xl">
-                            Chào mừng bạn đến với Cổng thông tin sự kiện. Tại đây bạn có thể xem các sự kiện đang diễn ra, quản lý vé và đăng ký tham gia các hoạt động dễ dàng.
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Bento Grid Layout -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Left: Tickets & Recommended Events -->
-                    <div class="lg:col-span-2 space-y-6">
-                        <!-- Vé và Đăng ký của tôi -->
-                        <section class="bg-white border border-border rounded-2xl shadow-bento overflow-hidden flex flex-col">
-                            <div class="px-6 py-5 border-b border-border bg-white flex items-center justify-between">
-                                <div>
-                                    <h3 class="text-sm font-bold text-charcoal">Vé & Lịch đăng ký của bạn</h3>
-                                    <p class="text-xs text-muted mt-0.5">Danh sách các vé sự kiện bạn đã tham gia hoặc đăng ký.</p>
-                                </div>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold font-mono bg-paleBlue-bg text-paleBlue-text">
-                                    Đang hiệu lực
-                                </span>
-                            </div>
-                            
-                            <div class="p-6 divide-y divide-border/60">
-                                <!-- Vé 1 (Confirmed) -->
-                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
-                                    <div class="flex items-start gap-4">
-                                        <div class="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 border border-border text-charcoal">
-                                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-bold text-charcoal text-sm hover:underline"><a href="#">Hội thảo Khoa học Công nghệ 2026</a></h4>
-                                            <p class="text-xs text-muted mt-0.5">Bắt đầu: 08:00 - 25/06/2026 | Hội trường A</p>
-                                            <div class="flex items-center gap-2 mt-2">
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium font-mono bg-paleGreen-bg text-paleGreen-text border border-emerald-100/50">
-                                                    Đã xác nhận (Confirmed)
-                                                </span>
-                                                <span class="text-[10px] text-muted font-mono">Mã vé: EMS-8899-2244</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-3 shrink-0 self-end md:self-center">
-                                        <button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-charcoal bg-white border border-border rounded-lg hover:bg-canvas transition-colors shadow-sm">
-                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                            </svg>
-                                            Mã Check-in
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Vé 2 (Pending) -->
-                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4 last:pb-0">
-                                    <div class="flex items-start gap-4">
-                                        <div class="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 border border-border text-charcoal">
-                                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-bold text-charcoal text-sm hover:underline"><a href="#">Ngày hội Việc làm & Hướng nghiệp 2026</a></h4>
-                                            <p class="text-xs text-muted mt-0.5">Bắt đầu: 09:00 - 28/06/2026 | Sân trường trung tâm</p>
-                                            <div class="flex items-center gap-2 mt-2">
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium font-mono bg-paleYellow-bg text-paleYellow-text border border-amber-100/50">
-                                                    Chờ duyệt (Pending)
-                                                </span>
-                                                <span class="text-[10px] text-muted font-mono">Đang xếp hàng...</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-3 shrink-0 self-end md:self-center">
-                                        <button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 border border-transparent rounded-lg transition-colors">
-                                            Hủy đăng ký
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <!-- Sự kiện đề xuất -->
-                        <section class="bg-white border border-border rounded-2xl shadow-bento overflow-hidden flex flex-col">
-                            <div class="px-6 py-5 border-b border-border bg-white flex items-center justify-between">
-                                <div>
-                                    <h3 class="text-sm font-bold text-charcoal">Sự kiện đề xuất dành cho bạn</h3>
-                                    <p class="text-xs text-muted mt-0.5">Đăng ký tham gia ngay các hoạt động bổ ích tại phân hệ của bạn.</p>
-                                </div>
-                            </div>
-                            
-                            <div class="p-6">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <!-- Event 1 (Demo) -->
-                                    <div class="border border-border rounded-xl p-4 hover:border-charcoal/30 transition-all flex flex-col justify-between">
-                                        <div>
-                                            <span class="text-[9px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">Hội thảo</span>
-                                            <h4 class="font-bold text-charcoal text-sm mt-2">Workshop: Kỹ năng AI và tương lai nghề nghiệp</h4>
-                                            <p class="text-xs text-muted mt-1 line-clamp-2">Tìm hiểu các công cụ AI thế hệ mới và cách ứng dụng vào học tập và công việc thực tế.</p>
-                                        </div>
-                                        <div class="mt-4 pt-3 border-t border-canvas flex items-center justify-between text-xs">
-                                            <span class="text-muted font-mono">Bắt đầu: 30/06</span>
-                                            <button class="px-2.5 py-1 text-xs font-semibold text-white bg-charcoal rounded hover:bg-slate-800 transition-all active:scale-95 shadow-sm">
-                                                Đăng ký
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Event 2 (Demo) -->
-                                    <div class="border border-border rounded-xl p-4 hover:border-charcoal/30 transition-all flex flex-col justify-between">
-                                        <div>
-                                            <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Giải đấu</span>
-                                            <h4 class="font-bold text-charcoal text-sm mt-2">Giải Bóng đá Sinh viên Thường niên</h4>
-                                            <p class="text-xs text-muted mt-1 line-clamp-2">Sân chơi thể thao sôi động, giao lưu học hỏi giữa các khoa ban trong toàn trường.</p>
-                                        </div>
-                                        <div class="mt-4 pt-3 border-t border-canvas flex items-center justify-between text-xs">
-                                            <span class="text-muted font-mono">Bắt đầu: 02/07</span>
-                                            <button class="px-2.5 py-1 text-xs font-semibold text-white bg-charcoal rounded hover:bg-slate-800 transition-all active:scale-95 shadow-sm">
-                                                Đăng ký
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    <!-- Right: Personal Profile & Activity Log -->
-                    <div class="space-y-6">
-                        <!-- Profile Card -->
-                        <section class="bg-white border border-border rounded-2xl p-6 shadow-bento">
-                            <h3 class="text-sm font-bold text-charcoal pb-3 border-b border-border flex items-center gap-2">
-                                <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                                Hồ sơ cá nhân
-                            </h3>
-                            <div class="mt-4 space-y-4 text-xs">
-                                <div>
-                                    <span class="text-[10px] font-semibold text-muted uppercase tracking-wider block">Họ và tên</span>
-                                    <span class="text-sm font-bold text-charcoal mt-1 block">@userFullName</span>
-                                </div>
-                                <div>
-                                    <span class="text-[10px] font-semibold text-muted uppercase tracking-wider block">Mã số sinh viên (MSSV)</span>
-                                    <span class="text-sm font-semibold text-charcoal mt-1 block font-mono">@(userMssv ?? "Không có")</span>
-                                </div>
-                                <div>
-                                    <span class="text-[10px] font-semibold text-muted uppercase tracking-wider block">Email tài khoản</span>
-                                    <span class="text-sm font-semibold text-charcoal mt-1 block font-mono">@userEmail</span>
-                                </div>
-                                <div>
-                                    <span class="text-[10px] font-semibold text-muted uppercase tracking-wider block">Số điện thoại</span>
-                                    <span class="text-sm font-semibold text-charcoal mt-1 block font-mono">@(userPhone ?? "Chưa thiết lập")</span>
-                                </div>
-                                <div>
-                                    <span class="text-[10px] font-semibold text-muted uppercase tracking-wider block">Phân hệ tổ chức</span>
-                                    <span class="text-sm font-semibold text-charcoal mt-1 block">@(_tenantName ?? _subdomain?.ToUpper() ?? "EMS Mặc định")</span>
-                                </div>
-                            </div>
-                            <div class="mt-6 pt-4 border-t border-border">
-                                <button class="w-full py-2 px-3 text-xs font-semibold text-charcoal bg-canvas rounded-lg hover:bg-slate-100 transition-colors flex items-center justify-center gap-1.5 border border-border shadow-sm">
-                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h14a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                    Chỉnh sửa hồ sơ (Demo)
-                                </button>
-                            </div>
-                        </section>
-                        
-                        <!-- Activity Card -->
-                        <section class="bg-white border border-border rounded-2xl p-6 shadow-bento">
-                            <h3 class="text-sm font-bold text-charcoal pb-3 border-b border-border flex items-center gap-2">
-                                <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                                </svg>
-                                Hoạt động live
-                            </h3>
-                            <div class="mt-4 space-y-3.5">
-                                <div class="flex gap-3 text-xs">
-                                    <div class="h-2 w-2 rounded-full bg-emerald-500 mt-1.5 animate-pulse"></div>
-                                    <div>
-                                        <p class="font-medium text-charcoal">Đăng ký tham gia Hội thảo Khoa học thành công.</p>
-                                        <p class="text-[10px] text-muted mt-0.5">Vừa xong</p>
-                                    </div>
-                                </div>
-                                <div class="flex gap-3 text-xs">
-                                    <div class="h-2 w-2 rounded-full bg-slate-300 mt-1.5"></div>
-                                    <div>
-                                        <p class="font-medium text-muted">Đã tạo tài khoản thành công trên hệ thống EMS.</p>
-                                        <p class="text-[10px] text-muted/80 mt-0.5">10 phút trước</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-                </div>
-            }
-        }
-    </Authorized>
-</AuthorizeView>
+@if (isLoading)
+{
+    <div class="flex justify-center items-center py-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-charcoal"></div>
+    </div>
+}
 
 @code {
     [Inject]
     private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
 
     private bool isLoading = true;
-    private bool isAdminOrManager = false;
-
-    // User details
-    private string userFullName = "Sinh viên";
-    private string userEmail = "";
-    private string? userMssv = "21520123";
-    private string? userPhone = "0901 234 567";
-    private string? _subdomain = "default";
-    private string? _tenantName = "EMS Mặc định";
-
-    // Admin properties
-    private List<EventResponseDto> events = new();
-    private List<RegistrationResponseDto> allRegistrations = new();
-    private List<RegistrationResponseDto> pendingRegistrations = new();
-    private List<(string Message, DateTime Time)> recentActivities = new();
-
-    private int totalRegistrations = 0;
-    private int pendingApprovalsCount = 0;
-    private int checkedInCount = 0;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadContextDataAsync();
-    }
-
-    private async Task LoadContextDataAsync()
-    {
-        isLoading = true;
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -464,123 +28,48 @@
 
             if (user.Identity?.IsAuthenticated == true)
             {
-                if (user.IsInRole("superadmin") || user.IsInRole("SuperAdmin"))
+                if (user.IsInRole("superadmin"))
                 {
                     Navigation.NavigateTo("SuperAdmin/Dashboard");
                     return;
                 }
-                if (user.IsInRole("admin") || user.IsInRole("Admin"))
+                if (user.IsInRole("admin"))
                 {
                     Navigation.NavigateTo("Admin/Dashboard");
                     return;
                 }
-                if (user.IsInRole("manager") || user.IsInRole("Manager") || user.IsInRole("organizer"))
+                if (user.IsInRole("manager"))
                 {
                     Navigation.NavigateTo("Organizer/Dashboard");
                     return;
                 }
-
-                // Redirect Level 4 (student/employee) user to the MVC Student Portal
-                var currentUri = new Uri(Navigation.Uri);
-                string studentPortalUrl;
-                if (currentUri.Host.Contains("localhost"))
+                if (user.IsInRole("employee"))
                 {
-                    studentPortalUrl = $"https://{currentUri.Host}:7032";
-                }
-                else
-                {
-                    // Production redirect (stripping admin subdomain)
-                    if (currentUri.Host.StartsWith("admin.", StringComparison.OrdinalIgnoreCase))
+                    var currentUri = new Uri(Navigation.Uri);
+                    string studentPortalUrl = $"{currentUri.Scheme}://{currentUri.Host}";
+                    if (currentUri.Port != 80 && currentUri.Port != 443)
                     {
-                        studentPortalUrl = $"https://{currentUri.Host.Substring(6)}";
+                        studentPortalUrl += $":{currentUri.Port}";
                     }
-                    else if (currentUri.Host.Contains(".admin."))
-                    {
-                        studentPortalUrl = $"https://{currentUri.Host.Replace(".admin.", ".")}";
-                    }
-                    else
-                    {
-                        studentPortalUrl = $"https://{currentUri.Host}";
-                    }
-                }
 
-                var token = await AuthService.GetCurrentTokenAsync();
-                if (!string.IsNullOrEmpty(token))
-                {
-                    studentPortalUrl += $"?token={Uri.EscapeDataString(token)}";
-                }
+                    var token = await AuthService.GetCurrentTokenAsync();
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        studentPortalUrl += $"?token={Uri.EscapeDataString(token)}";
+                    }
 
-                Navigation.NavigateTo(studentPortalUrl, forceLoad: true);
-                return;
+                    Navigation.NavigateTo(studentPortalUrl, forceLoad: true);
+                    return;
+                }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error initializing: {ex.Message}");
+            Console.WriteLine($"Error in redirect: {ex.Message}");
         }
         finally
         {
             isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task LoadAdminDataAsync()
-    {
-        try
-        {
-            events = await EventService.GetEventsAsync() ?? new List<EventResponseDto>();
-            allRegistrations.Clear();
-            recentActivities.Clear();
-
-            // Fetch registrations for each event
-            foreach (var evt in events)
-            {
-                var regs = await RegistrationService.GetEventRegistrationsAsync(evt.Id);
-                if (regs != null)
-                {
-                    allRegistrations.AddRange(regs);
-                }
-            }
-
-            totalRegistrations = allRegistrations.Count;
-            pendingRegistrations = allRegistrations.Where(r => r.Status == (int)RegistrationStatus.Pending).ToList();
-            pendingApprovalsCount = pendingRegistrations.Count;
-            checkedInCount = allRegistrations.Count(r => r.CheckedIn);
-
-            // Mock some recent activities based on registrations
-            var latestRegs = allRegistrations.OrderByDescending(r => r.CreatedAt).Take(5);
-            foreach(var r in latestRegs)
-            {
-                var evtName = events.FirstOrDefault(e => e.Id == r.EventId)?.Title ?? "Sự kiện";
-                recentActivities.Add(($"Đăng ký mới: {r.UserFullName} tham gia {evtName}", r.CreatedAt));
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading admin dashboard data: {ex.Message}");
-        }
-    }
-
-    private bool IsAdminOrManager(ClaimsPrincipal user) =>
-        user.IsInRole("admin") || user.IsInRole("manager") ||
-        user.IsInRole("Admin") || user.IsInRole("Manager");
-
-    private async Task HandleApprove(string id)
-    {
-        var success = await RegistrationService.ApproveRegistrationAsync(id);
-        if (success)
-        {
-            await LoadAdminDataAsync();
-        }
-    }
-
-    private async Task HandleReject(string id)
-    {
-        var success = await RegistrationService.RejectRegistrationAsync(id, "Bị từ chối bởi Ban tổ chức");
-        if (success)
-        {
-            await LoadAdminDataAsync();
         }
     }
 }

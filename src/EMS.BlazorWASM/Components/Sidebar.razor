@@ -247,9 +247,9 @@
 
         if (user.Identity != null && user.Identity.IsAuthenticated)
         {
-            IsSuperAdmin = user.IsInRole("superadmin") || user.IsInRole("SuperAdmin");
-            IsTenantAdmin = user.IsInRole("admin") || user.IsInRole("Admin");
-            IsOrganizer = user.IsInRole("manager") || user.IsInRole("Manager");
+            IsSuperAdmin = user.IsInRole("superadmin");
+            IsTenantAdmin = user.IsInRole("admin");
+            IsOrganizer = user.IsInRole("manager");
         }
     }
 

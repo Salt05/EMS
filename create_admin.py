@@ -61,7 +61,7 @@ if len(docs) > 0:
     print("[EMS] Document user da ton tai trong Firestore. Dang cap nhat quyen & tenant...")
     user_id = docs[0].id
     db.collection("users").document(user_id).update({
-        "roleIds": ["admin", "organizer", "manager"],
+        "roleIds": ["superadmin", "admin", "manager"],
         "tenantId": tenant_id
     })
     print("[EMS] Da cap nhat quyen thanh cong!")
@@ -76,7 +76,7 @@ else:
         "mssv": "ADMIN001",
         "department": "Ban Quan Tri",
         "tenantId": tenant_id,
-        "roleIds": ["admin", "organizer", "manager"],
+        "roleIds": ["superadmin", "admin", "manager"],
         "status": 1,
         "createdAt": firestore.SERVER_TIMESTAMP,
         "updatedAt": firestore.SERVER_TIMESTAMP
@@ -88,6 +88,6 @@ print("\n=========================================")
 print(f"TAI KHOAN ADMIN DA SAN SANG")
 print(f"Email:    {email}")
 print(f"Password: {password}")
-print(f"Quyen:    admin, organizer, manager")
+print(f"Quyen:    superadmin, admin, manager")
 print(f"Tenant:   {tenant_id} (subdomain: default)")
 print("=========================================\n")

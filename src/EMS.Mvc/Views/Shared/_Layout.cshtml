@@ -14,6 +14,23 @@
         }
     }
     string tenantName = Context.Items["TenantName"]?.ToString() ?? "EMS";
+
+    // Dynamic Blazor WASM SSO links
+    var currentUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}";
+    string ssoLoginUrl;
+    string ssoRegisterUrl;
+    
+    if (Context.Request.Host.Host.Contains("localhost"))
+    {
+        ssoLoginUrl = $"https://localhost:7115/login?returnUrl={System.Net.WebUtility.UrlEncode(currentUrl)}";
+        ssoRegisterUrl = $"https://localhost:7115/register?returnUrl={System.Net.WebUtility.UrlEncode(currentUrl)}";
+    }
+    else
+    {
+        var host = Context.Request.Host.Host;
+        ssoLoginUrl = $"https://admin.{host}/login?returnUrl={System.Net.WebUtility.UrlEncode(currentUrl)}";
+        ssoRegisterUrl = $"https://admin.{host}/register?returnUrl={System.Net.WebUtility.UrlEncode(currentUrl)}";
+    }
 }
 
 <!DOCTYPE html>
@@ -93,12 +110,12 @@
                         else
                         {
                             <li class="nav-item me-md-2 mb-2 mb-md-0">
-                                <a class="nav-link px-3" asp-controller="Auth" asp-action="Login">
+                                <a class="nav-link px-3" href="@ssoLoginUrl">
                                     <i class="bi bi-box-arrow-in-right me-1"></i> Đăng nhập
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="btn btn-sm btn-premium px-3 py-2" asp-controller="Auth" asp-action="Register">
+                                <a class="btn btn-sm btn-premium px-3 py-2" href="@ssoRegisterUrl">
                                     <i class="bi bi-person-plus me-1"></i> Đăng ký
                                 </a>
                             </li>

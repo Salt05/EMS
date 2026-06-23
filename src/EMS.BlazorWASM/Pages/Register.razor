@@ -43,11 +43,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                 </div>
-                <h3 class="text-lg font-bold text-charcoal mb-1">Đăng ký thành công!</h3>
-                <p class="text-xs text-muted">Hệ thống đang chuyển hướng về trang đăng nhập sau vài giây...</p>
-                <div class="mt-6 flex justify-center">
-                    <div class="h-5 w-5 animate-spin rounded-full border-2 border-charcoal/20 border-t-charcoal"></div>
-                </div>
+                <h3 class="text-lg font-bold text-charcoal mb-2">Đăng ký thành công!</h3>
+                <p class="text-sm text-muted mb-6">Tài khoản của bạn đã được tạo và đang chờ Quản trị viên xét duyệt. Bạn sẽ có thể đăng nhập sau khi được cấp quyền.</p>
+                
+                <a href="@(string.IsNullOrEmpty(_returnUrl) ? "/login" : $"/login?returnUrl={Uri.EscapeDataString(_returnUrl)}")" class="w-full py-2.5 px-4 text-sm font-semibold text-white bg-charcoal rounded-lg hover:bg-slate-800 transition-all duration-150 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2">
+                    Đi tới trang Đăng nhập
+                </a>
             </div>
         }
         else
@@ -173,6 +174,36 @@
                     <ValidationMessage For="@(() => _registerModel.PhoneNumber)" class="text-[11px] text-red-500 mt-0.5 block" />
                 </div>
 
+                @if (_subdomain == "default")
+                {
+                    <!-- Chọn Trường / Tổ chức -->
+                    <div class="space-y-1">
+                        <label for="tenantId" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Trường đại học / Tổ chức <span class="text-red-500">*</span></label>
+                        <div class="relative flex items-center">
+                            <span class="absolute left-3 text-muted/60 pointer-events-none">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </span>
+                            <InputSelect id="tenantId"
+                                         @bind-Value="_registerModel.TenantId"
+                                         class="w-full pl-10 pr-8 py-2 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all shadow-sm appearance-none"
+                                         disabled="@_isLoading">
+                                <option value="">-- Chọn Trường / Tổ chức --</option>
+                                @foreach (var tenant in _tenants)
+                                {
+                                    <option value="@tenant.Id">@tenant.Name</option>
+                                }
+                            </InputSelect>
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted/60">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                }
+
                 <!-- Nút Đăng ký -->
                 <button type="submit" class="w-full mt-4 py-2.5 px-4 text-sm font-semibold text-white bg-charcoal rounded-lg hover:bg-slate-800 transition-all duration-150 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed" disabled="@_isLoading">
                     @if (_isLoading)
@@ -192,7 +223,7 @@
         <div class="mt-6 pt-6 border-t border-border text-center text-xs text-muted flex flex-col gap-3">
             <p>
                 Đã có tài khoản? 
-                <a href="/login" class="font-semibold text-charcoal hover:underline transition-colors">Đăng nhập</a>
+                <a href="@(string.IsNullOrEmpty(_returnUrl) ? "/login" : $"/login?returnUrl={Uri.EscapeDataString(_returnUrl)}")" class="font-semibold text-charcoal hover:underline transition-colors">Đăng nhập</a>
             </p>
             <p class="text-[10px] text-muted/60">© 2026 EMS — Event Management System</p>
         </div>
@@ -205,22 +236,29 @@
     private bool _isLoading;
     private bool _showPassword;
     private bool _isSuccess;
+    private string? _returnUrl;
 
     private string? _subdomain;
     private string? _tenantName;
+    private List<EMS.Shared.DTOs.TenantDTO> _tenants = new();
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             var uri = new Uri(Navigation.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            _returnUrl = query["returnUrl"];
+
+            var tenants = await TenantService.GetTenantsAsync();
+            _tenants = tenants.ToList();
+
             var host = uri.Host;
             var parts = host.Split('.');
             if (parts.Length >= 2 && parts[0] != "localhost" && parts[0] != "ems")
             {
                 _subdomain = parts[0];
-                var tenants = await TenantService.GetTenantsAsync();
-                var tenant = tenants.FirstOrDefault(t => t.Subdomain.Equals(_subdomain, StringComparison.OrdinalIgnoreCase));
+                var tenant = _tenants.FirstOrDefault(t => t.Subdomain.Equals(_subdomain, StringComparison.OrdinalIgnoreCase));
                 if (tenant != null)
                 {
                     _tenantName = tenant.Name;
@@ -248,11 +286,9 @@
 
             if (success)
             {
-                Logger.LogInformation("User registration successful, preparing redirect");
+                Logger.LogInformation("User registration successful, waiting for user to click login");
                 _isSuccess = true;
                 StateHasChanged();
-                await Task.Delay(2000);
-                Navigation.NavigateTo("/login", forceLoad: false);
             }
             else
             {

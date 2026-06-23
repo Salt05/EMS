@@ -4,6 +4,7 @@
 @inject ITenantServiceClient TenantService
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Đăng nhập — EMS</PageTitle>
 
@@ -121,7 +122,7 @@
         <div class="mt-6 pt-6 border-t border-border text-center text-xs text-muted flex flex-col gap-3">
             <p>
                 Chưa có tài khoản? 
-                <a href="/register" class="font-semibold text-charcoal hover:underline transition-colors">Đăng ký ngay</a>
+                <a href="@(string.IsNullOrEmpty(_returnUrl) ? "/register" : $"/register?returnUrl={Uri.EscapeDataString(_returnUrl)}")" class="font-semibold text-charcoal hover:underline transition-colors">Đăng ký ngay</a>
             </p>
             <p class="text-[10px] text-muted/60">© 2026 EMS — Event Management System</p>
         </div>
@@ -133,6 +134,7 @@
     private string? _errorMessage;
     private bool _isLoading;
     private bool _showPassword;
+    private string? _returnUrl;
 
     private string? _subdomain;
     private string? _tenantName;
@@ -142,6 +144,9 @@
         try
         {
             var uri = new Uri(Navigation.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            _returnUrl = query["returnUrl"];
+
             var host = uri.Host;
             var parts = host.Split('.');
             if (parts.Length >= 2 && parts[0] != "localhost" && parts[0] != "ems")
@@ -178,16 +183,65 @@
                 return;
             }
 
-            var response = await AuthService.LoginAsync(_loginModel);
+            var result = await AuthService.LoginAsync(_loginModel);
 
-            if (response != null && !string.IsNullOrEmpty(response.AccessToken))
+            if (result.Response != null && !string.IsNullOrEmpty(result.Response.AccessToken))
             {
-                Logger.LogInformation("Login successful, navigating to dashboard");
-                Navigation.NavigateTo("/", forceLoad: false);
+                Logger.LogInformation("Login successful, determining redirect target by role");
+
+                // Always check role FIRST to route admin users to Blazor dashboards,
+                // preventing MVC HomeController from intercepting the root URL.
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+
+                if (user.IsInRole("superadmin"))
+                {
+                    Navigation.NavigateTo("/SuperAdmin/Dashboard", forceLoad: false);
+                }
+                else if (user.IsInRole("admin"))
+                {
+                    Navigation.NavigateTo("/Admin/Dashboard", forceLoad: false);
+                }
+                else if (user.IsInRole("manager"))
+                {
+                    Navigation.NavigateTo("/Organizer/Dashboard", forceLoad: false);
+                }
+                else if (user.IsInRole("employee"))
+                {
+                    // Redirect to MVC Student Portal (with returnUrl or default)
+                    var currentUri = new Uri(Navigation.Uri);
+                    string studentPortalUrl = !string.IsNullOrEmpty(_returnUrl)
+                        ? _returnUrl
+                        : $"{currentUri.Scheme}://{currentUri.Host}" + (currentUri.Port != 80 && currentUri.Port != 443 ? $":{currentUri.Port}" : "");
+
+                    if (studentPortalUrl.Contains("?"))
+                        studentPortalUrl += $"&token={Uri.EscapeDataString(result.Response.AccessToken)}";
+                    else
+                        studentPortalUrl += $"?token={Uri.EscapeDataString(result.Response.AccessToken)}";
+
+                    Navigation.NavigateTo(studentPortalUrl, forceLoad: true);
+                }
+                else
+                {
+                    // Unknown role — use returnUrl if available, otherwise go to root
+                    if (!string.IsNullOrEmpty(_returnUrl))
+                    {
+                        var redirectUrl = _returnUrl;
+                        if (redirectUrl.Contains("?"))
+                            redirectUrl += $"&token={Uri.EscapeDataString(result.Response.AccessToken)}";
+                        else
+                            redirectUrl += $"?token={Uri.EscapeDataString(result.Response.AccessToken)}";
+                        Navigation.NavigateTo(redirectUrl, forceLoad: true);
+                    }
+                    else
+                    {
+                        Navigation.NavigateTo("/", forceLoad: false);
+                    }
+                }
             }
             else
             {
-                _errorMessage = "Email hoặc mật khẩu không đúng. Vui lòng thử lại.";
+                _errorMessage = result.ErrorMessage ?? "Email hoặc mật khẩu không đúng. Vui lòng thử lại.";
             }
         }
         catch (Exception ex)

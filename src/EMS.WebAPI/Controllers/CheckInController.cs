@@ -116,8 +116,7 @@ public class CheckInController : ControllerBase
     private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
     private bool IsAdminOrManager() =>
-        User.IsInRole("admin") || User.IsInRole("manager") ||
-        User.IsInRole("Admin") || User.IsInRole("Manager");
+        User.IsInRole("admin") || User.IsInRole("manager");
 
     private bool CanManageEvent(Event ev) => ev.OrganizerId == GetUserId() || IsAdminOrManager();
 

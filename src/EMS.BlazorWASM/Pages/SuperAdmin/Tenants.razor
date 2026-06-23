@@ -1,5 +1,5 @@
 @page "/SuperAdmin/Tenants"
-@attribute [Authorize(Roles = "superadmin,SuperAdmin")]
+@attribute [Authorize(Roles = "superadmin")]
 @inject ISuperAdminServiceClient SuperAdminService
 @inject ToastService ToastService
 @using EMS.Shared.DTOs

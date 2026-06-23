@@ -19,4 +19,6 @@ public class RegisterRequest
 
     [Phone(ErrorMessage = "Số điện thoại không hợp lệ.")]
     public string? PhoneNumber { get; set; }
+
+    public string? TenantId { get; set; }
 }

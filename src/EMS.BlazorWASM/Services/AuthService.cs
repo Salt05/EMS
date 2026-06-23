@@ -32,7 +32,7 @@ public class AuthService : IAuthService
     /// Đăng nhập bằng email và password.
     /// Gọi WebAPI POST /api/auth/login, lưu token nếu thành công.
     /// </summary>
-    public async Task<LoginResponse?> LoginAsync(LoginRequest request)
+    public async Task<(LoginResponse? Response, string? ErrorMessage)> LoginAsync(LoginRequest request)
     {
         try
         {
@@ -40,8 +40,9 @@ public class AuthService : IAuthService
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning("Login failed with status code: {StatusCode}", response.StatusCode);
-                return null;
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Login failed with status code: {StatusCode}, Error: {Error}", response.StatusCode, errorContent);
+                return (null, string.IsNullOrWhiteSpace(errorContent) ? "Email hoặc mật khẩu không đúng." : errorContent);
             }
 
             var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
@@ -53,12 +54,12 @@ public class AuthService : IAuthService
                 _logger.LogInformation("User {Email} logged in successfully", loginResponse.Email);
             }
 
-            return loginResponse;
+            return (loginResponse, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Login error for {Email}", request.Email);
-            return null;
+            return (null, "Đã xảy ra lỗi kết nối với máy chủ.");
         }
     }
 

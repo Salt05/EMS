@@ -1,5 +1,5 @@
 @page "/admin/users"
-@attribute [Authorize(Roles = "admin,superadmin,Admin,SuperAdmin")]
+@attribute [Authorize(Roles = "admin,superadmin")]
 @inject IAdminUserServiceClient AdminUserService
 @inject ITenantServiceClient TenantService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -336,7 +336,7 @@
         var user = authState.User;
         currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
         currentTenantId = user.FindFirst("tenantId")?.Value ?? string.Empty;
-        isSuperAdmin = user.IsInRole("superadmin") || user.IsInRole("SuperAdmin");
+        isSuperAdmin = user.IsInRole("superadmin");
     }
 
     private async Task LoadTenants()

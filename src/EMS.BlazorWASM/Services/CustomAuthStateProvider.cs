@@ -51,7 +51,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
                 }
             }
 
-            var identity = new ClaimsIdentity(claims, "jwt");
+            var identity = new ClaimsIdentity(claims, "jwt", "unique_name", "role");
             var user = new ClaimsPrincipal(identity);
             return new AuthenticationState(user);
         }
@@ -69,7 +69,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         await _localStorage.SetItemAsStringAsync(TokenKey, token);
 
         var claims = ParseClaimsFromJwt(token);
-        var identity = new ClaimsIdentity(claims, "jwt");
+        var identity = new ClaimsIdentity(claims, "jwt", "unique_name", "role");
         var user = new ClaimsPrincipal(identity);
 
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
@@ -105,7 +105,18 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             if (keyValuePairs == null) return claims;
 
             // Extract roles
-            if (keyValuePairs.TryGetValue(ClaimTypes.Role, out var roles))
+            object? roles = null;
+            string foundKey = "";
+            if (keyValuePairs.TryGetValue("role", out roles))
+            {
+                foundKey = "role";
+            }
+            else if (keyValuePairs.TryGetValue(ClaimTypes.Role, out roles))
+            {
+                foundKey = ClaimTypes.Role;
+            }
+
+            if (roles != null)
             {
                 if (roles is JsonElement rolesElement)
                 {
@@ -113,15 +124,19 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
                     {
                         foreach (var role in rolesElement.EnumerateArray())
                         {
-                            claims.Add(new Claim(ClaimTypes.Role, role.GetString() ?? string.Empty));
+                            var roleVal = role.GetString() ?? string.Empty;
+                            claims.Add(new Claim(ClaimTypes.Role, roleVal));
+                            claims.Add(new Claim("role", roleVal));
                         }
                     }
                     else
                     {
-                        claims.Add(new Claim(ClaimTypes.Role, rolesElement.GetString() ?? string.Empty));
+                        var roleVal = rolesElement.GetString() ?? string.Empty;
+                        claims.Add(new Claim(ClaimTypes.Role, roleVal));
+                        claims.Add(new Claim("role", roleVal));
                     }
                 }
-                keyValuePairs.Remove(ClaimTypes.Role);
+                keyValuePairs.Remove(foundKey);
             }
 
             // Add remaining claims

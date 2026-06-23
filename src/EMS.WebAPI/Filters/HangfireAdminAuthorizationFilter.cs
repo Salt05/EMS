@@ -16,7 +16,6 @@ public class HangfireAdminAuthorizationFilter : IDashboardAuthorizationFilter
         if (user?.Identity == null || !user.Identity.IsAuthenticated)
             return false;
 
-        return user.IsInRole("admin") || user.IsInRole("Admin")
-            || user.IsInRole("manager") || user.IsInRole("Manager");
+        return user.IsInRole("superadmin") || user.IsInRole("admin") || user.IsInRole("manager");
     }
 }

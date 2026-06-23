@@ -62,6 +62,27 @@ public class FirestoreUserService : IUserService
         }
     }
 
+    public async Task<User?> GetUserByEmailGlobalAsync(string email)
+    {
+        try
+        {
+            var query = _firestoreDb
+                .Collection(UsersCollection)
+                .WhereEqualTo("email", email);
+
+            var snapshot = await query.GetSnapshotAsync();
+
+            if (snapshot.Documents.Count == 0) return null;
+
+            return MapToUser(snapshot.Documents[0]);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error getting user globally by email {email}: {ex.Message}");
+            return null;
+        }
+    }
+
     public async Task<User?> CreateUserAsync(User user)
     {
         try

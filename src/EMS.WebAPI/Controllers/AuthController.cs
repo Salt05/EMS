@@ -47,10 +47,24 @@ public class AuthController : ControllerBase
             var subdomain = HttpContext.Items["Subdomain"]?.ToString();
             if (string.IsNullOrEmpty(subdomain))
             {
-                return BadRequest("Invalid tenant");
+                return BadRequest("Invalid tenant context");
             }
 
-            var tenant = await _tenantService.GetTenantBySubdomainAsync(subdomain);
+            Tenant? tenant = null;
+
+            if (subdomain == "default")
+            {
+                if (string.IsNullOrEmpty(request.TenantId))
+                {
+                    return BadRequest("Vui lòng chọn trường đại học/tổ chức.");
+                }
+                tenant = await _tenantService.GetTenantByIdAsync(request.TenantId);
+            }
+            else
+            {
+                tenant = await _tenantService.GetTenantBySubdomainAsync(subdomain);
+            }
+
             if (tenant == null)
             {
                 return NotFound("Tenant not found");
@@ -80,7 +94,8 @@ public class AuthController : ControllerBase
                 MSSV = request.MSSV,
                 PhoneNumber = request.PhoneNumber,
                 TenantId = tenant.Id,
-                RoleIds = new List<string> { "employee" } // Default role
+                RoleIds = new List<string> { "employee" }, // Default role
+                Status = EMS.Core.Entities.Enums.UserStatus.Pending // Chờ xét duyệt
             };
 
             var createdUser = await _userService.CreateUserAsync(user);
@@ -89,8 +104,8 @@ public class AuthController : ControllerBase
                 return BadRequest("Failed to create user");
             }
 
-            _logger.LogInformation($"User registered successfully: {request.Email}");
-            return Ok(new { message = "Registration successful", userId = createdUser.Id });
+            _logger.LogInformation($"User registered successfully (Pending): {request.Email}");
+            return Ok(new { message = "Registration successful, pending approval", userId = createdUser.Id });
         }
         catch (Exception ex)
         {
@@ -132,13 +147,31 @@ public class AuthController : ControllerBase
             }
 
             // Get user from Firestore
-            var user = await _userService.GetUserByEmailAsync(request.Email, tenant.Id);
-            if (user == null)
+            User? user = null;
+            if (subdomain == "default")
+            {
+                user = await _userService.GetUserByEmailGlobalAsync(request.Email);
+                if (user != null)
+                {
+                    tenant = await _tenantService.GetTenantByIdAsync(user.TenantId);
+                }
+            }
+            else
+            {
+                user = await _userService.GetUserByEmailAsync(request.Email, tenant.Id);
+            }
+
+            if (user == null || tenant == null)
             {
                 return NotFound("User not found");
             }
 
-            // Block login if user is Inactive or Suspended
+            // Block login if user is Pending, Inactive or Suspended
+            if (user.Status == EMS.Core.Entities.Enums.UserStatus.Pending)
+            {
+                _logger.LogWarning($"Login blocked for pending user: {request.Email}");
+                return Unauthorized("Tài khoản của bạn đang chờ xét duyệt.");
+            }
             if (user.Status != EMS.Core.Entities.Enums.UserStatus.Active)
             {
                 _logger.LogWarning($"Login blocked for inactive user: {request.Email} (Status: {user.Status})");
