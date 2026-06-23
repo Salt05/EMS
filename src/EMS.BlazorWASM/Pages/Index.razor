@@ -4,6 +4,7 @@
 @inject EMS.BlazorWASM.Services.IRegistrationServiceClient RegistrationService
 @inject EMS.BlazorWASM.Services.ITenantServiceClient TenantService
 @inject NavigationManager Navigation
+@inject EMS.BlazorWASM.Services.IAuthService AuthService
 @using EMS.Shared.DTOs.Events
 @using EMS.Shared.DTOs.Registrations
 @using EMS.BlazorWASM.Services
@@ -501,6 +502,12 @@
                     {
                         studentPortalUrl = $"https://{currentUri.Host}";
                     }
+                }
+
+                var token = await AuthService.GetCurrentTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    studentPortalUrl += $"?token={Uri.EscapeDataString(token)}";
                 }
 
                 Navigation.NavigateTo(studentPortalUrl, forceLoad: true);

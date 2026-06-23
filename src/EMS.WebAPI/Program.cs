@@ -57,6 +57,10 @@ if (useEmulator && builder.Environment.IsDevelopment())
 }
 else
 {
+    // Clear emulator env vars if set by launchSettings.json so we connect to the cloud Firebase project
+    Environment.SetEnvironmentVariable("FIRESTORE_EMULATOR_HOST", null);
+    Environment.SetEnvironmentVariable("FIREBASE_AUTH_EMULATOR_HOST", null);
+
     var firebaseKeyFilePath = Path.Combine(builder.Environment.ContentRootPath, "firebase-key.json");
     if (File.Exists(firebaseKeyFilePath))
     {
