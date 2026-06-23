@@ -28,7 +28,9 @@ builder.Host.UseSerilog();
 var projectId = builder.Configuration["Firebase:ProjectId"] ?? "ems-project";
 FirestoreDb firestoreDb;
 
-if (builder.Environment.IsDevelopment())
+var useEmulator = builder.Configuration.GetValue<bool>("Firebase:UseEmulator", false);
+
+if (useEmulator && builder.Environment.IsDevelopment())
 {
     // Force emulator hosts in development code-level fallback
     if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FIRESTORE_EMULATOR_HOST")))

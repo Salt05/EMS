@@ -24,7 +24,9 @@ else
     var projectId = builder.Configuration["Firebase:ProjectId"] ?? "digiems-5ef8a";
     FirestoreDb firestoreDb;
 
-    if (builder.Environment.IsDevelopment())
+    var useEmulator = builder.Configuration.GetValue<bool>("Firebase:UseEmulator", false);
+
+    if (useEmulator && builder.Environment.IsDevelopment())
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FIRESTORE_EMULATOR_HOST")))
         {

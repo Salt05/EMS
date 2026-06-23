@@ -14,28 +14,28 @@ db = firestore.client()
 email = "admin@ems.com"
 password = "AdminPassword123!"
 
-print(f"⏳ Đang thiết lập dữ liệu hệ thống...")
+print(f"[EMS] Dang thiet lap du lieu he thong...")
 
 # 1. Đảm bảo Tenant mặc định tồn tại
 tenant_docs = db.collection("tenants").where("subdomain", "==", "default").get()
 tenant_id = "default-tenant"
 if len(tenant_docs) == 0:
-    print("⏳ Đang tạo Default Tenant...")
+    print("[EMS] Dang tao Default Tenant...")
     db.collection("tenants").document(tenant_id).set({
         "id": tenant_id,
-        "name": "Hệ thống Mặc định (Local)",
+        "name": "He thong Mac dinh (Local)",
         "subdomain": "default",
         "email": "contact@ems.com",
         "isActive": True,
         "createdAt": firestore.SERVER_TIMESTAMP,
         "updatedAt": firestore.SERVER_TIMESTAMP
     })
-    print("✅ Đã tạo Default Tenant!")
+    print("[EMS] Da tao Default Tenant!")
 else:
     tenant_id = tenant_docs[0].id
-    print("✅ Default Tenant đã tồn tại!")
+    print("[EMS] Default Tenant da ton tai!")
 
-print(f"\n⏳ Đang tạo tài khoản admin: {email}...")
+print(f"\n[EMS] Dang tao tai khoan admin: {email}...")
 
 # 2. Tạo User trong Firebase Auth
 try:
@@ -45,26 +45,26 @@ try:
         password=password,
         display_name="System Admin",
         disabled=False)
-    print(f"✅ Đã tạo Firebase Auth User UID: {user_record.uid}")
+    print(f"[EMS] Da tao Firebase Auth User UID: {user_record.uid}")
     uid = user_record.uid
 except auth.EmailAlreadyExistsError:
-    print(f"⚠️ Email {email} đã tồn tại trong Firebase Auth. Đang lấy UID...")
+    print(f"[EMS] Email {email} da ton tai trong Firebase Auth. Dang lay UID...")
     user_record = auth.get_user_by_email(email)
     uid = user_record.uid
 except Exception as e:
-    print(f"❌ Lỗi Firebase Auth: {e}")
+    print(f"[EMS] Loi Firebase Auth: {e}")
     sys.exit(1)
 
 # 3. Tạo/Cập nhật Document trong Firestore
 docs = db.collection("users").where("email", "==", email).get()
 if len(docs) > 0:
-    print("⚠️ Document user đã tồn tại trong Firestore. Đang cập nhật quyền & tenant...")
+    print("[EMS] Document user da ton tai trong Firestore. Dang cap nhat quyen & tenant...")
     user_id = docs[0].id
     db.collection("users").document(user_id).update({
         "roleIds": ["admin", "organizer", "manager"],
         "tenantId": tenant_id
     })
-    print("✅ Đã cập nhật quyền thành công!")
+    print("[EMS] Da cap nhat quyen thanh cong!")
 else:
     user_id = str(uuid.uuid4())
     user_doc = {
@@ -74,7 +74,7 @@ else:
         "fullName": "System Admin",
         "phoneNumber": "0123456789",
         "mssv": "ADMIN001",
-        "department": "Ban Quản Trị",
+        "department": "Ban Quan Tri",
         "tenantId": tenant_id,
         "roleIds": ["admin", "organizer", "manager"],
         "status": 1,
@@ -82,12 +82,12 @@ else:
         "updatedAt": firestore.SERVER_TIMESTAMP
     }
     db.collection("users").document(user_id).set(user_doc)
-    print(f"✅ Đã tạo Document User mới trong Firestore với ID: {user_id}")
+    print(f"[EMS] Da tao Document User moi trong Firestore voi ID: {user_id}")
 
 print("\n=========================================")
-print(f"🎉 TÀI KHOẢN ADMIN ĐÃ SẴN SÀNG")
-print(f"👉 Email:    {email}")
-print(f"👉 Password: {password}")
-print(f"👉 Quyền:    admin, organizer, manager")
-print(f"👉 Tenant:   {tenant_id} (subdomain: default)")
+print(f"TAI KHOAN ADMIN DA SAN SANG")
+print(f"Email:    {email}")
+print(f"Password: {password}")
+print(f"Quyen:    admin, organizer, manager")
+print(f"Tenant:   {tenant_id} (subdomain: default)")
 print("=========================================\n")
