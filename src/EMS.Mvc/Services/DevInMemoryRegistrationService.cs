@@ -33,13 +33,52 @@ public class DevInMemoryRegistrationService : IRegistrationService
         return Task.FromResult(result);
     }
 
-    public Task<List<Registration>> GetRegistrationsByEventAsync(string eventId, string tenantId)
+    public Task<List<Registration>> GetRegistrationsByEventAsync(string eventId, string tenantId, RegistrationStatus? status = null)
     {
         var result = Registrations
-            .Where(r => r.EventId == eventId && r.TenantId == tenantId)
+            .Where(r => r.EventId == eventId && r.TenantId == tenantId && (!status.HasValue || r.Status == status.Value))
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
         return Task.FromResult(result);
+    }
+
+    public Task<List<Registration>> GetRegistrationsByUserAsync(string userId, string tenantId)
+    {
+        var result = Registrations
+            .Where(r => r.UserId == userId && r.TenantId == tenantId)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task<(Registration? Registration, string? Error)> RegisterAsync(string eventId, string tenantId, string userId, string? note)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> CancelAsync(string registrationId, string tenantId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> ApproveAsync(string registrationId, string tenantId, string processedById)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<bool> RejectAsync(string registrationId, string tenantId, string processedById, string reason)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<(Registration? Registration, string? Error)> GenerateCheckInCodeAsync(string eventId, string tenantId, string userId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<(Registration? Registration, string? Error)> ValidateCheckInAsync(string code, string tenantId, string requesterUserId, bool requesterIsAdminOrManager)
+    {
+        throw new NotImplementedException();
     }
 
     public async Task<Registration?> RegisterForEventAsync(string tenantId, string eventId, string studentEmail, string studentName)
