@@ -18,6 +18,8 @@ public class EventResponseDto
     public string? ApprovedById { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? RejectionReason { get; set; }
+    public string? CheckInCode { get; set; }
+    public DateTime? CheckInCodeExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

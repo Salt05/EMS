@@ -1,0 +1,119 @@
+@typeparam TItem
+
+<div class="bg-white border border-border rounded-xl shadow-bento overflow-hidden">
+    <!-- Top Filter Bar -->
+    @if (ShowSearch || CustomFilter != null)
+    {
+        <div class="p-5 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white">
+            <div class="relative flex-1 max-w-md">
+                @if (ShowSearch)
+                {
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </span>
+                    <input type="text" class="block w-full pl-10 pr-3 py-1.5 border border-border rounded-md text-sm bg-canvas placeholder-muted focus:outline-none focus:ring-1 focus:ring-charcoal focus:border-charcoal transition-all" 
+                           placeholder="@SearchPlaceholder" @value="SearchQuery" @onchange="OnSearchInput" />
+                }
+            </div>
+            <div class="flex items-center gap-3">
+                @CustomFilter
+            </div>
+        </div>
+    }
+
+    <!-- Table content -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-border">
+            <thead class="bg-canvas">
+                <tr class="divide-x divide-border">
+                    @TableHeader
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-border bg-white">
+                @if (IsLoading)
+                {
+                    <tr>
+                        <td colspan="100" class="py-10 text-center">
+                            <div class="flex justify-center items-center gap-2">
+                                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-charcoal"></div>
+                                <span class="text-sm text-muted">Đang tải dữ liệu...</span>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else if (Items == null || !Items.Any())
+                {
+                    <tr>
+                        <td colspan="100" class="py-10 text-center text-sm text-muted">
+                            Không tìm thấy kết quả nào.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Items)
+                    {
+                        <tr class="hover:bg-canvas transition-colors">
+                            @RowTemplate(item)
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    @if (TotalCount > PageSize)
+    {
+        <div class="px-6 py-4 border-t border-border flex items-center justify-between bg-white text-sm text-muted">
+            <div>
+                Hiển thị <strong>@((Page - 1) * PageSize + 1)</strong> đến <strong>@(Math.Min(Page * PageSize, TotalCount))</strong> trong tổng số <strong>@TotalCount</strong> dòng
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="px-3 py-1.5 border border-border rounded-md hover:bg-canvas disabled:opacity-50 transition-colors" 
+                        disabled="@(Page == 1)" @onclick="() => ChangePage(Page - 1)">
+                    Trước
+                </button>
+                <span class="font-medium text-charcoal font-mono">Trang @Page / @MaxPage</span>
+                <button class="px-3 py-1.5 border border-border rounded-md hover:bg-canvas disabled:opacity-50 transition-colors" 
+                        disabled="@(Page == MaxPage)" @onclick="() => ChangePage(Page + 1)">
+                    Sau
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<TItem> Items { get; set; } = new();
+    [Parameter] public RenderFragment? TableHeader { get; set; }
+    [Parameter] public RenderFragment<TItem> RowTemplate { get; set; } = default!;
+    [Parameter] public RenderFragment? CustomFilter { get; set; }
+    [Parameter] public bool ShowSearch { get; set; } = true;
+    [Parameter] public string SearchPlaceholder { get; set; } = "Tìm kiếm...";
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public int TotalCount { get; set; }
+    [Parameter] public int Page { get; set; } = 1;
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
+    [Parameter] public EventCallback<string> SearchChanged { get; set; }
+
+    private string SearchQuery { get; set; } = string.Empty;
+    private int MaxPage => (int)Math.Ceiling((double)TotalCount / PageSize);
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        SearchQuery = e.Value?.ToString() ?? string.Empty;
+        await SearchChanged.InvokeAsync(SearchQuery);
+    }
+
+    private async Task ChangePage(int newPage)
+    {
+        if (newPage >= 1 && newPage <= MaxPage)
+        {
+            await PageChanged.InvokeAsync(newPage);
+        }
+    }
+}

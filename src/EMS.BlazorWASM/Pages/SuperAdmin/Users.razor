@@ -1,0 +1,465 @@
+@page "/SuperAdmin/Users"
+@attribute [Authorize(Roles = "superadmin,SuperAdmin")]
+@inject ISuperAdminServiceClient SuperAdminService
+@inject ToastService ToastService
+@using EMS.Shared.DTOs.Admin
+@using EMS.Shared.DTOs
+
+<PageTitle>Quản lý Người dùng — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+                Quản lý Người dùng Toàn Hệ Thống
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
+                    ⏳ DEMO
+                </span>
+            </h1>
+            <p class="text-sm text-muted mt-1">Danh sách tất cả người dùng và quản trị viên của các tổ chức trên hệ thống.</p>
+        </div>
+        <button @onclick="OpenAddModal" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]">
+            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm User mới
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-border mb-6">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button @onclick='() => ChangeTab("active")' class="py-4 px-1 border-b-2 font-medium text-sm transition-colors focus:outline-none @(activeTab == "active" ? "border-charcoal text-charcoal" : "border-transparent text-muted hover:text-charcoal hover:border-border")">
+                Đang hoạt động (Active)
+            </button>
+            <button @onclick='() => ChangeTab("inactive")' class="py-4 px-1 border-b-2 font-medium text-sm transition-colors focus:outline-none @(activeTab == "inactive" ? "border-charcoal text-charcoal" : "border-transparent text-muted hover:text-charcoal hover:border-border")">
+                Ngưng hoạt động / Bị khóa (Inactive)
+            </button>
+        </nav>
+    </div>
+
+    <!-- Data Table -->
+    <DataTable TItem="AdminUserItemDto" Items="filteredUsers" TotalCount="filteredUsers.Count" 
+               Page="page" PageSize="pageSize" PageChanged="OnPageChanged" SearchChanged="OnSearchChanged" 
+               SearchPlaceholder="Tìm kiếm theo MSSV, Họ tên, Email..." IsLoading="isLoading">
+        <CustomFilter>
+            <div class="flex flex-wrap items-center gap-2">
+                <select class="block py-1.5 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnTenantFilterChanged">
+                    <option value="all">Tất cả Tenants</option>
+                    @foreach (var tenant in tenants)
+                    {
+                        <option value="@tenant.Id">@tenant.Name</option>
+                    }
+                </select>
+                <select class="block py-1.5 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnRoleFilterChanged">
+                    <option value="all">Tất cả vai trò</option>
+                    <option value="superadmin">Super Admin</option>
+                    <option value="admin">Tenant Admin</option>
+                    <option value="manager">Organizer</option>
+                    <option value="employee">Student</option>
+                </select>
+            </div>
+        </CustomFilter>
+        <TableHeader>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">MSSV</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Họ tên</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Email</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tenant</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Vai trò</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Trạng thái</th>
+            <th class="px-6 py-3 text-right text-xs font-bold text-muted uppercase tracking-wider font-mono">Hành động</th>
+        </TableHeader>
+        <RowTemplate Context="user">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(user.MSSV ?? "-")</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@user.FullName</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@user.Email</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">@user.TenantName</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                @foreach (var role in user.RoleIds)
+                {
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold @GetRoleBadgeClass(role)">
+                        @GetRoleDisplayName(role)
+                    </span>
+                }
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium @(user.Status == 1 ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800")">
+                    @user.StatusName
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <button @onclick="() => OpenChangeRoleModal(user)" class="text-charcoal hover:underline">Đổi Role</button>
+                <button @onclick="() => OpenMoveTenantModal(user)" class="text-charcoal hover:underline">Chuyển Tenant</button>
+                <button @onclick="() => ToggleActive(user)" class="text-charcoal hover:underline">@(user.Status == 1 ? "Khóa" : "Mở khóa")</button>
+                @if (user.Status == 1)
+                {
+                    <button @onclick="() => OpenDeleteConfirm(user)" class="text-rose-600 hover:underline">Xóa</button>
+                }
+            </td>
+        </RowTemplate>
+    </DataTable>
+</div>
+
+<!-- Add User Form Modal -->
+<FormModal Title="Thêm User mới" IsOpen="isFormOpen" SaveText="Tạo mới" OnSave="CreateUser" OnCancel="CloseForm">
+    <div class="space-y-4">
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">MSSV (nếu có)</label>
+            <input type="text" @bind="newUserRequest.MSSV" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Họ tên</label>
+            <input type="text" @bind="newUserRequest.FullName" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Email</label>
+            <input type="email" @bind="newUserRequest.Email" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Số điện thoại</label>
+            <input type="text" @bind="newUserRequest.PhoneNumber" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Phòng ban / Khoa</label>
+            <input type="text" @bind="newUserRequest.Department" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" />
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Chọn Tenant</label>
+            <select class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" @bind="newUserRequest.TenantId">
+                @foreach (var tenant in tenants)
+                {
+                    <option value="@tenant.Id">@tenant.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Chọn vai trò</label>
+            <select class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" @bind="newUserRequest.RoleId">
+                <option value="employee">Student</option>
+                <option value="manager">Organizer</option>
+                <option value="admin">Tenant Admin</option>
+                <option value="superadmin">Super Admin</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Mật khẩu</label>
+            <input type="password" @bind="newUserRequest.Password" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" placeholder="********" />
+        </div>
+    </div>
+</FormModal>
+
+<!-- Change Role Modal -->
+<FormModal Title="Thay đổi vai trò người dùng" IsOpen="isRoleOpen" SaveText="Đổi Role" OnSave="SaveRoleChange" OnCancel="() => isRoleOpen = false">
+    <div class="space-y-4">
+        <p class="text-sm text-muted">Đang đổi vai trò cho người dùng: <strong>@selectedUser?.FullName</strong></p>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Chọn Role mới</label>
+            <select class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" @bind="newRole">
+                <option value="employee">Student</option>
+                <option value="manager">Organizer</option>
+                <option value="admin">Tenant Admin</option>
+                <option value="superadmin">Super Admin</option>
+            </select>
+        </div>
+    </div>
+</FormModal>
+
+<!-- Move Tenant Modal -->
+<FormModal Title="Chuyển đổi Tổ chức (Tenant)" IsOpen="isTenantOpen" SaveText="Chuyển ngay" OnSave="SaveTenantChange" OnCancel="() => isTenantOpen = false">
+    <div class="space-y-4">
+        <p class="text-sm text-muted">Đang chuyển đổi tenant cho người dùng: <strong>@selectedUser?.FullName</strong></p>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Chọn Tenant mới</label>
+            <select class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" @bind="newTenantId">
+                @foreach (var tenant in tenants)
+                {
+                    <option value="@tenant.Id">@tenant.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+</FormModal>
+
+<!-- Delete Confirm Modal -->
+<ConfirmModal Title="Xác nhận xóa tài khoản" Message="@($"Bạn có chắc chắn muốn xóa tài khoản của '{selectedUser?.FullName}'? Tài khoản này sẽ bị khóa vĩnh viễn (soft delete).")" 
+              IsOpen="isDeleteOpen" IsDanger="true" ConfirmText="Xóa tài khoản" OnConfirm="ConfirmDelete" OnCancel="() => isDeleteOpen = false" />
+
+@code {
+    private List<AdminUserItemDto> allUsers = new();
+    private List<AdminUserItemDto> filteredUsers = new();
+    private List<TenantDTO> tenants = new();
+    private bool isLoading = true;
+
+    private int page = 1;
+    private int pageSize = 10;
+    private string searchQuery = "";
+    private string tenantFilter = "all";
+    private string roleFilter = "all";
+    private string activeTab = "active";
+
+    // Create Modal
+    private bool isFormOpen;
+    private AdminCreateUserRequestDto newUserRequest = new();
+
+    // Change Role
+    private bool isRoleOpen;
+    private AdminUserItemDto? selectedUser;
+    private string newRole = "";
+
+    // Move Tenant
+    private bool isTenantOpen;
+    private string newTenantId = "";
+
+    // Delete
+    private bool isDeleteOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            tenants = await SuperAdminService.GetTenantsAsync();
+            allUsers = await SuperAdminService.GetUsersAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi khi tải dữ liệu người dùng.");
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        var temp = allUsers;
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var q = searchQuery.ToLower();
+            temp = temp.Where(u => 
+                (!string.IsNullOrEmpty(u.FullName) && u.FullName.ToLower().Contains(q)) || 
+                (!string.IsNullOrEmpty(u.Email) && u.Email.ToLower().Contains(q)) || 
+                (!string.IsNullOrEmpty(u.MSSV) && u.MSSV.ToLower().Contains(q))
+            ).ToList();
+        }
+
+        if (tenantFilter != "all")
+        {
+            temp = temp.Where(u => u.TenantId == tenantFilter).ToList();
+        }
+
+        if (roleFilter != "all")
+        {
+            temp = temp.Where(u => u.RoleIds.Contains(roleFilter)).ToList();
+        }
+
+        if (activeTab == "active")
+        {
+            temp = temp.Where(u => u.Status == 1).ToList();
+        }
+        else if (activeTab == "inactive")
+        {
+            temp = temp.Where(u => u.Status != 1).ToList();
+        }
+
+        filteredUsers = temp;
+    }
+
+    private void OnPageChanged(int newPage) => page = newPage;
+
+    private void OnSearchChanged(string query)
+    {
+        searchQuery = query;
+        page = 1;
+        ApplyFilter();
+    }
+
+    private void OnTenantFilterChanged(ChangeEventArgs e)
+    {
+        tenantFilter = e.Value?.ToString() ?? "all";
+        page = 1;
+        ApplyFilter();
+    }
+
+    private void OnRoleFilterChanged(ChangeEventArgs e)
+    {
+        roleFilter = e.Value?.ToString() ?? "all";
+        page = 1;
+        ApplyFilter();
+    }
+
+    private void ChangeTab(string tab)
+    {
+        activeTab = tab;
+        page = 1;
+        ApplyFilter();
+    }
+
+    private void OpenAddModal()
+    {
+        newUserRequest = new AdminCreateUserRequestDto
+        {
+            TenantId = tenants.FirstOrDefault()?.Id ?? "huflit",
+            RoleId = "employee"
+        };
+        isFormOpen = true;
+    }
+
+    private void CloseForm() => isFormOpen = false;
+
+    private async Task CreateUser()
+    {
+        if (string.IsNullOrWhiteSpace(newUserRequest.FullName) || string.IsNullOrWhiteSpace(newUserRequest.Email) || string.IsNullOrWhiteSpace(newUserRequest.Password))
+        {
+            ToastService.ShowWarning("Vui lòng nhập các thông tin bắt buộc.");
+            return;
+        }
+
+        isLoading = true;
+        var success = await SuperAdminService.CreateUserAsync(newUserRequest);
+        if (success)
+        {
+            ToastService.ShowSuccess("Đã tạo tài khoản thành công.");
+            await LoadData();
+        }
+        else
+        {
+            ToastService.ShowError("Tạo tài khoản người dùng thất bại.");
+        }
+        isFormOpen = false;
+        isLoading = false;
+    }
+
+    private void OpenChangeRoleModal(AdminUserItemDto user)
+    {
+        selectedUser = user;
+        newRole = user.RoleIds.FirstOrDefault() ?? "employee";
+        isRoleOpen = true;
+    }
+
+    private async Task SaveRoleChange()
+    {
+        if (selectedUser != null)
+        {
+            isLoading = true;
+            var success = await SuperAdminService.UpdateUserRoleAsync(selectedUser.Id, newRole);
+            if (success)
+            {
+                ToastService.ShowSuccess("Cập nhật vai trò người dùng thành công.");
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowError("Cập nhật vai trò thất bại.");
+            }
+        }
+        isRoleOpen = false;
+        isLoading = false;
+    }
+
+    private void OpenMoveTenantModal(AdminUserItemDto user)
+    {
+        selectedUser = user;
+        newTenantId = user.TenantId;
+        isTenantOpen = true;
+    }
+
+    private async Task SaveTenantChange()
+    {
+        if (selectedUser != null)
+        {
+            isLoading = true;
+            var success = await SuperAdminService.UpdateUserTenantAsync(selectedUser.Id, newTenantId);
+            if (success)
+            {
+                ToastService.ShowSuccess("Đã chuyển đổi tổ chức của người dùng.");
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowError("Chuyển đổi tổ chức thất bại.");
+            }
+        }
+        isTenantOpen = false;
+        isLoading = false;
+    }
+
+    private async Task ToggleActive(AdminUserItemDto user)
+    {
+        if (user.Id == "user6")
+        {
+            ToastService.ShowWarning("Không thể tự khóa tài khoản Admin quản trị cao cấp.");
+            return;
+        }
+
+        isLoading = true;
+        var success = await SuperAdminService.ToggleUserActiveAsync(user.Id);
+        if (success)
+        {
+            ToastService.ShowSuccess("Cập nhật trạng thái tài khoản thành công.");
+            await LoadData();
+        }
+        else
+        {
+            ToastService.ShowError("Không thể cập nhật trạng thái người dùng.");
+        }
+        isLoading = false;
+    }
+
+    private void OpenDeleteConfirm(AdminUserItemDto user)
+    {
+        if (user.Id == "user6")
+        {
+            ToastService.ShowWarning("Không thể xóa tài khoản Admin quản trị cao cấp.");
+            return;
+        }
+        selectedUser = user;
+        isDeleteOpen = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (selectedUser != null)
+        {
+            isLoading = true;
+            var success = await SuperAdminService.DeleteUserAsync(selectedUser.Id);
+            if (success)
+            {
+                ToastService.ShowSuccess("Xóa người dùng thành công.");
+                await LoadData();
+            }
+            else
+            {
+                ToastService.ShowError("Không thể xóa người dùng này.");
+            }
+        }
+        isDeleteOpen = false;
+        isLoading = false;
+    }
+
+    private string GetRoleDisplayName(string role) => role switch
+    {
+        "superadmin" or "SuperAdmin" => "Super Admin",
+        "admin" or "Admin" => "Tenant Admin",
+        "manager" or "Manager" => "Organizer",
+        _ => "Student"
+    };
+
+    private string GetRoleBadgeClass(string role) => role switch
+    {
+        "superadmin" or "SuperAdmin" => "bg-rose-100 text-rose-800",
+        "admin" or "Admin" => "bg-amber-100 text-amber-800",
+        "manager" or "Manager" => "bg-blue-100 text-blue-800",
+        _ => "bg-emerald-100 text-emerald-800"
+    };
+}

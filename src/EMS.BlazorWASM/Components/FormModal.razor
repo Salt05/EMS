@@ -1,0 +1,59 @@
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-charcoal/40 backdrop-blur-sm transition-opacity" @onclick="Cancel"></div>
+
+        <!-- Modal container -->
+        <div class="relative w-full @WidthClass mx-auto my-6 z-50 transition-all duration-300">
+            <div class="relative flex flex-col w-full bg-white border border-border rounded-xl shadow-bento outline-none focus:outline-none max-h-[90vh]">
+                <!-- Header -->
+                <div class="flex items-center justify-between p-5 border-b border-border rounded-t-xl bg-canvas">
+                    <h3 class="text-base font-bold text-charcoal flex items-center gap-2">
+                        @Title
+                    </h3>
+                    <button class="p-1 ml-auto bg-transparent border-0 text-muted hover:text-charcoal float-right text-3xl leading-none font-semibold outline-none focus:outline-none transition-colors" @onclick="Cancel">
+                        <span class="bg-transparent text-muted hover:text-charcoal h-6 w-6 text-2xl block outline-none focus:outline-none">×</span>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="relative p-6 flex-auto overflow-y-auto max-h-[calc(90vh-140px)]">
+                    @ChildContent
+                </div>
+
+                <!-- Footer -->
+                <div class="flex items-center justify-end gap-3 p-5 border-t border-border rounded-b-xl bg-canvas">
+                    <button class="px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors active:scale-[0.98]" @onclick="Cancel">
+                        @CancelText
+                    </button>
+                    <button class="px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]" @onclick="Save">
+                        @SaveText
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "Biểu mẫu";
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string SaveText { get; set; } = "Lưu";
+    [Parameter] public string CancelText { get; set; } = "Hủy";
+    [Parameter] public string WidthClass { get; set; } = "max-w-md";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task Save()
+    {
+        await OnSave.InvokeAsync();
+    }
+
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}

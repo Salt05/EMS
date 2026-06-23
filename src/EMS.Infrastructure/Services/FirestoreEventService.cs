@@ -166,6 +166,8 @@ public class FirestoreEventService : IEventService
             ApprovedById = dict.TryGetValue("approvedById", out var appBy) && !string.IsNullOrEmpty(appBy?.ToString()) ? appBy!.ToString() : null,
             ApprovedAt = dict.TryGetValue("approvedAt", out var appAt) && appAt is Timestamp appAtTs && appAtTs.ToDateTime() != DateTime.MinValue ? appAtTs.ToDateTime() : null,
             RejectionReason = dict.TryGetValue("rejectionReason", out var rej) && !string.IsNullOrEmpty(rej?.ToString()) ? rej!.ToString() : null,
+            CheckInCode = dict.TryGetValue("checkInCode", out var cic) && !string.IsNullOrEmpty(cic?.ToString()) ? cic!.ToString() : null,
+            CheckInCodeExpiresAt = dict.TryGetValue("checkInCodeExpiresAt", out var cice) && cice is Timestamp ciceTs && ciceTs.ToDateTime() != DateTime.MinValue ? ciceTs.ToDateTime() : null,
             CreatedAt = dict.TryGetValue("createdAt", out var created) && created is Timestamp createdTs ? createdTs.ToDateTime() : DateTime.UtcNow,
             UpdatedAt = dict.TryGetValue("updatedAt", out var updated) && updated is Timestamp updatedTs ? updatedTs.ToDateTime() : DateTime.UtcNow
         };

@@ -21,6 +21,13 @@ public interface IAuthService
     Task LogoutAsync();
 
     /// <summary>
+    /// Đăng ký tài khoản mới, gọi WebAPI.
+    /// </summary>
+    /// <param name="request">Thông tin đăng ký</param>
+    /// <returns>Bộ kết quả gồm trạng thái thành công và lỗi (nếu có)</returns>
+    Task<(bool Success, string? Error)> RegisterAsync(RegisterRequest request);
+
+    /// <summary>
     /// Lấy JWT token hiện tại từ localStorage.
     /// </summary>
     /// <returns>Token string hoặc null nếu chưa đăng nhập</returns>

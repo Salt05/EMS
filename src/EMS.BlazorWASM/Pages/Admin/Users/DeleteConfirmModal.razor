@@ -1,0 +1,74 @@
+@* Modal xác nhận xóa user *@
+
+<div class="fixed inset-0 z-50 flex items-center justify-center">
+    <!-- Overlay -->
+    <div class="fixed inset-0 bg-charcoal/30 backdrop-blur-sm" @onclick="OnClose"></div>
+
+    <!-- Modal Card -->
+    <div class="relative bg-white rounded-xl shadow-xl border border-border w-full max-w-sm mx-4 z-10">
+        <!-- Content -->
+        <div class="p-6 text-center">
+            <!-- Warning Icon -->
+            <div class="h-12 w-12 rounded-full bg-paleRed-bg flex items-center justify-center mx-auto mb-4">
+                <svg class="h-6 w-6 text-paleRed-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    <line x1="10" y1="11" x2="10" y2="17"/>
+                    <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+            </div>
+
+            <h3 class="text-lg font-bold text-charcoal mb-2">Xác nhận xóa</h3>
+            <p class="text-sm text-muted mb-6">
+                Bạn có chắc chắn muốn xóa người dùng <span class="font-semibold text-charcoal">@UserName</span>?
+                Hành động này sẽ vô hiệu hóa tài khoản.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center gap-3 px-6 py-4 border-t border-border bg-canvas/50">
+            <button class="flex-1 px-4 py-2 text-sm font-medium text-muted hover:text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors"
+                    @onclick="OnClose" disabled="@isDeleting">
+                Hủy
+            </button>
+            <button class="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-all active:scale-[0.98] disabled:opacity-50"
+                    @onclick="HandleConfirm" disabled="@isDeleting">
+                @if (isDeleting)
+                {
+                    <span class="flex items-center justify-center gap-2">
+                        <span class="animate-spin h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full"></span>
+                        Đang xóa...
+                    </span>
+                }
+                else
+                {
+                    <span>Xóa</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string UserName { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool isDeleting = false;
+
+    private async Task HandleConfirm()
+    {
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+}

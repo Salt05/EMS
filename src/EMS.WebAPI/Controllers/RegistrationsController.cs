@@ -15,15 +15,18 @@ public class RegistrationsController : ControllerBase
 {
     private readonly IRegistrationService _registrationService;
     private readonly IEventService _eventService;
+    private readonly IUserService _userService;
     private readonly ILogger<RegistrationsController> _logger;
 
     public RegistrationsController(
         IRegistrationService registrationService,
         IEventService eventService,
+        IUserService userService,
         ILogger<RegistrationsController> logger)
     {
         _registrationService = registrationService;
         _eventService = eventService;
+        _userService = userService;
         _logger = logger;
     }
 
@@ -51,7 +54,23 @@ public class RegistrationsController : ControllerBase
         if (!CanManageEvent(ev)) return Forbid();
 
         var regs = await _registrationService.GetRegistrationsByEventAsync(eventId, tenantId, status);
-        return Ok(regs.Select(MapToResponse));
+        
+        var users = await _userService.GetUsersByTenantAsync(tenantId);
+        var userMap = users.ToDictionary(u => u.Id);
+
+        var dtos = regs.Select(r =>
+        {
+            var dto = MapToResponse(r);
+            if (userMap.TryGetValue(r.UserId, out var u))
+            {
+                dto.UserFullName = u.FullName;
+                dto.UserEmail = u.Email;
+                dto.UserMSSV = u.MSSV;
+            }
+            return dto;
+        }).ToList();
+
+        return Ok(dtos);
     }
 
     // GET /api/registrations/{id}
@@ -71,7 +90,16 @@ public class RegistrationsController : ControllerBase
             if (ev == null || !CanManageEvent(ev)) return Forbid();
         }
 
-        return Ok(MapToResponse(reg));
+        var dto = MapToResponse(reg);
+        var user = await _userService.GetUserByIdAsync(reg.UserId, tenantId);
+        if (user != null)
+        {
+            dto.UserFullName = user.FullName;
+            dto.UserEmail = user.Email;
+            dto.UserMSSV = user.MSSV;
+        }
+
+        return Ok(dto);
     }
 
     // POST /api/registrations — register the current user for an event
@@ -176,6 +204,10 @@ public class RegistrationsController : ControllerBase
         ProcessedAt = reg.ProcessedAt,
         RejectionReason = reg.RejectionReason,
         CancelledAt = reg.CancelledAt,
+        CheckedIn = reg.CheckedIn,
+        CheckedInAt = reg.CheckedInAt,
+        CheckInCode = reg.CheckInCode,
+        CheckInCodeExpiresAt = reg.CheckInCodeExpiresAt,
         CreatedAt = reg.CreatedAt,
         UpdatedAt = reg.UpdatedAt
     };

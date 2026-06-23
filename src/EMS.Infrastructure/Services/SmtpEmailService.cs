@@ -22,13 +22,13 @@ public class SmtpEmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task SendEmailAsync(string to, string subject, string htmlBody)
+    public async Task<bool> SendEmailAsync(string to, string subject, string htmlBody, string? fromAddress = null, string? fromDisplayName = null)
     {
         var host = _configuration["Email:Host"];
         if (string.IsNullOrWhiteSpace(host))
         {
             _logger.LogInformation($"[Email skipped — SMTP not configured] To: {to} | Subject: {subject}");
-            return;
+            return false;
         }
 
         try
@@ -37,7 +37,10 @@ public class SmtpEmailService : IEmailService
             var enableSsl = !bool.TryParse(_configuration["Email:EnableSsl"], out var ssl) || ssl;
             var username = _configuration["Email:Username"];
             var password = _configuration["Email:Password"];
-            var from = _configuration["Email:From"] ?? username ?? "no-reply@ems.local";
+            
+            var fromEmail = !string.IsNullOrEmpty(fromAddress) 
+                ? fromAddress 
+                : (_configuration["Email:From"] ?? username ?? "no-reply@ems.local");
 
             using var client = new SmtpClient(host, port)
             {
@@ -47,15 +50,19 @@ public class SmtpEmailService : IEmailService
                     : new NetworkCredential(username, password)
             };
 
-            using var message = new MailMessage(from, to, subject, htmlBody) { IsBodyHtml = true };
+            using var message = !string.IsNullOrEmpty(fromDisplayName)
+                ? new MailMessage(new MailAddress(fromEmail, fromDisplayName), new MailAddress(to)) { Subject = subject, Body = htmlBody, IsBodyHtml = true }
+                : new MailMessage(fromEmail, to, subject, htmlBody) { IsBodyHtml = true };
 
             await client.SendMailAsync(message);
             _logger.LogInformation($"Email sent to {to}: {subject}");
+            return true;
         }
         catch (Exception ex)
         {
             // Never bubble up: a failed reminder email shouldn't crash the background job.
             _logger.LogError(ex, $"Failed to send email to {to}");
+            return false;
         }
     }
 }

@@ -1,40 +1,81 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Navigation
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="h-full flex overflow-hidden bg-canvas">
+    <!-- Sidebar -->
+    <Sidebar SidebarOpen="@sidebarOpen" OnSidebarClose="@CloseSidebar" />
 
-    <main>
-        <div class="top-row px-4">
-            <TenantSwitcher />
+    <!-- Overlay for Mobile Sidebar -->
+    @if (sidebarOpen)
+    {
+        <div class="fixed inset-0 z-40 bg-charcoal/20 backdrop-blur-sm lg:hidden" @onclick="CloseSidebar"></div>
+    }
 
-            <AuthorizeView>
-                <Authorized>
-                    <div class="user-menu">
-                        <span class="user-email">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</span>
-                        <span class="user-role-badge">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
-                        <button class="btn-logout" @onclick="HandleLogout">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                                <polyline points="16 17 21 12 16 7"/>
-                                <line x1="21" y1="12" x2="9" y2="12"/>
-                            </svg>
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-y-auto lg:ml-0">
+        
+        <!-- Top Header -->
+        <header class="flex h-16 shrink-0 items-center justify-between border-b border-border bg-white px-6 lg:px-8">
+            <div class="flex items-center gap-4">
+                <!-- Mobile Sidebar Toggle -->
+                <button @onclick="ToggleSidebar" class="p-1.5 -ml-1 text-muted hover:text-charcoal hover:bg-canvas rounded-md lg:hidden transition-colors">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <!-- Breadcrumbs (Hardcoded for now) -->
+                <nav class="hidden sm:flex" aria-label="Breadcrumb">
+                    <ol class="flex items-center space-x-2 text-xs font-medium text-muted">
+                        <li><a href="#" class="hover:text-charcoal">EMS</a></li>
+                        <li class="flex items-center space-x-2">
+                            <svg class="h-3 w-3 text-border" fill="currentColor" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                            <a href="#" class="text-charcoal font-semibold">Bảng điều khiển</a>
+                        </li>
+                    </ol>
+                </nav>
+            </div>
+            
+            <!-- Quick Info / Auth -->
+            <div class="flex items-center gap-4">
+                <TenantSwitcher />
+
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="text-right hidden sm:block">
+                            <p class="text-[10px] font-mono text-muted uppercase">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</p>
+                            <p class="text-xs font-semibold text-charcoal">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</p>
+                        </div>
+                        <div class="h-6 w-px bg-border my-auto"></div>
+                        <button class="inline-flex items-center px-3 py-1.5 rounded text-xs font-medium bg-canvas text-muted hover:text-charcoal transition-colors" @onclick="HandleLogout">
                             Đăng xuất
                         </button>
-                    </div>
-                </Authorized>
-            </AuthorizeView>
-        </div>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </header>
 
-        <article class="content px-4">
+        <!-- Page Body -->
+        <article class="flex-1 w-full mx-auto p-6 lg:p-8">
             @Body
         </article>
     </main>
 </div>
 
+<ToastNotification />
+
 @code {
+    private bool sidebarOpen = false;
+
+    private void ToggleSidebar()
+    {
+        sidebarOpen = !sidebarOpen;
+    }
+
+    private void CloseSidebar()
+    {
+        sidebarOpen = false;
+    }
+
     private void HandleLogout()
     {
         Navigation.NavigateTo("/logout");

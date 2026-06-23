@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full bg-[#F7F9FC]">
 
 <head>
     <meta charset="utf-8" />
@@ -15,20 +15,62 @@
 
     <!-- Styles -->
     <link href="css/app.css" rel="stylesheet" />
-    <link href="EMS.BlazorWASM.styles.css" rel="stylesheet" />
+
+    <!-- Tailwind CSS CDN & Config -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+              mono: ['JetBrains Mono', 'SF Mono', 'monospace'],
+            },
+            colors: {
+              canvas: '#F7F9FC',
+              surface: '#FFFFFF',
+              border: '#E3E8EE',
+              charcoal: '#1A1F36',
+              muted: '#787774',
+              accent: '#0A2540',
+              paleRed: { bg: '#FDEBEC', text: '#9F2F2D' },
+              paleBlue: { bg: '#E1F3FE', text: '#1F6C9F' },
+              paleGreen: { bg: '#EDF3EC', text: '#346538' },
+              paleYellow: { bg: '#FBF3DB', text: '#956400' }
+            },
+            boxShadow: {
+              'bento': '0 2px 8px rgba(26, 31, 54, 0.02)',
+              'bento-hover': '0 4px 16px rgba(26, 31, 54, 0.04)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Premium scrollbar styling */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #E3E8EE; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #C1C9D2; }
+      
+      /* Fallback constraint for SVGs if Tailwind CDN is slow to load */
+      svg { max-width: 24px; max-height: 24px; }
+      #app > div > svg { max-width: 56px; max-height: 56px; } /* Loading screen exception */
+    </style>
 </head>
 
-<body>
-    <div id="app">
+<body class="h-full text-charcoal font-sans antialiased overflow-hidden">
+    <div id="app" class="h-full w-full">
         <!-- Loading screen -->
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f172a;color:#e2e8f0;font-family:Inter,sans-serif;">
-            <svg width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:1rem;">
-                <rect width="48" height="48" rx="12" fill="url(#g)"/>
-                <text x="50%" y="55%" text-anchor="middle" fill="white" font-size="20" font-weight="700" dy=".1em">E</text>
-                <defs><linearGradient id="g" x1="0" y1="0" x2="48" y2="48"><stop offset="0%" stop-color="#6366F1"/><stop offset="100%" stop-color="#8B5CF6"/></linearGradient></defs>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#F7F9FC;color:#1A1F36;font-family:Inter,sans-serif;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:1.5rem; color:#1A1F36;">
+                <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/>
             </svg>
-            <div style="width:40px;height:40px;border:3px solid rgba(99,102,241,0.3);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;"></div>
-            <p style="margin-top:1rem;opacity:0.7;font-size:0.875rem;">Đang tải ứng dụng...</p>
+            <div style="width:32px;height:32px;border:2px solid rgba(26,31,54,0.1);border-top-color:#1A1F36;border-radius:50%;animation:spin .8s linear infinite;"></div>
+            <p style="margin-top:1rem;font-size:0.875rem;font-weight:500;color:#787774;letter-spacing:0.02em;">Đang tải hệ thống...</p>
             <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
         </div>
     </div>

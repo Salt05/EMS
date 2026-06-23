@@ -138,6 +138,13 @@ public class AuthController : ControllerBase
                 return NotFound("User not found");
             }
 
+            // Block login if user is Inactive or Suspended
+            if (user.Status != EMS.Core.Entities.Enums.UserStatus.Active)
+            {
+                _logger.LogWarning($"Login blocked for inactive user: {request.Email} (Status: {user.Status})");
+                return Unauthorized("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.");
+            }
+
             // Generate JWT token
             var jwtToken = _jwtService.GenerateToken(user.Id, user.Email, user.FullName, user.RoleIds, tenant.Id);
 

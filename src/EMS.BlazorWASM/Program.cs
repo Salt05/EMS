@@ -49,5 +49,12 @@ builder.Services.AddScoped(sp =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITenantServiceClient, TenantServiceClient>();
 builder.Services.AddScoped<IEventServiceClient, EventServiceClient>();
+builder.Services.AddScoped<IRegistrationServiceClient, RegistrationServiceClient>();
+builder.Services.AddScoped<ICheckInServiceClient, CheckInServiceClient>();
+builder.Services.AddScoped<IAdminUserServiceClient, AdminUserServiceClient>();
+builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<ISuperAdminServiceClient, SuperAdminServiceClient>();
+builder.Services.AddScoped<ITenantAdminServiceClient, TenantAdminServiceClient>();
+builder.Services.AddScoped<IOrganizerServiceClient, OrganizerServiceClient>();
 
 await builder.Build().RunAsync();

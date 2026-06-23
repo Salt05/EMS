@@ -1,0 +1,132 @@
+@* Modal đổi role — chỉ SuperAdmin *@
+
+<div class="fixed inset-0 z-50 flex items-center justify-center">
+    <!-- Overlay -->
+    <div class="fixed inset-0 bg-charcoal/30 backdrop-blur-sm" @onclick="OnClose"></div>
+
+    <!-- Modal Card -->
+    <div class="relative bg-white rounded-xl shadow-xl border border-border w-full max-w-md mx-4 z-10">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h2 class="text-lg font-bold text-charcoal">Đổi vai trò</h2>
+            <button class="p-1.5 rounded text-muted hover:text-charcoal hover:bg-canvas transition-colors" @onclick="OnClose">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-4">
+            <!-- User info -->
+            <div class="flex items-center gap-3 p-3 bg-canvas rounded-lg">
+                <div class="h-10 w-10 rounded-full bg-charcoal/10 flex items-center justify-center text-charcoal font-bold text-sm">
+                    @(User.FullName.Length > 0 ? User.FullName[0].ToString().ToUpper() : "?")
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-charcoal">@User.FullName</p>
+                    <p class="text-xs text-muted">@User.Email</p>
+                </div>
+            </div>
+
+            <!-- Current Role -->
+            <div>
+                <label class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Role hiện tại</label>
+                <div class="px-3 py-2 text-sm bg-canvas border border-border rounded-md text-muted">
+                    @GetRoleDisplayName(User.RoleIds.FirstOrDefault() ?? "")
+                </div>
+            </div>
+
+            <!-- New Role -->
+            <div>
+                <label class="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Role mới <span class="text-paleRed-text">*</span></label>
+                <select @bind="selectedRole"
+                        class="w-full px-3 py-2 text-sm border border-border rounded-md bg-canvas focus:bg-white focus:ring-1 focus:ring-charcoal focus:border-charcoal outline-none transition-all">
+                    <option value="employee">Student</option>
+                    <option value="manager">Organizer</option>
+                    <option value="admin">Tenant Admin</option>
+                    @if (IsSuperAdmin)
+                    {
+                        <option value="superadmin">Super Admin</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Warning -->
+            @if (selectedRole == "superadmin")
+            {
+                <div class="flex items-start gap-2 px-4 py-3 rounded-lg bg-paleYellow-bg text-paleYellow-text text-xs font-medium">
+                    <svg class="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <span>Vai trò Super Admin có toàn quyền trên hệ thống. Hãy cân nhắc kỹ trước khi thay đổi.</span>
+                </div>
+            }
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-canvas/50">
+            <button class="px-4 py-2 text-sm font-medium text-muted hover:text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors"
+                    @onclick="OnClose" disabled="@isSaving">
+                Hủy
+            </button>
+            <button class="px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-50"
+                    @onclick="HandleConfirm" disabled="@(isSaving || selectedRole == (User.RoleIds.FirstOrDefault() ?? ""))">
+                @if (isSaving)
+                {
+                    <span class="flex items-center gap-2">
+                        <span class="animate-spin h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full"></span>
+                        Đang lưu...
+                    </span>
+                }
+                else
+                {
+                    <span>Lưu Role</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public AdminUserItemDto User { get; set; } = new();
+    [Parameter] public bool IsSuperAdmin { get; set; }
+    [Parameter] public EventCallback<string> OnSave { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string selectedRole = "employee";
+    private bool isSaving = false;
+
+    protected override void OnInitialized()
+    {
+        selectedRole = User.RoleIds.FirstOrDefault() ?? "employee";
+    }
+
+    private async Task HandleConfirm()
+    {
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnSave.InvokeAsync(selectedRole);
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetRoleDisplayName(string roleId) => roleId switch
+    {
+        "superadmin" => "Super Admin",
+        "admin" => "Admin",
+        "manager" => "Organizer",
+        "employee" => "Student",
+        _ => roleId
+    };
+}

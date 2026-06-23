@@ -1,0 +1,568 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = "admin,superadmin,Admin,SuperAdmin")]
+@inject IAdminUserServiceClient AdminUserService
+@inject ITenantServiceClient TenantService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Quản lý Người dùng — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-medium text-muted mb-2">
+                <a href="/" class="hover:text-charcoal transition-colors">Bảng điều khiển</a>
+                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+                <span class="text-charcoal">Người dùng</span>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">Quản lý người dùng</h1>
+            <p class="text-sm text-muted mt-1">@(isSuperAdmin ? "Quản lý tất cả user toàn hệ thống" : "Quản lý user trong tổ chức của bạn")</p>
+        </div>
+        <button class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]" @onclick="OpenCreateModal">
+            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm mới
+        </button>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white border border-border rounded-xl p-4 mb-6">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <!-- Search -->
+            <div class="flex-1 relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                </svg>
+                <input type="text" placeholder="Tìm theo MSSV, Họ tên, Email..."
+                       class="w-full pl-10 pr-4 py-2 text-sm border border-border rounded-md bg-canvas focus:bg-white focus:ring-1 focus:ring-charcoal focus:border-charcoal outline-none transition-all"
+                       @bind="searchQuery"
+                       @bind:event="oninput"
+                       @onkeydown="HandleSearchKeyDown" />
+            </div>
+
+            <!-- Role Filter -->
+            <select class="px-3 py-2 text-sm border border-border rounded-md bg-canvas focus:bg-white focus:ring-1 focus:ring-charcoal focus:border-charcoal outline-none transition-all min-w-[140px]"
+                    @bind="selectedRoleFilter" @bind:after="ApplyFilters">
+                <option value="">Tất cả Role</option>
+                <option value="employee">Student</option>
+                <option value="manager">Organizer</option>
+                <option value="admin">Tenant Admin</option>
+                @if (isSuperAdmin)
+                {
+                    <option value="superadmin">Super Admin</option>
+                }
+            </select>
+
+            <!-- Tenant Filter (SuperAdmin only) -->
+            @if (isSuperAdmin)
+            {
+                <select class="px-3 py-2 text-sm border border-border rounded-md bg-canvas focus:bg-white focus:ring-1 focus:ring-charcoal focus:border-charcoal outline-none transition-all min-w-[180px]"
+                        @bind="selectedTenantFilter" @bind:after="ApplyFilters">
+                    <option value="">Tất cả Tenant</option>
+                    @foreach (var tenant in tenants)
+                    {
+                        <option value="@tenant.Id">@tenant.Name</option>
+                    }
+                </select>
+            }
+
+            <!-- Search button -->
+            <button class="px-4 py-2 text-sm font-medium text-charcoal bg-canvas border border-border rounded-md hover:bg-slate-50 transition-colors"
+                    @onclick="ApplyFilters">
+                Tìm kiếm
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    @if (isLoading)
+    {
+        <div class="flex justify-center items-center py-20">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-charcoal"></div>
+        </div>
+    }
+    else if (userList.Items.Count == 0)
+    {
+        <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
+            <div class="h-12 w-12 rounded-full bg-canvas flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                </svg>
+            </div>
+            <h3 class="text-lg font-bold text-charcoal mb-1">Không tìm thấy người dùng</h3>
+            <p class="text-sm text-muted max-w-sm mb-6">Thử thay đổi bộ lọc hoặc thêm người dùng mới.</p>
+            <button class="px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors" @onclick="OpenCreateModal">
+                Thêm Người dùng
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white border border-border rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-canvas border-b border-border">
+                            <th class="text-left px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">STT</th>
+                            <th class="text-left px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">MSSV</th>
+                            <th class="text-left px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">Họ tên</th>
+                            <th class="text-left px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">Email</th>
+                            <th class="text-left px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">Role</th>
+                            @if (isSuperAdmin)
+                            {
+                                <th class="text-left px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">Tenant</th>
+                            }
+                            <th class="text-left px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">Trạng thái</th>
+                            <th class="text-right px-4 py-3 text-[10px] font-semibold text-muted uppercase tracking-wider font-mono">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @{ var index = (currentPage - 1) * pageSize; }
+                        @foreach (var user in userList.Items)
+                        {
+                            index++;
+                            <tr class="hover:bg-canvas/50 transition-colors">
+                                <td class="px-4 py-3 text-muted font-mono text-xs">@index</td>
+                                <td class="px-4 py-3 font-mono text-xs">@(user.MSSV ?? "—")</td>
+                                <td class="px-4 py-3 font-semibold text-charcoal">@user.FullName</td>
+                                <td class="px-4 py-3 text-muted">@user.Email</td>
+                                <td class="px-4 py-3">
+                                    @foreach (var role in user.RoleIds)
+                                    {
+                                        <span class="inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded @GetRoleBadgeClass(role)">
+                                            @GetRoleDisplayName(role)
+                                        </span>
+                                    }
+                                </td>
+                                @if (isSuperAdmin)
+                                {
+                                    <td class="px-4 py-3 text-xs text-muted">@(user.TenantName ?? user.TenantId)</td>
+                                }
+                                <td class="px-4 py-3">
+                                    @if (user.Id != currentUserId)
+                                    {
+                                        <button class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors @(user.StatusName == "Active" ? "bg-paleGreen-bg text-paleGreen-text hover:bg-green-100" : "bg-paleRed-bg text-paleRed-text hover:bg-red-100")"
+                                                @onclick="() => OpenToggleStatusModal(user)">
+                                            <span class="w-1.5 h-1.5 rounded-full @(user.StatusName == "Active" ? "bg-paleGreen-text" : "bg-paleRed-text")"></span>
+                                            @user.StatusName
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-paleGreen-bg text-paleGreen-text">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-paleGreen-text"></span>
+                                            @user.StatusName (Bạn)
+                                        </span>
+                                    }
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <!-- Edit -->
+                                        <button class="p-1.5 rounded text-muted hover:text-charcoal hover:bg-canvas transition-colors" title="Chỉnh sửa"
+                                                @onclick="() => OpenEditModal(user)">
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                            </svg>
+                                        </button>
+
+                                        <!-- Change Role -->
+                                        <button class="p-1.5 rounded text-muted hover:text-paleBlue-text hover:bg-paleBlue-bg transition-colors" title="Đổi role"
+                                                @onclick="() => OpenChangeRoleModal(user)">
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                                <circle cx="8.5" cy="7" r="4"/>
+                                                <path d="M20 8v6"/>
+                                                <path d="M23 11h-6"/>
+                                            </svg>
+                                        </button>
+
+                                        @if (user.Id != currentUserId)
+                                        {
+                                            <!-- Delete -->
+                                            <button class="p-1.5 rounded text-muted hover:text-paleRed-text hover:bg-paleRed-bg transition-colors" title="Xóa"
+                                                    @onclick="() => OpenDeleteModal(user)">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <polyline points="3 6 5 6 21 6"/>
+                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                                    <line x1="10" y1="11" x2="10" y2="17"/>
+                                                    <line x1="14" y1="11" x2="14" y2="17"/>
+                                                </svg>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="flex items-center justify-between px-4 py-3 border-t border-border bg-canvas/50">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-muted">Hiển thị</span>
+                    <select class="px-2 py-1 text-xs border border-border rounded bg-white focus:ring-1 focus:ring-charcoal outline-none"
+                            @bind="pageSize" @bind:after="ApplyFilters">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                    <span class="text-xs text-muted">
+                        trên tổng <span class="font-semibold text-charcoal">@userList.TotalCount</span> người dùng
+                    </span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button class="px-3 py-1.5 text-xs font-medium rounded border border-border bg-white hover:bg-canvas disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            disabled="@(currentPage <= 1)" @onclick="PreviousPage">
+                        ← Trước
+                    </button>
+                    <span class="px-3 py-1.5 text-xs font-mono text-muted">
+                        @currentPage / @TotalPages
+                    </span>
+                    <button class="px-3 py-1.5 text-xs font-medium rounded border border-border bg-white hover:bg-canvas disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                        Sau →
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Toast Notification -->
+    @if (showToast)
+    {
+        <div class="fixed bottom-6 right-6 z-[100] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border @(toastIsError ? "bg-paleRed-bg border-paleRed-text/20 text-paleRed-text" : "bg-paleGreen-bg border-paleGreen-text/20 text-paleGreen-text") transition-all animate-slide-up">
+            @if (toastIsError)
+            {
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            }
+            else
+            {
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            }
+            <span class="text-sm font-medium">@toastMessage</span>
+        </div>
+    }
+</div>
+
+<!-- Modals -->
+@if (showUserFormModal)
+{
+    <UserFormModal
+        IsEdit="isEditing"
+        User="editingUser"
+        IsSuperAdmin="isSuperAdmin"
+        CurrentTenantId="currentTenantId"
+        Tenants="tenants"
+        OnSave="HandleSaveUser"
+        OnClose="CloseUserFormModal" />
+}
+
+@if (showChangeRoleModal)
+{
+    <ChangeRoleModal
+        User="selectedUser!"
+        IsSuperAdmin="isSuperAdmin"
+        OnSave="HandleChangeRole"
+        OnClose="() => showChangeRoleModal = false" />
+}
+
+@if (showDeleteModal)
+{
+    <DeleteConfirmModal
+        UserName="@(selectedUser?.FullName ?? "")"
+        OnConfirm="HandleDeleteUser"
+        OnClose="() => showDeleteModal = false" />
+}
+
+@if (showToggleStatusModal && selectedUser != null)
+{
+    <ToggleStatusModal
+        UserName="@selectedUser.FullName"
+        UserEmail="@selectedUser.Email"
+        IsCurrentlyActive="@(selectedUser.StatusName == "Active")"
+        OnConfirm="HandleToggleActiveConfirm"
+        OnClose="() => showToggleStatusModal = false" />
+}
+
+@code {
+    // State
+    private bool isLoading = true;
+    private bool isSuperAdmin = false;
+    private string currentUserId = string.Empty;
+    private string currentTenantId = string.Empty;
+    private AdminUserListResponseDto userList = new();
+    private List<TenantDTO> tenants = new();
+
+    // Filter state
+    private string searchQuery = string.Empty;
+    private string selectedRoleFilter = string.Empty;
+    private string selectedTenantFilter = string.Empty;
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    // Modal state
+    private bool showUserFormModal = false;
+    private bool isEditing = false;
+    private AdminUserItemDto? editingUser;
+    private bool showChangeRoleModal = false;
+    private bool showDeleteModal = false;
+    private bool showToggleStatusModal = false;
+    private AdminUserItemDto? selectedUser;
+
+    // Toast state
+    private bool showToast = false;
+    private string toastMessage = string.Empty;
+    private bool toastIsError = false;
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)userList.TotalCount / pageSize));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await DetermineUserRole();
+        await LoadTenants();
+        await LoadUsers();
+    }
+
+    private async Task DetermineUserRole()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        currentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        currentTenantId = user.FindFirst("tenantId")?.Value ?? string.Empty;
+        isSuperAdmin = user.IsInRole("superadmin") || user.IsInRole("SuperAdmin");
+    }
+
+    private async Task LoadTenants()
+    {
+        if (isSuperAdmin)
+        {
+            tenants = await TenantService.GetTenantsAsync();
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var filter = new AdminUserFilterDto
+            {
+                Search = searchQuery,
+                RoleId = selectedRoleFilter,
+                TenantId = isSuperAdmin ? selectedTenantFilter : null,
+                Page = currentPage,
+                PageSize = pageSize
+            };
+
+            userList = await AdminUserService.GetUsersAsync(filter);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+            ShowToast("Lỗi tải danh sách người dùng", true);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 1;
+        await LoadUsers();
+    }
+
+    private async Task HandleSearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplyFilters();
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadUsers();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+            await LoadUsers();
+        }
+    }
+
+    // ============ Modals ============
+
+    private void OpenCreateModal()
+    {
+        isEditing = false;
+        editingUser = null;
+        showUserFormModal = true;
+    }
+
+    private void OpenEditModal(AdminUserItemDto user)
+    {
+        isEditing = true;
+        editingUser = user;
+        showUserFormModal = true;
+    }
+
+    private void CloseUserFormModal()
+    {
+        showUserFormModal = false;
+        editingUser = null;
+    }
+
+    private void OpenChangeRoleModal(AdminUserItemDto user)
+    {
+        selectedUser = user;
+        showChangeRoleModal = true;
+    }
+
+    private void OpenDeleteModal(AdminUserItemDto user)
+    {
+        selectedUser = user;
+        showDeleteModal = true;
+    }
+
+    private void OpenToggleStatusModal(AdminUserItemDto user)
+    {
+        selectedUser = user;
+        showToggleStatusModal = true;
+    }
+
+    // ============ Handlers ============
+
+    private async Task HandleSaveUser((bool IsEdit, AdminCreateUserRequestDto? CreateDto, AdminUpdateUserRequestDto? UpdateDto, string? UserId) args)
+    {
+        if (args.IsEdit && args.UpdateDto != null && args.UserId != null)
+        {
+            var (success, error) = await AdminUserService.UpdateUserAsync(args.UserId, args.UpdateDto);
+            if (success)
+            {
+                ShowToast("Cập nhật người dùng thành công");
+                showUserFormModal = false;
+                await LoadUsers();
+            }
+            else
+            {
+                ShowToast($"Lỗi: {error}", true);
+            }
+        }
+        else if (!args.IsEdit && args.CreateDto != null)
+        {
+            var (success, error) = await AdminUserService.CreateUserAsync(args.CreateDto);
+            if (success)
+            {
+                ShowToast("Tạo người dùng thành công");
+                showUserFormModal = false;
+                await LoadUsers();
+            }
+            else
+            {
+                ShowToast($"Lỗi: {error}", true);
+            }
+        }
+    }
+
+    private async Task HandleChangeRole(string roleId)
+    {
+        if (selectedUser == null) return;
+
+        var (success, error) = await AdminUserService.ChangeRoleAsync(selectedUser.Id, new AdminUpdateRoleRequestDto { RoleId = roleId });
+        if (success)
+        {
+            ShowToast($"Đổi role thành công");
+            showChangeRoleModal = false;
+            await LoadUsers();
+        }
+        else
+        {
+            ShowToast($"Lỗi: {error}", true);
+        }
+    }
+
+    private async Task HandleDeleteUser()
+    {
+        if (selectedUser == null) return;
+
+        var (success, error) = await AdminUserService.DeleteUserAsync(selectedUser.Id);
+        if (success)
+        {
+            ShowToast("Xóa người dùng thành công");
+            showDeleteModal = false;
+            await LoadUsers();
+        }
+        else
+        {
+            ShowToast($"Lỗi: {error}", true);
+        }
+    }
+
+    private async Task HandleToggleActiveConfirm()
+    {
+        if (selectedUser == null) return;
+
+        var (success, error) = await AdminUserService.ToggleActiveAsync(selectedUser.Id);
+        if (success)
+        {
+            ShowToast($"Đã {(selectedUser.StatusName == "Active" ? "khóa" : "mở khóa")} người dùng");
+            showToggleStatusModal = false;
+            await LoadUsers();
+        }
+        else
+        {
+            ShowToast($"Lỗi: {error}", true);
+        }
+    }
+
+    // ============ Helpers ============
+
+    private string GetRoleDisplayName(string roleId) => roleId switch
+    {
+        "superadmin" => "Super Admin",
+        "admin" => "Tenant Admin",
+        "manager" => "Organizer",
+        "employee" => "Student",
+        _ => roleId
+    };
+
+    private string GetRoleBadgeClass(string roleId) => roleId switch
+    {
+        "superadmin" => "bg-purple-100 text-purple-700",
+        "admin" => "bg-paleBlue-bg text-paleBlue-text",
+        "manager" => "bg-paleYellow-bg text-paleYellow-text",
+        "employee" => "bg-canvas text-muted",
+        _ => "bg-canvas text-muted"
+    };
+
+    private async void ShowToast(string message, bool isError = false)
+    {
+        toastMessage = message;
+        toastIsError = isError;
+        showToast = true;
+        StateHasChanged();
+
+        await Task.Delay(3000);
+        showToast = false;
+        StateHasChanged();
+    }
+}

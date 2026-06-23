@@ -79,6 +79,32 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
+    /// Đăng ký tài khoản mới, gọi WebAPI.
+    /// </summary>
+    public async Task<(bool Success, string? Error)> RegisterAsync(RegisterRequest request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/auth/register", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Registration successful for {Email}", request.Email);
+                return (true, null);
+            }
+
+            var errorMsg = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("Registration failed: {Error}", errorMsg);
+            return (false, errorMsg);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Registration error for {Email}", request.Email);
+            return (false, "Đã xảy ra lỗi kết nối với máy chủ.");
+        }
+    }
+
+    /// <summary>
     /// Lấy JWT token hiện tại từ localStorage.
     /// </summary>
     public async Task<string?> GetCurrentTokenAsync()

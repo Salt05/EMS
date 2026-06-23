@@ -1,0 +1,79 @@
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-charcoal/40 backdrop-blur-sm transition-opacity" @onclick="Cancel"></div>
+
+        <!-- Modal container -->
+        <div class="relative w-full max-w-md mx-auto my-6 z-50 transition-all duration-300">
+            <div class="relative flex flex-col w-full bg-white border border-border rounded-xl shadow-bento outline-none focus:outline-none">
+                <!-- Header -->
+                <div class="flex items-center justify-between p-5 border-b border-border rounded-t-xl bg-canvas">
+                    <h3 class="text-base font-bold text-charcoal flex items-center gap-2">
+                        @if (IsDanger)
+                        {
+                            <svg class="h-5 w-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        }
+                        @Title
+                    </h3>
+                    <button class="p-1 ml-auto bg-transparent border-0 text-muted hover:text-charcoal float-right text-3xl leading-none font-semibold outline-none focus:outline-none transition-colors" @onclick="Cancel">
+                        <span class="bg-transparent text-muted hover:text-charcoal h-6 w-6 text-2xl block outline-none focus:outline-none">×</span>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="relative p-6 flex-auto text-sm text-muted">
+                    @if (ChildContent != null)
+                    {
+                        @ChildContent
+                    }
+                    else
+                    {
+                        <p class="leading-relaxed">@Message</p>
+                    }
+                </div>
+
+                <!-- Footer -->
+                <div class="flex items-center justify-end gap-3 p-5 border-t border-border rounded-b-xl bg-canvas">
+                    <button class="px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors active:scale-[0.98]" @onclick="Cancel">
+                        @CancelText
+                    </button>
+                    <button class="px-4 py-2 text-sm font-semibold text-white rounded-md shadow-sm transition-all active:scale-[0.98] @(IsDanger ? "bg-rose-600 hover:bg-rose-700" : "bg-charcoal hover:bg-slate-800")" @onclick="Confirm">
+                        @ConfirmText
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = "Xác nhận hành động";
+    [Parameter] public string Message { get; set; } = "Bạn có chắc chắn muốn thực hiện hành động này?";
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string ConfirmText { get; set; } = "Xác nhận";
+    [Parameter] public string CancelText { get; set; } = "Hủy";
+    [Parameter] public bool IsDanger { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task Confirm()
+    {
+        await OnConfirm.InvokeAsync();
+    }
+
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+}

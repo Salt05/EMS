@@ -1,0 +1,693 @@
+@page "/organizer/events/{EventId}/registrations"
+@using EMS.Shared.DTOs.Registrations
+@using EMS.Shared.DTOs.Events
+@using EMS.BlazorWASM.Services
+@implements IDisposable
+@inject IRegistrationServiceClient RegistrationService
+@inject IEventServiceClient EventService
+@inject ICheckInServiceClient CheckInService
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "organizer,admin,manager")]
+
+<PageTitle>Manage Registrations - EMS</PageTitle>
+
+<div class="dashboard-welcome">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="text-white mb-1">Registrations Management</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="/organizer/my-events">Events</a></li>
+                    <li class="breadcrumb-item active text-secondary" aria-current="page">Registrations</li>
+                </ol>
+            </nav>
+        </div>
+        <button class="btn btn-outline-light" @onclick="BackToEvents">
+            <span class="bi bi-arrow-left"></span> Back to Events
+        </button>
+    </div>
+
+    @if (isLoadingEvent)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading event information...</p>
+        </div>
+    }
+    else if (eventDto == null)
+    {
+        <div class="alert alert-error">
+            <span>Event not found or you do not have permission to manage this event.</span>
+        </div>
+    }
+    else
+    {
+        <!-- Event Summary Card -->
+        <div class="welcome-card mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <span class="badge bg-secondary mb-2">@eventDto.StatusName</span>
+                    <h2 class="text-white mb-2">@eventDto.Title</h2>
+                    <p class="mb-0 text-secondary">
+                        <i class="bi bi-calendar3 me-2"></i> @eventDto.StartTime.ToLocalTime().ToString("f") 
+                        <span class="mx-2">|</span>
+                        <i class="bi bi-geo-alt me-2"></i> @eventDto.Location
+                    </p>
+                </div>
+                <div class="col-md-4 mt-3 mt-md-0">
+                    <div class="user-info-grid">
+                        <div class="info-item text-center">
+                            <span class="info-label">Capacity</span>
+                            <span class="info-value">@(eventDto.Capacity > 0 ? eventDto.Capacity.ToString() : "Unlimited")</span>
+                        </div>
+                        <div class="info-item text-center">
+                            <span class="info-label">Confirmed</span>
+                            <span class="info-value text-success">@confirmedCount</span>
+                        </div>
+                        <div class="info-item text-center">
+                            <span class="info-label">Waitlist</span>
+                            <span class="info-value text-info">@waitlistCount</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="card bg-secondary border-0 mb-4">
+            <div class="card-header bg-dark border-bottom border-secondary p-0">
+                <ul class="nav nav-tabs border-0" id="registrationTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link border-0 text-white py-3 px-4 @(activeTab == "pending" ? "active bg-secondary border-bottom border-primary" : "")"
+                                @onclick='() => SwitchTab("pending")' type="button">
+                            Pending Approvals
+                            @if (pendingCount > 0)
+                            {
+                                <span class="badge bg-warning text-dark ms-2">@pendingCount</span>
+                            }
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link border-0 text-white py-3 px-4 @(activeTab == "waitlist" ? "active bg-secondary border-bottom border-primary" : "")"
+                                @onclick='() => SwitchTab("waitlist")' type="button">
+                            Waitlist
+                            @if (waitlistCount > 0)
+                            {
+                                <span class="badge bg-info text-dark ms-2">@waitlistCount</span>
+                            }
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link border-0 text-white py-3 px-4 @(activeTab == "confirmed" ? "active bg-secondary border-bottom border-primary" : "")"
+                                @onclick='() => SwitchTab("confirmed")' type="button">
+                            Confirmed
+                            @if (confirmedCount > 0)
+                            {
+                                <span class="badge bg-success text-white ms-2">@confirmedCount</span>
+                            }
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link border-0 text-white py-3 px-4 @(activeTab == "all" ? "active bg-secondary border-bottom border-primary" : "")"
+                                @onclick='() => SwitchTab("all")' type="button">
+                            All Requests
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link border-0 text-white py-3 px-4 @(activeTab == "checkin" ? "active bg-secondary border-bottom border-primary" : "")"
+                                @onclick='() => SwitchTab("checkin")' type="button">
+                            Check-in <i class="bi bi-qr-code-scan ms-1"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body p-0">
+                @if (isLoadingRegistrations)
+                {
+                    <div class="loading-container p-5">
+                        <div class="spinner"></div>
+                        <p>Loading registrations...</p>
+                    </div>
+                }
+                else if (activeTab == "checkin")
+                {
+                    <div class="p-4 text-white">
+                        <div class="row">
+                            <!-- Check-in Validation Form & Countdown -->
+                            <div class="col-md-5 mb-4 mb-md-0">
+                                <div class="card bg-dark border-secondary h-100">
+                                    <div class="card-body">
+                                        <h4 class="card-title text-primary mb-3"><i class="bi bi-clock-history me-2"></i>Event Countdown</h4>
+                                        <div class="display-6 font-monospace mb-4 text-center @(countdownText == "Event has ended" ? "text-danger" : "text-white")">
+                                            @countdownText
+                                        </div>
+                                        
+                                        <hr class="border-secondary my-4" />
+                                        
+                                        <h4 class="card-title text-primary mb-3"><i class="bi bi-qr-code-scan me-2"></i>Validate Check-in</h4>
+                                        <p class="text-secondary small mb-3">Enter the check-in code provided by the attendee to mark them as checked in.</p>
+                                        
+                                        <div class="input-group mb-3">
+                                            <input type="text" class="form-control bg-secondary text-white border-secondary" 
+                                                   placeholder="Enter Code (e.g., A1B2C3D4)" 
+                                                   @bind="checkInCode" 
+                                                   @bind:event="oninput" 
+                                                   @onkeyup="HandleCodeKeyUp" />
+                                            <button class="btn btn-primary" type="button" 
+                                                    @onclick="ValidateCheckIn" 
+                                                    disabled="@(isValidating || string.IsNullOrWhiteSpace(checkInCode))">
+                                                @if (isValidating)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                                }
+                                                Check In
+                                            </button>
+                                        </div>
+                                        
+                                        @if (!string.IsNullOrEmpty(validateMessage))
+                                        {
+                                            <div class="alert @(validateSuccess ? "alert-success" : "alert-danger") py-2 mt-3 mb-0 border-0">
+                                                <small>@validateMessage</small>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Attendees List -->
+                            <div class="col-md-7">
+                                <div class="card bg-dark border-secondary h-100">
+                                    <div class="card-header border-bottom border-secondary d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Attendees (@checkedInAttendees.Count / @confirmedCount)</h5>
+                                        <span class="badge bg-secondary text-light">Auto-refreshing (5s)</span>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                            @if (checkedInAttendees.Count == 0)
+                                            {
+                                                <div class="p-4 text-center text-muted">
+                                                    <span>No attendees have checked in yet.</span>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <table class="table table-dark table-striped table-hover mb-0 align-middle">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="ps-3">Attendee</th>
+                                                            <th>Check-in Time</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var attendee in checkedInAttendees)
+                                                        {
+                                                            <tr>
+                                                                <td class="ps-3">
+                                                                    <div class="fw-bold">@(string.IsNullOrEmpty(attendee.UserFullName) ? "Student (" + attendee.UserId[..8] + "...)" : attendee.UserFullName)</div>
+                                                                    <small class="text-secondary">MSSV: @(attendee.UserMSSV ?? "N/A")</small>
+                                                                </td>
+                                                                <td>
+                                                                    @if (attendee.CheckedInAt.HasValue)
+                                                                    {
+                                                                        <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> @attendee.CheckedInAt.Value.ToLocalTime().ToString("t")</span>
+                                                                    }
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        @if (filteredRegistrations == null || !filteredRegistrations.Any())
+                        {
+                            <div class="p-5 text-center text-muted">
+                                <i class="bi bi-people-fill display-4 mb-3 d-block text-secondary"></i>
+                                <span>No registrations found in this category.</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <table class="table table-striped table-hover mb-0 text-white align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        @if (activeTab == "waitlist")
+                                        {
+                                            <th style="width: 80px;">Queue No.</th>
+                                        }
+                                        <th>Student Details</th>
+                                        <th>Registered At</th>
+                                        @if (activeTab == "all")
+                                        {
+                                            <th>Status</th>
+                                        }
+                                        @if (activeTab == "confirmed")
+                                        {
+                                            <th>Check-In Status</th>
+                                        }
+                                        @if (activeTab == "pending")
+                                        {
+                                            <th class="text-end" style="width: 250px;">Actions</th>
+                                        }
+                                        else if (activeTab == "all" || activeTab == "waitlist")
+                                        {
+                                            <th class="text-end" style="width: 150px;">Actions</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < filteredRegistrations.Count; i++)
+                                    {
+                                        var reg = filteredRegistrations[i];
+                                        <tr>
+                                            @if (activeTab == "waitlist")
+                                            {
+                                                <td>
+                                                    <span class="badge bg-secondary font-weight-bold p-2" style="font-size: 0.9rem;">
+                                                        #@(i + 1)
+                                                    </span>
+                                                </td>
+                                            }
+                                            <td>
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-bold">@(string.IsNullOrEmpty(reg.UserFullName) ? "Student (" + reg.UserId[..8] + "...)" : reg.UserFullName)</span>
+                                                    <small class="text-secondary">Email: @(reg.UserEmail ?? "N/A")</small>
+                                                    <small class="text-secondary">MSSV: @(reg.UserMSSV ?? "N/A")</small>
+                                                    @if (!string.IsNullOrEmpty(reg.Note))
+                                                    {
+                                                        <span class="mt-1 p-2 rounded bg-dark border border-secondary text-secondary" style="font-size: 0.8rem; max-width: 400px;">
+                                                            <strong>Note:</strong> @reg.Note
+                                                        </span>
+                                                    }
+                                                    @if (reg.Status == 5 && !string.IsNullOrEmpty(reg.RejectionReason))
+                                                    {
+                                                        <span class="mt-1 p-2 rounded bg-dark border border-danger text-danger" style="font-size: 0.8rem; max-width: 400px;">
+                                                            <strong>Reject Reason:</strong> @reg.RejectionReason
+                                                        </span>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <small>@reg.RegisteredAt.ToLocalTime().ToString("g")</small>
+                                            </td>
+                                            @if (activeTab == "all")
+                                            {
+                                                <td>
+                                                    <span class="badge @GetStatusBadgeClass((RegistrationStatus)reg.Status)">
+                                                        @reg.StatusName
+                                                    </span>
+                                                </td>
+                                            }
+                                            @if (activeTab == "confirmed")
+                                            {
+                                                <td>
+                                                    <!-- In our RegistrationResponseDto/FirestoreRegistrationService, check if registration is checked in -->
+                                                    <!-- Note: We did not add CheckIn fields to RegistrationResponseDto. Let's see if we should, or we can check via placeholder. Wait, let's keep it simple. -->
+                                                    <span class="badge bg-success">Confirmed</span>
+                                                </td>
+                                            }
+                                            @if (activeTab == "pending")
+                                            {
+                                                <td class="text-end">
+                                                    <button class="btn btn-sm btn-success me-2" @onclick="() => ApproveRegistration(reg.Id)">
+                                                        <i class="bi bi-check-lg"></i> Approve
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => OpenRejectModal(reg.Id, reg.UserFullName)">
+                                                        <i class="bi bi-x-lg"></i> Reject
+                                                    </button>
+                                                </td>
+                                            }
+                                            else if (activeTab == "waitlist")
+                                            {
+                                                <td class="text-end">
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => OpenRejectModal(reg.Id, reg.UserFullName)">
+                                                        <i class="bi bi-x-lg"></i> Reject
+                                                    </button>
+                                                </td>
+                                            }
+                                            else if (activeTab == "all")
+                                            {
+                                                <td class="text-end">
+                                                    @if (reg.Status == (int)RegistrationStatus.Pending || reg.Status == (int)RegistrationStatus.Waitlisted)
+                                                    {
+                                                        <button class="btn btn-sm btn-success me-2" @onclick="() => ApproveRegistration(reg.Id)">
+                                                            Approve
+                                                        </button>
+                                                        <button class="btn btn-sm btn-danger" @onclick="() => OpenRejectModal(reg.Id, reg.UserFullName)">
+                                                            Reject
+                                                        </button>
+                                                    }
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Rejection Modal Overlay -->
+@if (showRejectModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.7); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-white" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+                <div class="modal-header border-bottom border-secondary">
+                    <h5 class="modal-title text-white"><i class="bi bi-exclamation-triangle text-danger me-2"></i> Reject Registration</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseRejectModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to reject the registration of <strong>@selectedRegName</strong>?</p>
+                    <div class="mb-3">
+                        <label for="rejectionReasonInput" class="form-label text-secondary">Reason for Rejection (Required)</label>
+                        <textarea class="form-control text-white border-secondary" 
+                                  style="background: var(--bg-primary);" 
+                                  id="rejectionReasonInput" 
+                                  @bind="rejectionReason" 
+                                  rows="3" 
+                                  placeholder="Please provide a clear reason for the rejection (e.g. invalid credentials, event criteria not met)"></textarea>
+                        @if (showReasonError)
+                        {
+                            <div class="text-danger mt-1 small">Rejection reason is required.</div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary">
+                    <button type="button" class="btn btn-outline-light" @onclick="CloseRejectModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmReject">
+                        Confirm Reject
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string EventId { get; set; } = string.Empty;
+
+    private EventResponseDto? eventDto;
+    private List<RegistrationResponseDto> allRegistrations = new();
+    private List<RegistrationResponseDto> filteredRegistrations = new();
+
+    private bool isLoadingEvent = true;
+    private bool isLoadingRegistrations = true;
+    private string activeTab = "pending";
+
+    // Check-in state
+    private List<RegistrationResponseDto> checkedInAttendees = new();
+    private string checkInCode = string.Empty;
+    private string countdownText = string.Empty;
+    private bool isValidating = false;
+    private string? validateMessage = null;
+    private bool validateSuccess = false;
+    private System.Threading.Timer? pollingTimer;
+    private System.Threading.Timer? countdownTimer;
+
+    // Statistics counts
+    private int pendingCount;
+    private int confirmedCount;
+    private int waitlistCount;
+
+    // Modal state variables
+    private bool showRejectModal = false;
+    private string selectedRegId = string.Empty;
+    private string selectedRegName = string.Empty;
+    private string rejectionReason = string.Empty;
+    private bool showReasonError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEventInfo();
+        await LoadRegistrations();
+        
+        if (eventDto != null)
+        {
+            StartCountdown();
+            StartPolling();
+        }
+    }
+
+    private async Task LoadEventInfo()
+    {
+        isLoadingEvent = true;
+        try
+        {
+            eventDto = await EventService.GetEventByIdAsync(EventId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading event info: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingEvent = false;
+        }
+    }
+
+    private async Task LoadRegistrations()
+    {
+        isLoadingRegistrations = true;
+        try
+        {
+            allRegistrations = await RegistrationService.GetEventRegistrationsAsync(EventId);
+            UpdateCounts();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading registrations: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingRegistrations = false;
+        }
+    }
+
+    private void UpdateCounts()
+    {
+        pendingCount = allRegistrations.Count(r => r.Status == (int)RegistrationStatus.Pending);
+        confirmedCount = allRegistrations.Count(r => r.Status == (int)RegistrationStatus.Confirmed);
+        waitlistCount = allRegistrations.Count(r => r.Status == (int)RegistrationStatus.Waitlisted);
+    }
+
+    private void ApplyFilter()
+    {
+        if (activeTab == "pending")
+        {
+            filteredRegistrations = allRegistrations
+                .Where(r => r.Status == (int)RegistrationStatus.Pending)
+                .OrderBy(r => r.RegisteredAt)
+                .ToList();
+        }
+        else if (activeTab == "waitlist")
+        {
+            filteredRegistrations = allRegistrations
+                .Where(r => r.Status == (int)RegistrationStatus.Waitlisted)
+                .OrderBy(r => r.RegisteredAt)
+                .ToList();
+        }
+        else if (activeTab == "confirmed")
+        {
+            filteredRegistrations = allRegistrations
+                .Where(r => r.Status == (int)RegistrationStatus.Confirmed)
+                .OrderBy(r => r.RegisteredAt)
+                .ToList();
+        }
+        else // all
+        {
+            filteredRegistrations = allRegistrations
+                .OrderByDescending(r => r.RegisteredAt)
+                .ToList();
+        }
+    }
+
+    private void SwitchTab(string tabName)
+    {
+        activeTab = tabName;
+        ApplyFilter();
+        
+        if (tabName == "checkin")
+        {
+            _ = PollAttendees();
+        }
+    }
+
+    private async Task ApproveRegistration(string id)
+    {
+        var success = await RegistrationService.ApproveRegistrationAsync(id);
+        if (success)
+        {
+            await LoadRegistrations();
+        }
+    }
+
+    private void OpenRejectModal(string registrationId, string? studentName)
+    {
+        selectedRegId = registrationId;
+        selectedRegName = string.IsNullOrEmpty(studentName) ? "this student" : studentName;
+        rejectionReason = string.Empty;
+        showReasonError = false;
+        showRejectModal = true;
+    }
+
+    private void CloseRejectModal()
+    {
+        showRejectModal = false;
+        selectedRegId = string.Empty;
+        selectedRegName = string.Empty;
+        rejectionReason = string.Empty;
+        showReasonError = false;
+    }
+
+    private async Task ConfirmReject()
+    {
+        if (string.IsNullOrWhiteSpace(rejectionReason))
+        {
+            showReasonError = true;
+            return;
+        }
+
+        var success = await RegistrationService.RejectRegistrationAsync(selectedRegId, rejectionReason);
+        if (success)
+        {
+            CloseRejectModal();
+            await LoadRegistrations();
+        }
+    }
+
+    private void BackToEvents()
+    {
+        Navigation.NavigateTo("/organizer/my-events");
+    }
+
+    private string GetStatusBadgeClass(RegistrationStatus status)
+    {
+        return status switch
+        {
+            RegistrationStatus.Pending => "bg-warning text-dark",
+            RegistrationStatus.Confirmed => "bg-success text-white",
+            RegistrationStatus.Waitlisted => "bg-info text-dark",
+            RegistrationStatus.Cancelled => "bg-secondary text-white",
+            RegistrationStatus.Rejected => "bg-danger text-white",
+            _ => "bg-dark text-white"
+        };
+    }
+
+    private void StartCountdown()
+    {
+        countdownTimer = new System.Threading.Timer(UpdateCountdown, null, 0, 1000);
+    }
+
+    private void UpdateCountdown(object? state)
+    {
+        if (eventDto == null) return;
+        
+        var remaining = eventDto.EndTime - DateTime.UtcNow;
+        if (remaining <= TimeSpan.Zero)
+        {
+            countdownText = "Event has ended";
+            countdownTimer?.Change(System.Threading.Timeout.Infinite, 0); // Stop timer
+        }
+        else
+        {
+            // If it's more than a day
+            if (remaining.TotalDays >= 1)
+            {
+                countdownText = $"{(int)remaining.TotalDays}d {remaining.Hours:D2}h {remaining.Minutes:D2}m";
+            }
+            else
+            {
+                countdownText = $"{(int)remaining.TotalHours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+            }
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void StartPolling()
+    {
+        pollingTimer = new System.Threading.Timer(async _ => await PollAttendees(), null, 0, 5000);
+    }
+
+    private async Task PollAttendees()
+    {
+        if (activeTab == "checkin")
+        {
+            try
+            {
+                var attendees = await CheckInService.GetAttendeesAsync(EventId);
+                checkedInAttendees = attendees.OrderByDescending(a => a.CheckedInAt).ToList();
+                await InvokeAsync(StateHasChanged);
+            }
+            catch
+            {
+                // Ignore polling errors to prevent UI interruptions
+            }
+        }
+    }
+
+    private async Task ValidateCheckIn()
+    {
+        if (string.IsNullOrWhiteSpace(checkInCode)) return;
+        
+        isValidating = true;
+        validateMessage = null;
+        
+        try
+        {
+            var result = await CheckInService.ValidateCheckInCodeAsync(checkInCode.Trim());
+            if (result != null && result.CheckedIn)
+            {
+                validateSuccess = true;
+                validateMessage = "Check-in successful!";
+                checkInCode = string.Empty; // clear code
+                
+                await PollAttendees(); // Refresh immediately
+                // Optional: update confirmedCount if needed, but usually it doesn't change on check-in
+            }
+            else
+            {
+                validateSuccess = false;
+                validateMessage = "Invalid, expired, or already used code.";
+            }
+        }
+        catch (Exception ex)
+        {
+            validateSuccess = false;
+            validateMessage = "Failed to validate code.";
+            Console.WriteLine($"Error validating check-in: {ex.Message}");
+        }
+        finally
+        {
+            isValidating = false;
+        }
+    }
+    
+    private async Task HandleCodeKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(checkInCode) && !isValidating)
+        {
+            await ValidateCheckIn();
+        }
+    }
+
+    public void Dispose()
+    {
+        pollingTimer?.Dispose();
+        countdownTimer?.Dispose();
+    }
+}

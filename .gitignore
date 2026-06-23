@@ -430,3 +430,8 @@ FodyWeavers.xsd
 
 # Firebase credentials
 firebase-key.json
+
+# AI Agent files
+.agents/
+skills-lock.json
+

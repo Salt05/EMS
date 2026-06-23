@@ -14,6 +14,15 @@ public class RegistrationResponseDto
     public DateTime? ProcessedAt { get; set; }
     public string? RejectionReason { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public string? UserFullName { get; set; }
+    public string? UserEmail { get; set; }
+    public string? UserMSSV { get; set; }
+    // Check-in tracking
+    public bool CheckedIn { get; set; }
+    public DateTime? CheckedInAt { get; set; }
+    public string? CheckInCode { get; set; }
+    public DateTime? CheckInCodeExpiresAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

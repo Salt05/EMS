@@ -1,92 +1,113 @@
 @page "/login"
 @layout MinimalLayout
 @inject IAuthService AuthService
+@inject ITenantServiceClient TenantService
 @inject NavigationManager Navigation
 @inject ILogger<Login> Logger
 
 <PageTitle>Đăng nhập — EMS</PageTitle>
 
-<div class="login-page">
-    <div class="login-container">
-        <div class="login-header">
-            <div class="login-logo">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="48" height="48" rx="12" fill="url(#gradient)" />
-                    <text x="50%" y="55%" text-anchor="middle" fill="white" font-size="20" font-weight="700" dy=".1em">E</text>
-                    <defs>
-                        <linearGradient id="gradient" x1="0" y1="0" x2="48" y2="48">
-                            <stop offset="0%" stop-color="#6366F1" />
-                            <stop offset="100%" stop-color="#8B5CF6" />
-                        </linearGradient>
-                    </defs>
+<div class="min-h-screen flex items-center justify-center bg-canvas relative overflow-hidden px-4 py-12">
+    <!-- Subtle Background Glows -->
+    <div class="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-slate-200/40 blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-slate-200/40 blur-3xl pointer-events-none"></div>
+
+    <div class="w-full max-w-md bg-white border border-border rounded-2xl p-8 sm:p-10 shadow-bento relative z-10 transition-all">
+        <!-- Logo & Header -->
+        <div class="flex flex-col items-center mb-8 text-center">
+            <div class="flex items-center justify-center h-12 w-12 rounded-xl bg-charcoal text-white mb-4 shadow-sm transition-transform hover:scale-105 duration-200">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/>
                 </svg>
             </div>
-            <h1 class="login-title">EMS Dashboard</h1>
-            <p class="login-subtitle">Event Management System</p>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">EMS Dashboard</h1>
+            <p class="text-xs text-muted mt-1">Đăng nhập vào hệ thống quản lý sự kiện</p>
+
+            @if (!string.IsNullOrEmpty(_subdomain) && _subdomain != "default")
+            {
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-paleBlue-bg text-paleBlue-text border border-blue-100 mt-4">
+                    <span class="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span>Phân hệ: @(_tenantName ?? _subdomain.ToUpper())</span>
+                </div>
+            }
         </div>
 
-        <EditForm Model="@_loginModel" OnValidSubmit="@HandleLogin" class="login-form">
+        <EditForm Model="@_loginModel" OnValidSubmit="@HandleLogin" class="space-y-5">
+            <DataAnnotationsValidator />
+
             @if (!string.IsNullOrEmpty(_errorMessage))
             {
-                <div class="alert alert-error" role="alert">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 10.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5zM8.75 8a.75.75 0 0 1-1.5 0V4.5a.75.75 0 0 1 1.5 0V8z"/>
+                <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold bg-paleRed-bg text-paleRed-text border border-red-100 transition-all duration-300" role="alert">
+                    <svg class="h-4 w-4 shrink-0 text-paleRed-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <span>@_errorMessage</span>
                 </div>
             }
 
-            <div class="form-group">
-                <label for="email" class="form-label">Email</label>
-                <div class="input-wrapper">
-                    <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                        <polyline points="22,6 12,13 2,6"/>
-                    </svg>
+            <!-- Email Field -->
+            <div class="space-y-1.5">
+                <label for="email" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Email</label>
+                <div class="relative flex items-center">
+                    <span class="absolute left-3 text-muted/60 pointer-events-none">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                    </span>
                     <InputText id="email"
                                @bind-Value="_loginModel.Email"
-                               class="form-input"
+                               class="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all placeholder:text-muted/40 shadow-sm"
                                placeholder="your@email.com"
                                disabled="@_isLoading" />
                 </div>
+                <ValidationMessage For="@(() => _loginModel.Email)" class="text-xs text-red-500 mt-1" />
             </div>
 
-            <div class="form-group">
-                <label for="password" class="form-label">Mật khẩu</label>
-                <div class="input-wrapper">
-                    <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
+            <!-- Password Field -->
+            <div class="space-y-1.5">
+                <label for="password" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Mật khẩu</label>
+                <div class="relative flex items-center">
+                    <span class="absolute left-3 text-muted/60 pointer-events-none">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </span>
                     <InputText id="password"
                                type="@(_showPassword ? "text" : "password")"
                                @bind-Value="_loginModel.Password"
-                               class="form-input"
+                               class="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all placeholder:text-muted/40 shadow-sm"
                                placeholder="Nhập mật khẩu"
                                disabled="@_isLoading" />
-                    <button type="button" class="toggle-password" @onclick="TogglePasswordVisibility" tabindex="-1">
-                        @if (_showPassword)
-                        {
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                                <line x1="1" y1="1" x2="23" y2="23"/>
-                            </svg>
-                        }
-                        else
-                        {
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                        }
+                    <button type="button" class="absolute right-3 p-1 text-muted/60 hover:text-charcoal transition-colors focus:outline-none" @onclick="TogglePasswordVisibility" tabindex="-1">
+                         @if (_showPassword)
+                         {
+                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                 <line x1="1" y1="1" x2="23" y2="23"/>
+                             </svg>
+                         }
+                         else
+                         {
+                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                 <circle cx="12" cy="12" r="3"/>
+                             </svg>
+                         }
                     </button>
                 </div>
+                <ValidationMessage For="@(() => _loginModel.Password)" class="text-xs text-red-500 mt-1" />
             </div>
 
-            <button type="submit" class="btn-login" disabled="@_isLoading">
+            <!-- Submit Button -->
+            <button type="submit" class="w-full mt-2 py-2.5 px-4 text-sm font-semibold text-white bg-charcoal rounded-lg hover:bg-slate-800 transition-all duration-150 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed" disabled="@_isLoading">
                 @if (_isLoading)
                 {
-                    <span class="spinner"></span>
+                    <div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
                     <span>Đang đăng nhập...</span>
                 }
                 else
@@ -96,8 +117,13 @@
             </button>
         </EditForm>
 
-        <div class="login-footer">
-            <p>© 2026 EMS — Event Management System</p>
+        <!-- Divider & Register Link -->
+        <div class="mt-6 pt-6 border-t border-border text-center text-xs text-muted flex flex-col gap-3">
+            <p>
+                Chưa có tài khoản? 
+                <a href="/register" class="font-semibold text-charcoal hover:underline transition-colors">Đăng ký ngay</a>
+            </p>
+            <p class="text-[10px] text-muted/60">© 2026 EMS — Event Management System</p>
         </div>
     </div>
 </div>
@@ -107,6 +133,37 @@
     private string? _errorMessage;
     private bool _isLoading;
     private bool _showPassword;
+
+    private string? _subdomain;
+    private string? _tenantName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var uri = new Uri(Navigation.Uri);
+            var host = uri.Host;
+            var parts = host.Split('.');
+            if (parts.Length >= 2 && parts[0] != "localhost" && parts[0] != "ems")
+            {
+                _subdomain = parts[0];
+                var tenants = await TenantService.GetTenantsAsync();
+                var tenant = tenants.FirstOrDefault(t => t.Subdomain.Equals(_subdomain, StringComparison.OrdinalIgnoreCase));
+                if (tenant != null)
+                {
+                    _tenantName = tenant.Name;
+                }
+            }
+            else
+            {
+                _subdomain = "default";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning("Error resolving subdomain for UI decoration: " + ex.Message);
+        }
+    }
 
     private async Task HandleLogin()
     {

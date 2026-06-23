@@ -1,0 +1,116 @@
+@page "/Admin/Dashboard"
+@attribute [Authorize(Roles = "admin,Admin")]
+@inject ITenantAdminServiceClient TenantAdminService
+
+<PageTitle>Dashboard Tenant Admin — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+            Bảng Điều Khiển Quản Trị
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">
+                ⏳ DEMO
+            </span>
+        </h1>
+        <p class="text-sm text-muted mt-1">Tổng quan số liệu thống kê sự kiện và người dùng trong tổ chức của bạn.</p>
+    </div>
+
+    @if (stats == null)
+    {
+        <div class="flex justify-center items-center py-20">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-charcoal"></div>
+        </div>
+    }
+    else
+    {
+        <!-- Stats Widgets -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <DashboardWidget Title="Người dùng trong trường" Value="@stats.TotalUsers.ToString()" IsDemo="true">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
+
+            <DashboardWidget Title="Tổng số Sự kiện" Value="@stats.TotalEvents.ToString()" IsDemo="true">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
+
+            <DashboardWidget Title="Sự kiện đang diễn ra" Value="@stats.OngoingEvents.ToString()" IsDemo="true">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
+
+            <DashboardWidget Title="Tỷ lệ Check-in" Value="@($"{stats.CheckInRate}%")" IsDemo="true">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Top Organizers Chart -->
+            <div class="bg-white border border-border rounded-xl p-6 shadow-bento">
+                <h3 class="text-base font-bold text-charcoal mb-4 flex items-center justify-between">
+                    Top 5 Ban Tổ Chức Tích Cực
+                    <span class="text-xs text-muted font-normal">Số lượng sự kiện tạo</span>
+                </h3>
+                <div class="mt-8 space-y-5">
+                    @foreach (var org in stats.TopOrganizers)
+                    {
+                        var maxVal = stats.TopOrganizers.Max(o => o.EventCount);
+                        var percentage = maxVal > 0 ? (org.EventCount * 100 / maxVal) : 0;
+                        <div>
+                            <div class="flex items-center justify-between text-sm mb-1.5">
+                                <span class="font-medium text-charcoal">@org.OrganizerName</span>
+                                <span class="font-bold text-charcoal font-mono">@org.EventCount</span>
+                            </div>
+                            <div class="w-full bg-canvas h-3 rounded-full overflow-hidden">
+                                <div class="bg-charcoal h-full rounded-full transition-all duration-500" style="width: @(percentage)%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Events by Month Chart -->
+            <div class="bg-white border border-border rounded-xl p-6 shadow-bento">
+                <h3 class="text-base font-bold text-charcoal mb-4">Số Lượng Sự Kiện Theo Tháng</h3>
+                <div class="mt-8 flex items-end justify-between h-48 pt-4">
+                    @foreach (var m in stats.MonthlyEvents)
+                    {
+                        var maxVal = stats.MonthlyEvents.Max(mo => mo.EventCount);
+                        var heightPercentage = maxVal > 0 ? (m.EventCount * 100 / maxVal) : 0;
+                        <div class="flex flex-col items-center flex-1 group">
+                            <span class="text-xs font-bold text-charcoal mb-2 opacity-0 group-hover:opacity-100 transition-opacity font-mono">@m.EventCount</span>
+                            <div class="w-8 bg-charcoal/10 group-hover:bg-charcoal rounded-t transition-all duration-300" style="height: @(heightPercentage * 1.2)px"></div>
+                            <span class="text-xs text-muted mt-2">@m.Month</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private TenantAdminDashboardStatsDto? stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        stats = await TenantAdminService.GetStatsAsync();
+    }
+}

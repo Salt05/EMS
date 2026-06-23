@@ -1,0 +1,171 @@
+@page "/Admin/Events/Pending"
+@attribute [Authorize(Roles = "admin,Admin")]
+@inject ITenantAdminServiceClient TenantAdminService
+@inject ToastService ToastService
+@using EMS.Shared.DTOs.Events
+
+<PageTitle>Phê duyệt Sự kiện — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+            Phê duyệt Sự kiện
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
+                ⏳ DEMO
+            </span>
+        </h1>
+        <p class="text-sm text-muted mt-1">Duyệt hoặc từ chối các yêu cầu tổ chức sự kiện từ các Ban tổ chức (Organizer) trong trường.</p>
+    </div>
+
+    <!-- Data Table -->
+    <DataTable TItem="EventResponseDto" Items="pendingEvents" TotalCount="pendingEvents.Count" 
+               Page="page" PageSize="pageSize" PageChanged="OnPageChanged" SearchChanged="OnSearchChanged" 
+               SearchPlaceholder="Tìm kiếm theo tên sự kiện..." IsLoading="isLoading" ShowSearch="true">
+        <TableHeader>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tên sự kiện</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Ban tổ chức (Organizer)</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Địa điểm dự kiến</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Thời gian tổ chức</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Số lượng dự kiến</th>
+            <th class="px-6 py-3 text-right text-xs font-bold text-muted uppercase tracking-wider font-mono">Hành động</th>
+        </TableHeader>
+        <RowTemplate Context="evt">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@evt.Title</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">@GetOrganizerName(evt.OrganizerId)</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">@evt.Location</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@evt.StartTime.ToString("dd/MM/yyyy HH:mm")</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@evt.Capacity người</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <button @onclick="() => ApproveEvent(evt)" class="text-emerald-600 hover:underline">Phê duyệt</button>
+                <button @onclick="() => OpenRejectModal(evt)" class="text-rose-600 hover:underline">Từ chối</button>
+            </td>
+        </RowTemplate>
+    </DataTable>
+</div>
+
+<!-- Reject Modal -->
+<FormModal Title="Từ chối yêu cầu tổ chức sự kiện" IsOpen="isRejectOpen" SaveText="Xác nhận từ chối" OnSave="RejectEvent" OnCancel="() => isRejectOpen = false">
+    <div class="space-y-4">
+        <p class="text-sm text-muted">Bạn có chắc muốn từ chối yêu cầu tổ chức sự kiện <strong>@selectedEvent?.Title</strong>?</p>
+        <div>
+            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Lý do từ chối (bắt buộc)</label>
+            <textarea @bind="rejectReason" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" rows="3" placeholder="Nhập lý do từ chối..."></textarea>
+        </div>
+    </div>
+</FormModal>
+
+@code {
+    private List<EventResponseDto> allPendingEvents = new();
+    private List<EventResponseDto> pendingEvents = new();
+    private bool isLoading = true;
+
+    private int page = 1;
+    private int pageSize = 10;
+    private string searchQuery = "";
+
+    // Modals
+    private bool isRejectOpen;
+    private EventResponseDto? selectedEvent;
+    private string rejectReason = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var allEvents = await TenantAdminService.GetEventsAsync();
+            // Filter only Pending status (status = 1)
+            allPendingEvents = allEvents.Where(e => e.Status == 1).ToList();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi khi tải danh sách sự kiện chờ duyệt.");
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            pendingEvents = allPendingEvents;
+        }
+        else
+        {
+            var q = searchQuery.ToLower();
+            pendingEvents = allPendingEvents.Where(e => e.Title.ToLower().Contains(q)).ToList();
+        }
+    }
+
+    private void OnPageChanged(int newPage) => page = newPage;
+
+    private void OnSearchChanged(string query)
+    {
+        searchQuery = query;
+        page = 1;
+        ApplyFilter();
+    }
+
+    private string GetOrganizerName(string orgId)
+    {
+        return orgId == "user2" ? "CLB Tin học" : "Đoàn Khoa CNTT";
+    }
+
+    private async Task ApproveEvent(EventResponseDto evt)
+    {
+        isLoading = true;
+        var success = await TenantAdminService.ApproveEventAsync(evt.Id);
+        if (success)
+        {
+            ToastService.ShowSuccess("Đã duyệt yêu cầu tổ chức sự kiện thành công.");
+            await LoadData();
+        }
+        else
+        {
+            ToastService.ShowError("Duyệt sự kiện thất bại.");
+        }
+        isLoading = false;
+    }
+
+    private void OpenRejectModal(EventResponseDto evt)
+    {
+        selectedEvent = evt;
+        rejectReason = "";
+        isRejectOpen = true;
+    }
+
+    private async Task RejectEvent()
+    {
+        if (selectedEvent == null) return;
+        if (string.IsNullOrWhiteSpace(rejectReason))
+        {
+            ToastService.ShowWarning("Vui lòng cung cấp lý do từ chối.");
+            return;
+        }
+
+        isLoading = true;
+        var success = await TenantAdminService.RejectEventAsync(selectedEvent.Id, rejectReason);
+        if (success)
+        {
+            ToastService.ShowSuccess("Đã từ chối yêu cầu tổ chức sự kiện.");
+            await LoadData();
+        }
+        else
+        {
+            ToastService.ShowError("Từ chối sự kiện thất bại.");
+        }
+        isRejectOpen = false;
+        isLoading = false;
+    }
+}

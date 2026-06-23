@@ -1,0 +1,121 @@
+@* Modal xác nhận chuyển trạng thái Active/Inactive *@
+
+<div class="fixed inset-0 z-50 flex items-center justify-center">
+    <!-- Overlay -->
+    <div class="fixed inset-0 bg-charcoal/30 backdrop-blur-sm" @onclick="OnClose"></div>
+
+    <!-- Modal Card -->
+    <div class="relative bg-white rounded-xl shadow-xl border border-border w-full max-w-sm mx-4 z-10">
+        <!-- Content -->
+        <div class="p-6 text-center">
+            <!-- Icon -->
+            @if (IsCurrentlyActive)
+            {
+                <!-- Lock icon — đang Active, sẽ chuyển sang Inactive -->
+                <div class="h-12 w-12 rounded-full bg-paleYellow-bg flex items-center justify-center mx-auto mb-4">
+                    <svg class="h-6 w-6 text-paleYellow-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </div>
+            }
+            else
+            {
+                <!-- Unlock icon — đang Inactive, sẽ chuyển sang Active -->
+                <div class="h-12 w-12 rounded-full bg-paleGreen-bg flex items-center justify-center mx-auto mb-4">
+                    <svg class="h-6 w-6 text-paleGreen-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                    </svg>
+                </div>
+            }
+
+            <h3 class="text-lg font-bold text-charcoal mb-2">
+                @(IsCurrentlyActive ? "Khóa tài khoản" : "Mở khóa tài khoản")
+            </h3>
+
+            <p class="text-sm text-muted mb-2">
+                Bạn có chắc chắn muốn
+                <span class="font-semibold @(IsCurrentlyActive ? "text-paleYellow-text" : "text-paleGreen-text")">
+                    @(IsCurrentlyActive ? "khóa" : "mở khóa")
+                </span>
+                tài khoản của:
+            </p>
+
+            <!-- User info -->
+            <div class="flex items-center gap-3 p-3 bg-canvas rounded-lg mx-auto max-w-xs my-4 text-left">
+                <div class="h-10 w-10 rounded-full bg-charcoal/10 flex items-center justify-center text-charcoal font-bold text-sm shrink-0">
+                    @(UserName.Length > 0 ? UserName[0].ToString().ToUpper() : "?")
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-charcoal truncate">@UserName</p>
+                    <p class="text-xs text-muted truncate">@UserEmail</p>
+                </div>
+            </div>
+
+            @if (IsCurrentlyActive)
+            {
+                <div class="flex items-start gap-2 px-4 py-3 rounded-lg bg-paleYellow-bg text-paleYellow-text text-xs font-medium text-left">
+                    <svg class="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <span>Người dùng sẽ bị đăng xuất và không thể đăng nhập lại cho đến khi được mở khóa.</span>
+                </div>
+            }
+            else
+            {
+                <p class="text-xs text-muted">Người dùng sẽ có thể đăng nhập và sử dụng hệ thống bình thường.</p>
+            }
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center gap-3 px-6 py-4 border-t border-border bg-canvas/50">
+            <button class="flex-1 px-4 py-2 text-sm font-medium text-muted hover:text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors"
+                    @onclick="OnClose" disabled="@isProcessing">
+                Hủy
+            </button>
+            <button class="flex-1 px-4 py-2 text-sm font-semibold text-white rounded-md transition-all active:scale-[0.98] disabled:opacity-50 @(IsCurrentlyActive ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700")"
+                    @onclick="HandleConfirm" disabled="@isProcessing">
+                @if (isProcessing)
+                {
+                    <span class="flex items-center justify-center gap-2">
+                        <span class="animate-spin h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full"></span>
+                        Đang xử lý...
+                    </span>
+                }
+                else
+                {
+                    <span>@(IsCurrentlyActive ? "Khóa tài khoản" : "Mở khóa tài khoản")</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string UserName { get; set; } = string.Empty;
+    [Parameter] public string UserEmail { get; set; } = string.Empty;
+    [Parameter] public bool IsCurrentlyActive { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool isProcessing = false;
+
+    private async Task HandleConfirm()
+    {
+        isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnConfirm.InvokeAsync();
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+}

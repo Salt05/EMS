@@ -1,0 +1,215 @@
+@page "/Admin/EmailTemplates"
+@attribute [Authorize(Roles = "admin,Admin")]
+@inject ITenantAdminServiceClient TenantAdminService
+@inject ToastService ToastService
+@using EMS.BlazorWASM.MockData
+
+<PageTitle>Quản lý Email Templates — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+            Quản lý Email Templates
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
+                ⏳ DEMO
+            </span>
+        </h1>
+        <p class="text-sm text-muted mt-1">Cấu hình nội dung các mẫu thư điện tử tự động gửi đi của hệ thống.</p>
+    </div>
+
+    <!-- Data Table -->
+    <DataTable TItem="MockEmailTemplateDto" Items="templates" TotalCount="templates.Count" 
+               Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading">
+        <TableHeader>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tên Template</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Mô tả</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tiêu đề (Subject)</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Trạng thái</th>
+            <th class="px-6 py-3 text-right text-xs font-bold text-muted uppercase tracking-wider font-mono">Hành động</th>
+        </TableHeader>
+        <RowTemplate Context="temp">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@temp.Name</td>
+            <td class="px-6 py-4 text-sm text-muted max-w-xs truncate">@temp.Description</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@temp.Subject</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium @(temp.IsActive ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800")">
+                    @(temp.IsActive ? "Kích hoạt" : "Vô hiệu hóa")
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <button @onclick="() => OpenEditModal(temp)" class="text-charcoal hover:underline">Sửa</button>
+                <button @onclick="() => OpenPreviewModal(temp)" class="text-charcoal hover:underline">Preview</button>
+                <button @onclick="() => ResetToDefault(temp)" class="text-rose-600 hover:underline">Reset mặc định</button>
+            </td>
+        </RowTemplate>
+    </DataTable>
+</div>
+
+<!-- Edit HTML Modal -->
+<FormModal Title="Sửa nội dung Email Template" IsOpen="isEditOpen" SaveText="Cập nhật" OnSave="SaveTemplate" OnCancel="() => isEditOpen = false" WidthClass="max-w-2xl">
+    @if (editingTemplate != null)
+    {
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Tên template</label>
+                <input type="text" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-canvas focus:outline-none" readonly @bind="editingTemplate.Name" />
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Mô tả</label>
+                <input type="text" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-canvas focus:outline-none" readonly @bind="editingTemplate.Description" />
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Tiêu đề thư (Subject)</label>
+                <input type="text" class="block w-full py-2 px-3 border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-charcoal" @bind="editingTemplate.Subject" />
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Nội dung HTML (Editor)</label>
+                <textarea @bind="editingTemplate.BodyHtml" class="block w-full py-2 px-3 border border-border rounded-md text-sm font-mono focus:outline-none focus:ring-1 focus:ring-charcoal" rows="12"></textarea>
+                <span class="text-[10px] text-muted block mt-1">Các từ khóa hỗ trợ: {StudentName}, {EventTitle}, {StartTime}, {Location}, {TenantName}, {CancelReason}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+                <input type="checkbox" id="tempActive" @bind="editingTemplate.IsActive" class="rounded border-border text-charcoal focus:ring-charcoal" />
+                <label for="tempActive" class="text-sm font-semibold text-charcoal">Kích hoạt template</label>
+            </div>
+        </div>
+    }
+</FormModal>
+
+<!-- Preview HTML Modal -->
+<FormModal Title="Email Preview" IsOpen="isPreviewOpen" SaveText="Đóng" SaveButtonVisible="false" OnSave="() => isPreviewOpen = false" OnCancel="() => isPreviewOpen = false" WidthClass="max-w-2xl">
+    @if (previewTemplate != null)
+    {
+        <div class="space-y-4">
+            <div class="bg-canvas border border-border rounded-lg p-4 space-y-2 text-sm">
+                <div><strong>Người gửi:</strong> no-reply@ems.local (Ban tổ chức ĐH HUFLIT)</div>
+                <div><strong>Tiêu đề:</strong> @RenderSubjectPreview(previewTemplate.Subject)</div>
+            </div>
+            <div class="border border-border rounded-xl p-4 bg-white min-h-[300px] overflow-auto">
+                @((MarkupString)RenderBodyPreview(previewTemplate.BodyHtml))
+            </div>
+        </div>
+    }
+</FormModal>
+
+@code {
+    private List<MockEmailTemplateDto> templates = new();
+    private bool isLoading = true;
+
+    private int page = 1;
+    private int pageSize = 10;
+
+    // Modals
+    private bool isEditOpen;
+    private MockEmailTemplateDto? editingTemplate;
+
+    private bool isPreviewOpen;
+    private MockEmailTemplateDto? previewTemplate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            templates = await TenantAdminService.GetEmailTemplatesAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Không thể tải danh sách email templates.");
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnPageChanged(int newPage) => page = newPage;
+
+    private void OpenEditModal(MockEmailTemplateDto temp)
+    {
+        editingTemplate = new MockEmailTemplateDto
+        {
+            Id = temp.Id,
+            TenantId = temp.TenantId,
+            Name = temp.Name,
+            Description = temp.Description,
+            Subject = temp.Subject,
+            BodyHtml = temp.BodyHtml,
+            IsActive = temp.IsActive,
+            CreatedAt = temp.CreatedAt,
+            UpdatedAt = temp.UpdatedAt
+        };
+        isEditOpen = true;
+    }
+
+    private async Task SaveTemplate()
+    {
+        if (editingTemplate == null) return;
+
+        isLoading = true;
+        var success = await TenantAdminService.UpdateEmailTemplateAsync(editingTemplate.Id, editingTemplate);
+        if (success)
+        {
+            ToastService.ShowSuccess("Cập nhật Email Template thành công.");
+            await LoadData();
+        }
+        else
+        {
+            ToastService.ShowError("Cập nhật thất bại.");
+        }
+        isEditOpen = false;
+        isLoading = false;
+    }
+
+    private void OpenPreviewModal(MockEmailTemplateDto temp)
+    {
+        previewTemplate = temp;
+        isPreviewOpen = true;
+    }
+
+    private async Task ResetToDefault(MockEmailTemplateDto temp)
+    {
+        isLoading = true;
+        // Simulate reset to default
+        var defaultTemplate = EmailTemplatesMock.Templates.Find(t => t.Id == temp.Id);
+        if (defaultTemplate != null)
+        {
+            var update = new MockEmailTemplateDto
+            {
+                Id = temp.Id,
+                TenantId = temp.TenantId,
+                Name = temp.Name,
+                Description = temp.Description,
+                Subject = defaultTemplate.Subject,
+                BodyHtml = defaultTemplate.BodyHtml,
+                IsActive = true
+            };
+            await TenantAdminService.UpdateEmailTemplateAsync(temp.Id, update);
+            ToastService.ShowSuccess("Đã khôi phục Email Template về nội dung mặc định.");
+            await LoadData();
+        }
+        isLoading = false;
+    }
+
+    private string RenderSubjectPreview(string subject)
+    {
+        return subject.Replace("{EventTitle}", "Hackathon HUFLIT 2026");
+    }
+
+    private string RenderBodyPreview(string html)
+    {
+        return html
+            .Replace("{StudentName}", "Nguyễn Văn A")
+            .Replace("{EventTitle}", "Hackathon HUFLIT 2026")
+            .Replace("{StartTime}", "09:00 - 01/03/2026")
+            .Replace("{Location}", "Hội trường A - HUFLIT")
+            .Replace("{TenantName}", "ĐH HUFLIT")
+            .Replace("{CancelReason}", "Hội trường sửa chữa đột xuất");
+    }
+}

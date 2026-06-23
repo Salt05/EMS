@@ -1,0 +1,285 @@
+@page "/register"
+@layout MinimalLayout
+@inject IAuthService AuthService
+@inject ITenantServiceClient TenantService
+@inject NavigationManager Navigation
+@inject ILogger<Register> Logger
+
+<PageTitle>Đăng ký tài khoản — EMS</PageTitle>
+
+<div class="min-h-screen flex items-center justify-center bg-canvas relative overflow-hidden px-4 py-12">
+    <!-- Subtle Background Glows -->
+    <div class="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-slate-200/40 blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-slate-200/40 blur-3xl pointer-events-none"></div>
+
+    <div class="w-full max-w-md bg-white border border-border rounded-2xl p-8 sm:p-10 shadow-bento relative z-10 transition-all">
+        <!-- Logo & Header -->
+        <div class="flex flex-col items-center mb-8 text-center">
+            <div class="flex items-center justify-center h-12 w-12 rounded-xl bg-charcoal text-white mb-4 shadow-sm transition-transform hover:scale-105 duration-200">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">Tạo tài khoản</h1>
+            <p class="text-xs text-muted mt-1">Đăng ký thành viên hệ thống EMS</p>
+
+            @if (!string.IsNullOrEmpty(_subdomain) && _subdomain != "default")
+            {
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-paleBlue-bg text-paleBlue-text border border-blue-100 mt-4">
+                    <span class="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span>Phân hệ: @(_tenantName ?? _subdomain.ToUpper())</span>
+                </div>
+            }
+        </div>
+
+        @if (_isSuccess)
+        {
+            <div class="flex flex-col items-center justify-center py-6 text-center animate-fade-in">
+                <div class="h-12 w-12 rounded-full bg-paleGreen-bg text-paleGreen-text flex items-center justify-center mb-4 border border-emerald-100">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-charcoal mb-1">Đăng ký thành công!</h3>
+                <p class="text-xs text-muted">Hệ thống đang chuyển hướng về trang đăng nhập sau vài giây...</p>
+                <div class="mt-6 flex justify-center">
+                    <div class="h-5 w-5 animate-spin rounded-full border-2 border-charcoal/20 border-t-charcoal"></div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <EditForm Model="@_registerModel" OnValidSubmit="@HandleRegister" class="space-y-4">
+                <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold bg-paleRed-bg text-paleRed-text border border-red-100 transition-all duration-300" role="alert">
+                        <svg class="h-4 w-4 shrink-0 text-paleRed-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span>@_errorMessage</span>
+                    </div>
+                }
+
+                <!-- Họ và tên -->
+                <div class="space-y-1">
+                    <label for="fullName" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Họ và tên <span class="text-red-500">*</span></label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-3 text-muted/60 pointer-events-none">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </span>
+                        <InputText id="fullName"
+                                   @bind-Value="_registerModel.FullName"
+                                   class="w-full pl-10 pr-4 py-2 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all placeholder:text-muted/40 shadow-sm"
+                                   placeholder="Nguyễn Văn A"
+                                   disabled="@_isLoading" />
+                    </div>
+                    <ValidationMessage For="@(() => _registerModel.FullName)" class="text-[11px] text-red-500 mt-0.5 block" />
+                </div>
+
+                <!-- Email -->
+                <div class="space-y-1">
+                    <label for="email" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Email <span class="text-red-500">*</span></label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-3 text-muted/60 pointer-events-none">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                        </span>
+                        <InputText id="email"
+                                   @bind-Value="_registerModel.Email"
+                                   class="w-full pl-10 pr-4 py-2 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all placeholder:text-muted/40 shadow-sm"
+                                   placeholder="your@email.com"
+                                   disabled="@_isLoading" />
+                    </div>
+                    <ValidationMessage For="@(() => _registerModel.Email)" class="text-[11px] text-red-500 mt-0.5 block" />
+                </div>
+
+                <!-- Mật khẩu -->
+                <div class="space-y-1">
+                    <label for="password" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Mật khẩu <span class="text-red-500">*</span></label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-3 text-muted/60 pointer-events-none">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                        </span>
+                        <InputText id="password"
+                                   type="@(_showPassword ? "text" : "password")"
+                                   @bind-Value="_registerModel.Password"
+                                   class="w-full pl-10 pr-10 py-2 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all placeholder:text-muted/40 shadow-sm"
+                                   placeholder="Tối thiểu 6 ký tự"
+                                   disabled="@_isLoading" />
+                        <button type="button" class="absolute right-3 p-1 text-muted/60 hover:text-charcoal transition-colors focus:outline-none" @onclick="TogglePasswordVisibility" tabindex="-1">
+                             @if (_showPassword)
+                             {
+                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                     <line x1="1" y1="1" x2="23" y2="23"/>
+                                 </svg>
+                             }
+                             else
+                             {
+                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                     <circle cx="12" cy="12" r="3"/>
+                                 </svg>
+                             }
+                        </button>
+                    </div>
+                    <ValidationMessage For="@(() => _registerModel.Password)" class="text-[11px] text-red-500 mt-0.5 block" />
+                </div>
+
+                <!-- MSSV (tùy chọn) -->
+                <div class="space-y-1">
+                    <label for="mssv" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Mã số sinh viên <span class="text-muted/60 font-normal lowercase">(tùy chọn)</span></label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-3 text-muted/60 pointer-events-none">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.33 0 4 1 4 2v1H5v-1c0-1 2.67-2 4-2z" />
+                            </svg>
+                        </span>
+                        <InputText id="mssv"
+                                   @bind-Value="_registerModel.MSSV"
+                                   class="w-full pl-10 pr-4 py-2 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all placeholder:text-muted/40 shadow-sm"
+                                   placeholder="2152xxxx (nếu có)"
+                                   disabled="@_isLoading" />
+                    </div>
+                </div>
+
+                <!-- Số điện thoại (tùy chọn) -->
+                <div class="space-y-1">
+                    <label for="phoneNumber" class="text-[10px] font-bold text-muted uppercase tracking-wider block">Số điện thoại <span class="text-muted/60 font-normal lowercase">(tùy chọn)</span></label>
+                    <div class="relative flex items-center">
+                        <span class="absolute left-3 text-muted/60 pointer-events-none">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                        </span>
+                        <InputText id="phoneNumber"
+                                   @bind-Value="_registerModel.PhoneNumber"
+                                   class="w-full pl-10 pr-4 py-2 text-sm bg-white border border-border rounded-lg text-charcoal focus:outline-none focus:border-charcoal focus:ring-1 focus:ring-charcoal transition-all placeholder:text-muted/40 shadow-sm"
+                                   placeholder="09xxxxxxxx (nếu có)"
+                                   disabled="@_isLoading" />
+                    </div>
+                    <ValidationMessage For="@(() => _registerModel.PhoneNumber)" class="text-[11px] text-red-500 mt-0.5 block" />
+                </div>
+
+                <!-- Nút Đăng ký -->
+                <button type="submit" class="w-full mt-4 py-2.5 px-4 text-sm font-semibold text-white bg-charcoal rounded-lg hover:bg-slate-800 transition-all duration-150 active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed" disabled="@_isLoading">
+                    @if (_isLoading)
+                    {
+                        <div class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                        <span>Đang xử lý đăng ký...</span>
+                    }
+                    else
+                    {
+                        <span>Đăng ký</span>
+                    }
+                </button>
+            </EditForm>
+        }
+
+        <!-- Divider & Login Link -->
+        <div class="mt-6 pt-6 border-t border-border text-center text-xs text-muted flex flex-col gap-3">
+            <p>
+                Đã có tài khoản? 
+                <a href="/login" class="font-semibold text-charcoal hover:underline transition-colors">Đăng nhập</a>
+            </p>
+            <p class="text-[10px] text-muted/60">© 2026 EMS — Event Management System</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly RegisterRequest _registerModel = new();
+    private string? _errorMessage;
+    private bool _isLoading;
+    private bool _showPassword;
+    private bool _isSuccess;
+
+    private string? _subdomain;
+    private string? _tenantName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var uri = new Uri(Navigation.Uri);
+            var host = uri.Host;
+            var parts = host.Split('.');
+            if (parts.Length >= 2 && parts[0] != "localhost" && parts[0] != "ems")
+            {
+                _subdomain = parts[0];
+                var tenants = await TenantService.GetTenantsAsync();
+                var tenant = tenants.FirstOrDefault(t => t.Subdomain.Equals(_subdomain, StringComparison.OrdinalIgnoreCase));
+                if (tenant != null)
+                {
+                    _tenantName = tenant.Name;
+                }
+            }
+            else
+            {
+                _subdomain = "default";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning("Error resolving subdomain for UI decoration: " + ex.Message);
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        _errorMessage = null;
+        _isLoading = true;
+
+        try
+        {
+            var (success, error) = await AuthService.RegisterAsync(_registerModel);
+
+            if (success)
+            {
+                Logger.LogInformation("User registration successful, preparing redirect");
+                _isSuccess = true;
+                StateHasChanged();
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/login", forceLoad: false);
+            }
+            else
+            {
+                // Translate firestore/firebase error messages if necessary, or show directly
+                if (error != null && error.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+                {
+                    _errorMessage = "Tài khoản email này đã được sử dụng. Vui lòng chọn email khác.";
+                }
+                else
+                {
+                    _errorMessage = error ?? "Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Registration error");
+            _errorMessage = "Đã xảy ra lỗi hệ thống khi đăng ký. Vui lòng thử lại sau.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
+}

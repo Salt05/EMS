@@ -1,0 +1,262 @@
+@page "/Organizer/Participants"
+@attribute [Authorize(Roles = "manager,Manager,organizer")]
+@inject IOrganizerServiceClient OrganizerService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+@using EMS.Shared.DTOs.Events
+@using EMS.Shared.DTOs.Registrations
+@using System.Text
+
+<PageTitle>Danh sách tham gia — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+            Danh sách Tham Gia Sự Kiện
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
+                ⏳ DEMO
+            </span>
+        </h1>
+        <p class="text-sm text-muted mt-1">Tra cứu, lọc trạng thái đăng ký, trạng thái điểm danh và xuất báo cáo người tham gia.</p>
+    </div>
+
+    <!-- Selection & Filter Card -->
+    <div class="bg-white border border-border rounded-xl p-6 shadow-bento mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            <!-- Event Dropdown -->
+            <div>
+                <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Chọn Sự kiện</label>
+                <select class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnEventSelected">
+                    <option value="">-- Chọn sự kiện của bạn --</option>
+                    @foreach (var evt in myEvents)
+                    {
+                        <option value="@evt.Id">@evt.Title</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Filters -->
+            @if (!string.IsNullOrEmpty(selectedEventId))
+            {
+                <div>
+                    <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Bộ lọc Đăng ký</label>
+                    <select class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnRegFilterChanged">
+                        <option value="all">Tất cả trạng thái đăng ký</option>
+                        <option value="1">Chờ duyệt (Pending)</option>
+                        <option value="2">Đã duyệt (Confirmed)</option>
+                        <option value="6">Đã từ chối (Rejected)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Bộ lọc Điểm danh</label>
+                    <select class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnCheckInFilterChanged">
+                        <option value="all">Tất cả trạng thái điểm danh</option>
+                        <option value="checkedin">Đã điểm danh (Checked-In)</option>
+                        <option value="notcheckedin">Chưa điểm danh</option>
+                    </select>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(selectedEventId))
+    {
+        <!-- Action bar -->
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-charcoal">Danh sách người tham gia (@filteredList.Count người)</h2>
+            <div class="flex items-center gap-2">
+                <button @onclick='() => ExportData("excel")' class="inline-flex items-center px-3 py-1.5 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors">
+                    Xuất Excel
+                </button>
+                <button @onclick='() => ExportData("pdf")' class="inline-flex items-center px-3 py-1.5 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all">
+                    Xuất PDF (CSV)
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <DataTable TItem="RegistrationResponseDto" Items="filteredList" TotalCount="filteredList.Count" 
+                   Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading">
+            <TableHeader>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">STT</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">MSSV</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Họ tên</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Email</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Trạng thái đăng ký</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Điểm danh</th>
+            </TableHeader>
+            <RowTemplate Context="reg">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(filteredList.IndexOf(reg) + 1)</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(reg.UserMSSV ?? "-")</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@reg.UserFullName</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@reg.UserEmail</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold @GetRegBadgeClass(reg.Status)">
+                        @reg.StatusName
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium @(reg.CheckedIn ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-800")">
+                        @(reg.CheckedIn ? "Đã điểm danh" : "Chưa")
+                    </span>
+                </td>
+            </RowTemplate>
+        </DataTable>
+    }
+    else
+    {
+        <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
+            <div class="h-12 w-12 rounded-full bg-canvas flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+            </div>
+            <h3 class="text-sm font-bold text-charcoal mb-1">Chưa chọn sự kiện</h3>
+            <p class="text-xs text-muted max-w-sm">Chọn một sự kiện để kiểm tra và kết xuất danh sách tham gia.</p>
+        </div>
+    }
+</div>
+
+@code {
+    private List<EventResponseDto> myEvents = new();
+    private string selectedEventId = "";
+    private List<RegistrationResponseDto> rawList = new();
+    private List<RegistrationResponseDto> filteredList = new();
+    private bool isLoading;
+
+    private int page = 1;
+    private int pageSize = 10;
+    
+    // Filters
+    private string regFilter = "all";
+    private string checkInFilter = "all";
+
+    protected override async Task OnInitializedAsync()
+    {
+        myEvents = await OrganizerService.GetEventsAsync();
+    }
+
+    private async Task OnEventSelected(ChangeEventArgs e)
+    {
+        selectedEventId = e.Value?.ToString() ?? "";
+        if (!string.IsNullOrEmpty(selectedEventId))
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            rawList = await OrganizerService.GetRegistrationsAsync(selectedEventId);
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi khi tải danh sách người tham gia.");
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        var temp = rawList;
+
+        if (regFilter != "all")
+        {
+            if (int.TryParse(regFilter, out var statusInt))
+            {
+                temp = temp.Where(r => r.Status == statusInt).ToList();
+            }
+        }
+
+        if (checkInFilter == "checkedin")
+        {
+            temp = temp.Where(r => r.CheckedIn).ToList();
+        }
+        else if (checkInFilter == "notcheckedin")
+        {
+            temp = temp.Where(r => !r.CheckedIn).ToList();
+        }
+
+        filteredList = temp;
+    }
+
+    private void OnRegFilterChanged(ChangeEventArgs e)
+    {
+        regFilter = e.Value?.ToString() ?? "all";
+        page = 1;
+        ApplyFilter();
+    }
+
+    private void OnCheckInFilterChanged(ChangeEventArgs e)
+    {
+        checkInFilter = e.Value?.ToString() ?? "all";
+        page = 1;
+        ApplyFilter();
+    }
+
+    private void OnPageChanged(int newPage) => page = newPage;
+
+    private string GetRegBadgeClass(int status) => status switch
+    {
+        1 => "bg-amber-100 text-amber-800",
+        2 => "bg-emerald-100 text-emerald-800",
+        6 => "bg-rose-100 text-rose-800",
+        _ => "bg-slate-100 text-slate-800"
+    };
+
+    private async Task ExportData(string format)
+    {
+        if (!filteredList.Any()) return;
+
+        var csvBuilder = new StringBuilder();
+        csvBuilder.Append("\uFEFF"); // BOM for excel utf8
+        csvBuilder.AppendLine($"DANH SÁCH SINH VIÊN ĐĂNG KÝ THAM GIA");
+        csvBuilder.AppendLine($"Thời gian trích xuất: {DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")}");
+        csvBuilder.AppendLine();
+        
+        csvBuilder.AppendLine("STT,MSSV,Họ Tên,Email,Trạng thái Đăng ký,Điểm danh,Thời gian điểm danh");
+        for (int i = 0; i < filteredList.Count; i++)
+        {
+            var r = filteredList[i];
+            var ciStatus = r.CheckedIn ? "Đã điểm danh" : "Chưa điểm danh";
+            var ciTime = r.CheckedInAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "";
+            csvBuilder.AppendLine($"{i + 1},{r.UserMSSV},{r.UserFullName},{r.UserEmail},{r.StatusName},{ciStatus},{ciTime}");
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(csvBuilder.ToString());
+        var base64 = Convert.ToBase64String(bytes);
+
+        // Register download JS function dynamically
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            window.downloadFile = (fileName, contentType, base64Content) => {
+                const binary = atob(base64Content);
+                const array = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    array[i] = binary.charCodeAt(i);
+                }
+                const blob = new Blob([array], {type: contentType});
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = fileName;
+                link.click();
+                window.URL.revokeObjectURL(link.href);
+            };
+        ");
+
+        var eventTitle = myEvents.Find(e => e.Id == selectedEventId)?.Title ?? "su-kien";
+        var fileExtension = format == "pdf" ? "pdf.csv" : "xlsx.csv";
+        var fileName = $"danh-sach-{eventTitle.Replace(" ", "-")}.{fileExtension}";
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "text/csv;charset=utf-8", base64);
+        ToastService.ShowSuccess($"Xuất báo cáo dưới định dạng {format.ToUpper()} thành công.");
+    }
+}

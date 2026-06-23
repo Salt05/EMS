@@ -54,17 +54,39 @@ public class EventReminderJob
                 continue;
 
             var eventId = ev.TryGetValue("id", out var id) ? id?.ToString() ?? evDoc.Id : evDoc.Id;
+            var tenantId = ev.TryGetValue("tenantId", out var tid) ? tid?.ToString() : null;
             var title = ev.TryGetValue("title", out var t) ? t?.ToString() ?? "(event)" : "(event)";
             var startTime = ev.TryGetValue("startTime", out var s) && s is Timestamp sTs ? sTs.ToDateTime() : now;
 
-            sent += await RemindEventAttendeesAsync(eventId, title, startTime);
+            sent += await RemindEventAttendeesAsync(eventId, title, startTime, tenantId);
         }
 
         _logger.LogInformation($"[EventReminderJob] Completed. Reminders sent: {sent}");
     }
 
-    private async Task<int> RemindEventAttendeesAsync(string eventId, string title, DateTime startTime)
+    private async Task<int> RemindEventAttendeesAsync(string eventId, string title, DateTime startTime, string? tenantId)
     {
+        // 1. Fetch Tenant branding info dynamically
+        string? fromAddress = null;
+        string? fromDisplayName = null;
+        if (!string.IsNullOrEmpty(tenantId))
+        {
+            try
+            {
+                var tenantDoc = await _firestoreDb.Collection("tenants").Document(tenantId).GetSnapshotAsync();
+                if (tenantDoc.Exists)
+                {
+                    var tenantData = tenantDoc.ToDictionary();
+                    fromAddress = tenantData.TryGetValue("email", out var temail) ? temail?.ToString() : null;
+                    fromDisplayName = tenantData.TryGetValue("name", out var tname) ? tname?.ToString() : null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"Failed to look up Tenant info for ID {tenantId}");
+            }
+        }
+
         var regsSnapshot = await _firestoreDb.Collection(RegistrationsCollection)
             .WhereEqualTo("eventId", eventId)
             .WhereEqualTo("status", (int)RegistrationStatus.Confirmed)
@@ -90,16 +112,23 @@ public class EventReminderJob
             var body = $"<p>Hi,</p><p>This is a reminder that <strong>{title}</strong> starts at " +
                        $"<strong>{startTime:f} (UTC)</strong>.</p><p>See you there!</p>";
 
-            await _emailService.SendEmailAsync(email, subject, body);
-
-            await regDoc.Reference.SetAsync(new Dictionary<string, object>
+            // Only update reminderSent flag in database if the email was successfully sent.
+            var success = await _emailService.SendEmailAsync(email, subject, body, fromAddress, fromDisplayName);
+            if (success)
             {
-                { "reminderSent", true },
-                { "reminderSentAt", DateTime.UtcNow },
-                { "updatedAt", DateTime.UtcNow }
-            }, SetOptions.MergeAll);
+                await regDoc.Reference.SetAsync(new Dictionary<string, object>
+                {
+                    { "reminderSent", true },
+                    { "reminderSentAt", DateTime.UtcNow },
+                    { "updatedAt", DateTime.UtcNow }
+                }, SetOptions.MergeAll);
 
-            sent++;
+                sent++;
+            }
+            else
+            {
+                _logger.LogWarning($"Skipped updating reminderSent flag for registration {regDoc.Id} because email delivery failed.");
+            }
         }
 
         return sent;

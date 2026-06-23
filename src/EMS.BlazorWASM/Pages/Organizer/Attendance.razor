@@ -1,0 +1,280 @@
+@page "/Organizer/Attendance"
+@attribute [Authorize(Roles = "manager,Manager,organizer")]
+@inject IOrganizerServiceClient OrganizerService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+@using EMS.Shared.DTOs.Events
+@using EMS.Shared.DTOs.Registrations
+@using System.Text
+@using System.Threading
+
+<PageTitle>Điểm danh sự kiện — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+            Điểm danh sự kiện
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
+                ⏳ DEMO
+            </span>
+        </h1>
+        <p class="text-sm text-muted mt-1">Tạo mã điểm danh tức thời cho các sự kiện của bạn và theo dõi thời gian thực.</p>
+    </div>
+
+    <!-- Controls Card -->
+    <div class="bg-white border border-border rounded-xl p-6 shadow-bento mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            <!-- Event Dropdown -->
+            <div>
+                <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Chọn Sự kiện</label>
+                <select class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnEventSelected">
+                    <option value="">-- Chọn một sự kiện --</option>
+                    @foreach (var evt in myEvents)
+                    {
+                        <option value="@evt.Id">@evt.Title</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Code Generation & Display -->
+            <div class="md:col-span-2 flex flex-wrap items-center gap-4">
+                @if (!string.IsNullOrEmpty(selectedEventId))
+                {
+                    <button @onclick="GenerateCode" class="px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]">
+                        Tạo mã check-in
+                    </button>
+                    
+                    @if (!string.IsNullOrEmpty(checkInCode))
+                    {
+                        <div class="flex items-center gap-3 bg-canvas border border-border px-4 py-2 rounded-lg">
+                            <span class="text-xs font-bold text-muted uppercase">Mã hiện tại:</span>
+                            <span class="text-lg font-bold text-charcoal font-mono tracking-wider">@checkInCode</span>
+                            <span class="h-4 w-px bg-border"></span>
+                            <span class="text-xs font-bold @(timeLeftSeconds < 60 ? "text-rose-600 animate-pulse" : "text-emerald-600") font-mono">
+                                Hết hạn sau: @FormatTime(timeLeftSeconds)
+                            </span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(selectedEventId))
+    {
+        <!-- Attendee List -->
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-charcoal flex items-center gap-2">
+                Sinh viên đã check-in
+                <span class="text-sm font-normal text-muted">(@attendees.Count người)</span>
+            </h2>
+            @if (attendees.Any())
+            {
+                <button @onclick="ExportToExcel" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors">
+                    <svg class="h-4 w-4 mr-2 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Xuất danh sách (Excel/CSV)
+                </button>
+            }
+        </div>
+
+        <DataTable TItem="RegistrationResponseDto" Items="attendees" TotalCount="attendees.Count" 
+                   Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading">
+            <TableHeader>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">STT</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">MSSV</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Họ tên</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Email</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Thời gian check-in</th>
+            </TableHeader>
+            <RowTemplate Context="reg">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(attendees.IndexOf(reg) + 1)</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(reg.UserMSSV ?? "-")</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@reg.UserFullName</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@reg.UserEmail</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(reg.CheckedInAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "-")</td>
+            </RowTemplate>
+        </DataTable>
+    }
+    else
+    {
+        <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
+            <div class="h-12 w-12 rounded-full bg-canvas flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                </svg>
+            </div>
+            <h3 class="text-sm font-bold text-charcoal mb-1">Chưa chọn sự kiện</h3>
+            <p class="text-xs text-muted max-w-sm">Chọn một sự kiện từ danh sách bên trên để quản lý điểm danh.</p>
+        </div>
+    }
+</div>
+
+@code {
+    private List<EventResponseDto> myEvents = new();
+    private string selectedEventId = "";
+    private List<RegistrationResponseDto> attendees = new();
+    private bool isLoading;
+
+    private int page = 1;
+    private int pageSize = 10;
+
+    // Checkin Code
+    private string checkInCode = "";
+    private int timeLeftSeconds = 0;
+    private CancellationTokenSource? timerCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var allEvents = await OrganizerService.GetEventsAsync();
+        // Only approved or ongoing events can be checked in
+        myEvents = allEvents.Where(e => e.Status == 2 || e.Status == 3).ToList();
+    }
+
+    private async Task OnEventSelected(ChangeEventArgs e)
+    {
+        selectedEventId = e.Value?.ToString() ?? "";
+        checkInCode = "";
+        timeLeftSeconds = 0;
+        timerCts?.Cancel();
+        
+        if (!string.IsNullOrEmpty(selectedEventId))
+        {
+            var selectedEv = myEvents.Find(evt => evt.Id == selectedEventId);
+            if (selectedEv != null && !string.IsNullOrEmpty(selectedEv.CheckInCode))
+            {
+                checkInCode = selectedEv.CheckInCode;
+                if (selectedEv.CheckInCodeExpiresAt.HasValue)
+                {
+                    var span = selectedEv.CheckInCodeExpiresAt.Value - DateTime.UtcNow;
+                    timeLeftSeconds = (int)Math.Max(0, span.TotalSeconds);
+                    if (timeLeftSeconds > 0)
+                    {
+                        StartCountdown();
+                    }
+                }
+            }
+            await LoadAttendees();
+        }
+    }
+
+    private async Task LoadAttendees()
+    {
+        isLoading = true;
+        try
+        {
+            attendees = await OrganizerService.GetAttendeesAsync(selectedEventId);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Không thể tải danh sách điểm danh.");
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnPageChanged(int newPage) => page = newPage;
+
+    private async Task GenerateCode()
+    {
+        if (string.IsNullOrEmpty(selectedEventId)) return;
+        
+        var code = await OrganizerService.GenerateCheckInCodeAsync(selectedEventId);
+        if (!string.IsNullOrEmpty(code))
+        {
+            checkInCode = code;
+            timeLeftSeconds = 1800; // 30 mins
+            ToastService.ShowSuccess("Mã check-in mới đã được sinh.");
+            StartCountdown();
+            
+            var ev = myEvents.Find(e => e.Id == selectedEventId);
+            if (ev != null)
+            {
+                ev.CheckInCode = code;
+                ev.CheckInCodeExpiresAt = DateTime.UtcNow.AddMinutes(30);
+            }
+        }
+        else
+        {
+            ToastService.ShowError("Không thể sinh mã check-in.");
+        }
+    }
+
+    private void StartCountdown()
+    {
+        timerCts?.Cancel();
+        timerCts = new CancellationTokenSource();
+        var token = timerCts.Token;
+
+        Task.Run(async () =>
+        {
+            while (timeLeftSeconds > 0 && !token.IsCancellationRequested)
+            {
+                await Task.Delay(1000, token);
+                if (token.IsCancellationRequested) break;
+                
+                timeLeftSeconds--;
+                await InvokeAsync(StateHasChanged);
+            }
+
+            if (timeLeftSeconds <= 0 && !token.IsCancellationRequested)
+            {
+                checkInCode = "";
+                await InvokeAsync(StateHasChanged);
+            }
+        }, token);
+    }
+
+    private string FormatTime(int seconds)
+    {
+        var minutes = seconds / 60;
+        var secs = seconds % 60;
+        return $"{minutes:D2}:{secs:D2}";
+    }
+
+    private async Task ExportToExcel()
+    {
+        if (!attendees.Any()) return;
+
+        var csvBuilder = new StringBuilder();
+        // Add BOM
+        csvBuilder.Append("\uFEFF");
+        csvBuilder.AppendLine("STT,MSSV,Họ Tên,Email,Thời gian điểm danh");
+        for (int i = 0; i < attendees.Count; i++)
+        {
+            var a = attendees[i];
+            csvBuilder.AppendLine($"{i + 1},{a.UserMSSV},{a.UserFullName},{a.UserEmail},{a.CheckedInAt?.ToString("dd/MM/yyyy HH:mm:ss")}");
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(csvBuilder.ToString());
+        var base64 = Convert.ToBase64String(bytes);
+
+        // Register download JS function dynamically
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            window.downloadFile = (fileName, contentType, base64Content) => {
+                const binary = atob(base64Content);
+                const array = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    array[i] = binary.charCodeAt(i);
+                }
+                const blob = new Blob([array], {type: contentType});
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = fileName;
+                link.click();
+                window.URL.revokeObjectURL(link.href);
+            };
+        ");
+
+        var eventTitleClean = myEvents.Find(e => e.Id == selectedEventId)?.Title ?? "su-kien";
+        var fileName = $"diem-danh-{eventTitleClean.Replace(" ", "-")}.csv";
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "text/csv;charset=utf-8", base64);
+        ToastService.ShowSuccess("Đã tải về danh sách điểm danh thành công.");
+    }
+}

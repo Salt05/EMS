@@ -184,6 +184,8 @@ public class EventsController : ControllerBase
         ApprovedById = ev.ApprovedById,
         ApprovedAt = ev.ApprovedAt,
         RejectionReason = ev.RejectionReason,
+        CheckInCode = ev.CheckInCode,
+        CheckInCodeExpiresAt = ev.CheckInCodeExpiresAt,
         CreatedAt = ev.CreatedAt,
         UpdatedAt = ev.UpdatedAt
     };

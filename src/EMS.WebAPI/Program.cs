@@ -7,7 +7,9 @@ using EMS.Infrastructure.Services;
 using EMS.Infrastructure.Jobs;
 using EMS.Core.Interfaces.Services;
 using EMS.WebAPI.Middleware;
+using EMS.WebAPI.Filters;
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
 using Serilog;
 
@@ -60,6 +62,7 @@ builder.Services.AddScoped<IRegistrationService, FirestoreRegistrationService>()
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IAdminUserService, FirestoreAdminUserService>();
 builder.Services.AddScoped<EventReminderJob>();
 
 // ============ HANGFIRE (background jobs) ============
@@ -104,7 +107,33 @@ builder.Services
 // ============ CONTROLLERS & SWAGGER ============
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Enter your JWT token here. Don't include 'Bearer' prefix. E.g.: eyJhbGciOiJIUzI1NiIs..."
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // ============ CORS ============
 builder.Services.AddCors(options =>
@@ -135,10 +164,16 @@ app.UseCors("AllowAll");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<UserStatusMiddleware>();  // Block inactive users even with valid JWT
 app.MapControllers();
 
-// ============ HANGFIRE DASHBOARD & RECURRING JOBS ============
-app.UseHangfireDashboard("/hangfire");
+// Hangfire Dashboard — restrict access in non-Development environments.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = app.Environment.IsDevelopment()
+        ? Array.Empty<IDashboardAuthorizationFilter>()        // open in dev
+        : new[] { new HangfireAdminAuthorizationFilter() }    // restricted in prod
+});
 
 // Email reminders for events starting within the next 24h — runs hourly.
 RecurringJob.AddOrUpdate<EventReminderJob>(

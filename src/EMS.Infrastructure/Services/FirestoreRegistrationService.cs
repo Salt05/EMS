@@ -102,42 +102,71 @@ public class FirestoreRegistrationService : IRegistrationService
     {
         try
         {
-            var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
-            if (ev == null) return (null, "Event not found");
-
-            // Only approved events accept registrations.
-            if (ev.Status != EventStatus.Approved)
-                return (null, "Event is not open for registration");
-
-            var existing = await GetRegistrationsByEventAsync(eventId, tenantId);
-
-            // Block duplicate registration while the user already holds an active/waitlisted seat.
-            if (existing.Any(r => r.UserId == userId &&
-                                  r.Status is RegistrationStatus.Pending
-                                           or RegistrationStatus.Confirmed
-                                           or RegistrationStatus.Waitlisted))
+            var result = await _firestoreDb.RunTransactionAsync<(Registration? Registration, string? Error)>(async transaction =>
             {
-                return (null, "You are already registered for this event");
+                // 1. Get Event inside the transaction
+                var eventRef = _firestoreDb.Collection("events").Document(eventId);
+                var eventSnapshot = await transaction.GetSnapshotAsync(eventRef);
+                if (!eventSnapshot.Exists)
+                    return (null, "Event not found");
+
+                var evDict = eventSnapshot.ToDictionary();
+                var evTenantId = evDict.TryGetValue("tenantId", out var tid) ? tid?.ToString() : "";
+                if (evTenantId != tenantId)
+                    return (null, "Event not found");
+
+                var evStatusVal = evDict.TryGetValue("status", out var st) && st is long stLong ? (int)stLong : 0;
+                if (evStatusVal != (int)EventStatus.Approved)
+                    return (null, "Event is not open for registration");
+
+                var evCapacity = evDict.TryGetValue("capacity", out var cap) && cap is long capLong ? (int)capLong : 0;
+                var evEndTime = evDict.TryGetValue("endTime", out var et) && et is Timestamp etTs ? etTs.ToDateTime() : DateTime.MinValue;
+                if (evEndTime != DateTime.MinValue && evEndTime.ToUniversalTime() < DateTime.UtcNow)
+                    return (null, "Event has already ended");
+
+                // 2. Query registrations inside the transaction
+                var regsQuery = _firestoreDb.Collection(CollectionName)
+                    .WhereEqualTo("tenantId", tenantId)
+                    .WhereEqualTo("eventId", eventId);
+                var regsSnapshot = await transaction.GetSnapshotAsync(regsQuery);
+
+                var existing = regsSnapshot.Documents
+                    .Select(MapToRegistration)
+                    .ToList();
+
+                // Block duplicate registration
+                if (existing.Any(r => r.UserId == userId &&
+                                      r.Status is RegistrationStatus.Pending
+                                               or RegistrationStatus.Confirmed
+                                               or RegistrationStatus.Waitlisted))
+                {
+                    return (null, "You are already registered for this event");
+                }
+
+                // Check capacity
+                var activeCount = existing.Count(r => ActiveStatuses.Contains(r.Status));
+                var isFull = evCapacity > 0 && activeCount >= evCapacity;
+
+                var reg = new Registration
+                {
+                    TenantId = tenantId,
+                    EventId = eventId,
+                    UserId = userId,
+                    Note = note,
+                    Status = isFull ? RegistrationStatus.Waitlisted : RegistrationStatus.Pending
+                };
+
+                var docRef = _firestoreDb.Collection(CollectionName).Document(reg.Id);
+                transaction.Set(docRef, reg.ToFirestoreDocument());
+
+                return (reg, null);
+            });
+
+            if (result.Registration != null)
+            {
+                _logger.LogInformation($"Registration created: {result.Registration.Id} (event {eventId}, user {userId}, status {result.Registration.Status})");
             }
-
-            // Capacity 0 (or negative) is treated as unlimited.
-            var activeCount = existing.Count(r => ActiveStatuses.Contains(r.Status));
-            var isFull = ev.Capacity > 0 && activeCount >= ev.Capacity;
-
-            var reg = new Registration
-            {
-                TenantId = tenantId,
-                EventId = eventId,
-                UserId = userId,
-                Note = note,
-                Status = isFull ? RegistrationStatus.Waitlisted : RegistrationStatus.Pending
-            };
-
-            var docRef = _firestoreDb.Collection(CollectionName).Document(reg.Id);
-            await docRef.SetAsync(reg.ToFirestoreDocument());
-
-            _logger.LogInformation($"Registration created: {reg.Id} (event {eventId}, user {userId}, status {reg.Status})");
-            return (reg, null);
+            return result;
         }
         catch (Exception ex)
         {
@@ -148,64 +177,159 @@ public class FirestoreRegistrationService : IRegistrationService
 
     public async Task<bool> CancelAsync(string registrationId, string tenantId)
     {
-        var reg = await GetRegistrationByIdAsync(registrationId, tenantId);
-        if (reg == null) return false;
-
-        // Already cancelled/rejected registrations are terminal.
-        if (reg.Status is RegistrationStatus.Cancelled or RegistrationStatus.Rejected)
-            return false;
-
-        var freedSeat = ActiveStatuses.Contains(reg.Status);
-
-        reg.Status = RegistrationStatus.Cancelled;
-        reg.CancelledAt = DateTime.UtcNow;
-
-        var success = await SaveAsync(reg);
-        if (!success) return false;
-
-        // If the cancelled registration was holding a seat, promote the earliest waitlisted one.
-        if (freedSeat)
+        try
         {
-            await PromoteFromWaitlistAsync(reg.EventId, tenantId);
-        }
+            return await _firestoreDb.RunTransactionAsync<bool>(async transaction =>
+            {
+                var regRef = _firestoreDb.Collection(CollectionName).Document(registrationId);
+                var snapshot = await transaction.GetSnapshotAsync(regRef);
+                if (!snapshot.Exists) return false;
 
-        return true;
+                var reg = MapToRegistration(snapshot);
+                if (reg.TenantId != tenantId) return false;
+
+                if (reg.Status is RegistrationStatus.Cancelled or RegistrationStatus.Rejected)
+                    return false;
+
+                var freedSeat = ActiveStatuses.Contains(reg.Status);
+
+                Registration? promotedWaitlist = null;
+                if (freedSeat)
+                {
+                    promotedWaitlist = await GetWaitlistPromoteTargetInTransactionAsync(transaction, reg.EventId, tenantId);
+                }
+
+                reg.Status = RegistrationStatus.Cancelled;
+                reg.CancelledAt = DateTime.UtcNow;
+                reg.UpdatedAt = DateTime.UtcNow;
+
+                transaction.Set(regRef, reg.ToFirestoreDocument(), SetOptions.MergeAll);
+
+                if (promotedWaitlist != null)
+                {
+                    promotedWaitlist.Status = RegistrationStatus.Pending;
+                    promotedWaitlist.UpdatedAt = DateTime.UtcNow;
+                    var promoteRef = _firestoreDb.Collection(CollectionName).Document(promotedWaitlist.Id);
+                    transaction.Set(promoteRef, promotedWaitlist.ToFirestoreDocument(), SetOptions.MergeAll);
+                    _logger.LogInformation($"Promoted registration {promotedWaitlist.Id} from waitlist for event {reg.EventId} inside transaction");
+                }
+
+                return true;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error cancelling registration {registrationId}");
+            return false;
+        }
     }
 
     public async Task<bool> ApproveAsync(string registrationId, string tenantId, string processedById)
     {
-        var reg = await GetRegistrationByIdAsync(registrationId, tenantId);
-        if (reg == null) return false;
+        try
+        {
+            return await _firestoreDb.RunTransactionAsync<bool>(async transaction =>
+            {
+                var regRef = _firestoreDb.Collection(CollectionName).Document(registrationId);
+                var regSnapshot = await transaction.GetSnapshotAsync(regRef);
+                if (!regSnapshot.Exists) return false;
 
-        reg.Status = RegistrationStatus.Confirmed;
-        reg.ProcessedById = processedById;
-        reg.ProcessedAt = DateTime.UtcNow;
-        reg.RejectionReason = null;
+                var reg = MapToRegistration(regSnapshot);
+                if (reg.TenantId != tenantId) return false;
 
-        return await SaveAsync(reg);
+                if (reg.Status == RegistrationStatus.Confirmed) return true;
+                if (reg.Status is RegistrationStatus.Cancelled or RegistrationStatus.Rejected) return false;
+
+                var eventRef = _firestoreDb.Collection("events").Document(reg.EventId);
+                var eventSnapshot = await transaction.GetSnapshotAsync(eventRef);
+                if (!eventSnapshot.Exists) return false;
+
+                var evDict = eventSnapshot.ToDictionary();
+                var evCapacity = evDict.TryGetValue("capacity", out var cap) && cap is long capLong ? (int)capLong : 0;
+
+                var regsQuery = _firestoreDb.Collection(CollectionName)
+                    .WhereEqualTo("tenantId", tenantId)
+                    .WhereEqualTo("eventId", reg.EventId);
+                var regsSnapshot = await transaction.GetSnapshotAsync(regsQuery);
+
+                var existing = regsSnapshot.Documents
+                    .Select(MapToRegistration)
+                    .ToList();
+
+                var activeCount = existing.Count(r => r.Id != registrationId && ActiveStatuses.Contains(r.Status));
+
+                if (evCapacity > 0 && activeCount >= evCapacity)
+                {
+                    _logger.LogWarning($"Cannot approve registration {registrationId} - Event capacity {evCapacity} reached");
+                    return false;
+                }
+
+                reg.Status = RegistrationStatus.Confirmed;
+                reg.ProcessedById = processedById;
+                reg.ProcessedAt = DateTime.UtcNow;
+                reg.RejectionReason = null;
+                reg.UpdatedAt = DateTime.UtcNow;
+
+                transaction.Set(regRef, reg.ToFirestoreDocument(), SetOptions.MergeAll);
+                return true;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error approving registration {registrationId}");
+            return false;
+        }
     }
 
     public async Task<bool> RejectAsync(string registrationId, string tenantId, string processedById, string reason)
     {
-        var reg = await GetRegistrationByIdAsync(registrationId, tenantId);
-        if (reg == null) return false;
-
-        var freedSeat = ActiveStatuses.Contains(reg.Status);
-
-        reg.Status = RegistrationStatus.Rejected;
-        reg.ProcessedById = processedById;
-        reg.ProcessedAt = DateTime.UtcNow;
-        reg.RejectionReason = reason;
-
-        var success = await SaveAsync(reg);
-        if (!success) return false;
-
-        if (freedSeat)
+        try
         {
-            await PromoteFromWaitlistAsync(reg.EventId, tenantId);
-        }
+            return await _firestoreDb.RunTransactionAsync<bool>(async transaction =>
+            {
+                var regRef = _firestoreDb.Collection(CollectionName).Document(registrationId);
+                var snapshot = await transaction.GetSnapshotAsync(regRef);
+                if (!snapshot.Exists) return false;
 
-        return true;
+                var reg = MapToRegistration(snapshot);
+                if (reg.TenantId != tenantId) return false;
+
+                if (reg.Status is RegistrationStatus.Cancelled or RegistrationStatus.Rejected)
+                    return false;
+
+                var freedSeat = ActiveStatuses.Contains(reg.Status);
+
+                Registration? promotedWaitlist = null;
+                if (freedSeat)
+                {
+                    promotedWaitlist = await GetWaitlistPromoteTargetInTransactionAsync(transaction, reg.EventId, tenantId);
+                }
+
+                reg.Status = RegistrationStatus.Rejected;
+                reg.ProcessedById = processedById;
+                reg.ProcessedAt = DateTime.UtcNow;
+                reg.RejectionReason = reason;
+                reg.UpdatedAt = DateTime.UtcNow;
+
+                transaction.Set(regRef, reg.ToFirestoreDocument(), SetOptions.MergeAll);
+
+                if (promotedWaitlist != null)
+                {
+                    promotedWaitlist.Status = RegistrationStatus.Pending;
+                    promotedWaitlist.UpdatedAt = DateTime.UtcNow;
+                    var promoteRef = _firestoreDb.Collection(CollectionName).Document(promotedWaitlist.Id);
+                    transaction.Set(promoteRef, promotedWaitlist.ToFirestoreDocument(), SetOptions.MergeAll);
+                    _logger.LogInformation($"Promoted registration {promotedWaitlist.Id} from waitlist for event {reg.EventId} inside transaction");
+                }
+
+                return true;
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error rejecting registration {registrationId}");
+            return false;
+        }
     }
 
     public async Task<(Registration? Registration, string? Error)> GenerateCheckInCodeAsync(string eventId, string tenantId, string userId)
@@ -223,7 +347,28 @@ public class FirestoreRegistrationService : IRegistrationService
             if (reg.Status != RegistrationStatus.Confirmed)
                 return (null, "Registration is not confirmed");
 
-            reg.CheckInCode = GenerateCode();
+            string code = string.Empty;
+            bool isUnique = false;
+            int retries = 0;
+            do
+            {
+                code = GenerateCode();
+                var dupSnapshot = await _firestoreDb.Collection(CollectionName)
+                    .WhereEqualTo("tenantId", tenantId)
+                    .WhereEqualTo("checkInCode", code)
+                    .GetSnapshotAsync();
+
+                if (dupSnapshot.Documents.Count == 0)
+                {
+                    isUnique = true;
+                }
+                retries++;
+            } while (!isUnique && retries < 5);
+
+            if (!isUnique)
+                return (null, "Failed to generate a unique check-in code");
+
+            reg.CheckInCode = code;
             // Code stays valid until the event ends.
             reg.CheckInCodeExpiresAt = ev.EndTime.ToUniversalTime();
 
@@ -290,24 +435,21 @@ public class FirestoreRegistrationService : IRegistrationService
     // Short, human-typable, unique-enough code (uppercased hex from a GUID).
     private static string GenerateCode() => Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
 
-    // Promotes the earliest-registered waitlisted entry to Pending when a seat frees up.
-    private async Task PromoteFromWaitlistAsync(string eventId, string tenantId)
+    // Retrieves the earliest-registered waitlisted entry to Pending when a seat frees up inside a transaction.
+    private async Task<Registration?> GetWaitlistPromoteTargetInTransactionAsync(Transaction transaction, string eventId, string tenantId)
     {
-        try
-        {
-            var waitlisted = await GetRegistrationsByEventAsync(eventId, tenantId, RegistrationStatus.Waitlisted);
-            var next = waitlisted.OrderBy(r => r.RegisteredAt).FirstOrDefault();
-            if (next == null) return;
+        var regsQuery = _firestoreDb.Collection(CollectionName)
+            .WhereEqualTo("tenantId", tenantId)
+            .WhereEqualTo("eventId", eventId)
+            .WhereEqualTo("status", (int)RegistrationStatus.Waitlisted);
+        var snapshot = await transaction.GetSnapshotAsync(regsQuery);
 
-            next.Status = RegistrationStatus.Pending;
-            await SaveAsync(next);
+        var waitlisted = snapshot.Documents
+            .Select(MapToRegistration)
+            .OrderBy(r => r.RegisteredAt)
+            .FirstOrDefault();
 
-            _logger.LogInformation($"Promoted registration {next.Id} from waitlist for event {eventId}");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Error promoting waitlist for event {eventId}");
-        }
+        return waitlisted;
     }
 
     private async Task<bool> SaveAsync(Registration reg)

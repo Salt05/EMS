@@ -69,7 +69,7 @@ public class FirestoreUserService : IUserService
             await _firestoreDb
                 .Collection(UsersCollection)
                 .Document(user.Id)
-                .SetAsync(user);
+                .SetAsync(user.ToFirestoreDocument());
 
             _logger.LogInformation($"User created: {user.Email}");
             return user;
@@ -89,7 +89,7 @@ public class FirestoreUserService : IUserService
             await _firestoreDb
                 .Collection(UsersCollection)
                 .Document(user.Id)
-                .SetAsync(user);
+                .SetAsync(user.ToFirestoreDocument());
 
             _logger.LogInformation($"User updated: {user.Email}");
             return true;
