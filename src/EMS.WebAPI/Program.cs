@@ -100,6 +100,8 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IAdminUserService, FirestoreAdminUserService>();
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddSingleton<IReportExportService, ReportExportService>();
 builder.Services.AddScoped<EventReminderJob>();
 
 // ============ HANGFIRE (background jobs) ============
