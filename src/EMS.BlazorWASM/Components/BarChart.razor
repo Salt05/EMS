@@ -1,0 +1,54 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="w-full" style="height: @(Height)px;">
+    <canvas id="@_canvasId"></canvas>
+</div>
+
+@code {
+    [Parameter] public List<string> Labels { get; set; } = new();
+    [Parameter] public List<double> Data { get; set; } = new();
+    [Parameter] public string DatasetLabel { get; set; } = "";
+    [Parameter] public List<string>? Colors { get; set; }
+    [Parameter] public int Height { get; set; } = 260;
+
+    private string _canvasId = $"bar-{Guid.NewGuid():N}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Labels.Count > 0)
+        {
+            await RenderChart();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Labels.Count > 0)
+        {
+            await Task.Yield(); // ensure canvas is rendered
+        }
+    }
+
+    private async Task RenderChart()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("emsCharts.create",
+                _canvasId,
+                "bar",
+                System.Text.Json.JsonSerializer.Serialize(Labels),
+                System.Text.Json.JsonSerializer.Serialize(Data),
+                DatasetLabel,
+                Colors != null ? System.Text.Json.JsonSerializer.Serialize(Colors) : null);
+        }
+        catch { /* Chart.js may not be loaded yet */ }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JSRuntime.InvokeVoidAsync("emsCharts.destroy", _canvasId); }
+        catch { }
+    }
+}

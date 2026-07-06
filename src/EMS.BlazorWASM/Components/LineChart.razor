@@ -1,0 +1,45 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="w-full" style="height: @(Height)px;">
+    <canvas id="@_canvasId"></canvas>
+</div>
+
+@code {
+    [Parameter] public List<string> Labels { get; set; } = new();
+    [Parameter] public List<double> Data { get; set; } = new();
+    [Parameter] public string DatasetLabel { get; set; } = "";
+    [Parameter] public int Height { get; set; } = 260;
+
+    private string _canvasId = $"line-{Guid.NewGuid():N}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Labels.Count > 0)
+        {
+            await RenderChart();
+        }
+    }
+
+    private async Task RenderChart()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("emsCharts.create",
+                _canvasId,
+                "line",
+                System.Text.Json.JsonSerializer.Serialize(Labels),
+                System.Text.Json.JsonSerializer.Serialize(Data),
+                DatasetLabel,
+                null);
+        }
+        catch { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JSRuntime.InvokeVoidAsync("emsCharts.destroy", _canvasId); }
+        catch { }
+    }
+}

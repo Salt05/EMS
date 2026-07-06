@@ -76,6 +76,29 @@ public class DashboardStatsController : ControllerBase
         }
     }
 
+    // GET /api/events/{eventId}/stats
+    [HttpGet("api/events/{eventId}/stats")]
+    [Authorize(Roles = "manager,admin,superadmin")]
+    public async Task<IActionResult> GetEventStats(string eventId)
+    {
+        var tenantId = GetTenantId();
+        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
+
+        try
+        {
+            return Ok(await _statisticsService.GetEventStatsAsync(tenantId, eventId));
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound("Event not found");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error building event stats for {EventId}", eventId);
+            return StatusCode(500, "Failed to build statistics");
+        }
+    }
+
     private string GetTenantId() => User.FindFirst("tenantId")?.Value ?? string.Empty;
     private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 }

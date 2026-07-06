@@ -27,9 +27,12 @@
                     <button class="px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors active:scale-[0.98]" @onclick="Cancel">
                         @CancelText
                     </button>
-                    <button class="px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]" @onclick="Save">
-                        @SaveText
-                    </button>
+                    @if (SaveButtonVisible)
+                    {
+                        <button class="px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]" @onclick="Save">
+                            @SaveText
+                        </button>
+                    }
                 </div>
             </div>
         </div>
@@ -42,6 +45,7 @@
     [Parameter] public string SaveText { get; set; } = "Lưu";
     [Parameter] public string CancelText { get; set; } = "Hủy";
     [Parameter] public string WidthClass { get; set; } = "max-w-md";
+    [Parameter] public bool SaveButtonVisible { get; set; } = true;
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     [Parameter] public EventCallback OnSave { get; set; }

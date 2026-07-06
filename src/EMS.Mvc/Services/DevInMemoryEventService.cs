@@ -149,7 +149,11 @@ public class DevInMemoryEventService : IEventService
 
     public Task<List<Event>> GetEventsByTenantAsync(string tenantId, EventStatus? status = null)
     {
-        var query = _events.Where(e => e.TenantId == tenantId);
+        var query = _events.AsEnumerable();
+        if (!string.IsNullOrEmpty(tenantId) && !tenantId.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(e => e.TenantId == tenantId);
+        }
 
         if (status.HasValue)
             query = query.Where(e => e.Status == status.Value);

@@ -22,4 +22,9 @@ public interface IStatisticsService
     /// Statistics scoped to the events organised by a single user. Organizer/Manager.
     /// </summary>
     Task<OrganizerDashboardStatsDto> GetOrganizerStatsAsync(string tenantId, string organizerId);
+
+    /// <summary>
+    /// Statistics for a single event: registration breakdown and check-in rate.
+    /// </summary>
+    Task<EventStatsDto> GetEventStatsAsync(string tenantId, string eventId);
 }

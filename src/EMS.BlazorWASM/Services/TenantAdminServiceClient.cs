@@ -25,6 +25,8 @@ public interface ITenantAdminServiceClient
     Task<bool> DeleteEventAsync(string id);
     Task<List<MockEmailTemplateDto>> GetEmailTemplatesAsync();
     Task<bool> UpdateEmailTemplateAsync(string id, MockEmailTemplateDto template);
+    Task<byte[]> ExportReportAsync(string? eventId, string format);
+    Task<byte[]> ExportSummaryAsync(string format);
 }
 
 public class TenantAdminServiceClient : ITenantAdminServiceClient
@@ -266,5 +268,26 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
             return true;
         }
         return false;
+    }
+
+    public async Task<byte[]> ExportReportAsync(string? eventId, string format)
+    {
+        try
+        {
+            var url = string.IsNullOrEmpty(eventId)
+                ? $"api/reports/events/summary?format={format}"
+                : $"api/reports/events/{eventId}/registrations?format={format}";
+            return await _httpClient.GetByteArrayAsync(url);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting report in format {Format}", format);
+            return Array.Empty<byte>();
+        }
+    }
+
+    public async Task<byte[]> ExportSummaryAsync(string format)
+    {
+        return await ExportReportAsync(null, format);
     }
 }

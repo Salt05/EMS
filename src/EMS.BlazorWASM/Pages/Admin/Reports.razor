@@ -3,7 +3,6 @@
 @inject ITenantAdminServiceClient TenantAdminService
 @inject ToastService ToastService
 @inject IJSRuntime JSRuntime
-@using System.Text
 
 <PageTitle>Báo cáo thống kê — EMS</PageTitle>
 
@@ -11,167 +10,98 @@
     <!-- Header -->
     <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">
                 Báo cáo Thống kê
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
-                    ⏳ DEMO
-                </span>
             </h1>
             <p class="text-sm text-muted mt-1">Phân tích số liệu đăng ký, điểm danh và hoạt động sự kiện trong tổ chức.</p>
         </div>
-        <button @onclick="ExportReport" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]">
-            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Xuất báo cáo tổng hợp
-        </button>
+        <ExportButtons />
     </div>
 
-    <!-- Bento Charts Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        
-        <!-- Registration vs Check-in ratio per event -->
-        <div class="bg-white border border-border rounded-xl p-6 shadow-bento">
-            <h3 class="text-base font-bold text-charcoal mb-4 flex items-center justify-between">
-                Tỷ Lệ Đăng Ký vs Điểm Danh Theo Sự Kiện
-                <span class="text-xs text-muted font-normal">Xám: Đăng ký | Đen: Điểm danh</span>
-            </h3>
-            <div class="mt-8 space-y-6">
-                @foreach (var ev in mockEventStats)
-                {
-                    <div>
-                        <div class="flex items-center justify-between text-sm mb-1.5">
-                            <span class="font-medium text-charcoal">@ev.Title</span>
-                            <span class="font-bold text-charcoal font-mono">@ev.CheckInCount / @ev.RegCount (@(ev.RegCount > 0 ? (ev.CheckInCount * 100 / ev.RegCount) : 0)%)</span>
-                        </div>
-                        <div class="w-full bg-canvas h-4 rounded-full overflow-hidden relative">
-                            <!-- Registration bar (Grey-ish) -->
-                            <div class="bg-slate-300 h-full rounded-full transition-all duration-500 absolute left-0" style="width: @(ev.RegPercent)%"></div>
-                            <!-- Check-in bar (Black-ish) -->
-                            <div class="bg-charcoal h-full rounded-full transition-all duration-500 absolute left-0" style="width: @(ev.CheckInPercent)%"></div>
-                        </div>
-                    </div>
-                }
-            </div>
+    @if (stats == null)
+    {
+        <div class="flex justify-center items-center py-20">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-charcoal"></div>
+        </div>
+    }
+    else
+    {
+        <!-- Summary KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <DashboardWidget Title="Tổng sự kiện" Value="@stats.TotalEvents.ToString()">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
+            <DashboardWidget Title="Đang diễn ra" Value="@stats.OngoingEvents.ToString()">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
+            <DashboardWidget Title="Tỷ lệ Check-in" Value="@($"{stats.CheckInRate}%")">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
+            <DashboardWidget Title="Người dùng" Value="@stats.TotalUsers.ToString()">
+                <Icon>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </Icon>
+            </DashboardWidget>
         </div>
 
-        <!-- Top 5 largest events -->
-        <div class="bg-white border border-border rounded-xl p-6 shadow-bento">
-            <h3 class="text-base font-bold text-charcoal mb-4">Top 5 Sự Kiện Có Lượng Sinh Viên Tham Gia Đông Nhất</h3>
-            <div class="mt-8 space-y-6">
-                @foreach (var ev in mockEventStats.OrderByDescending(e => e.CheckInCount).Take(5))
-                {
-                    var maxCheckin = mockEventStats.Max(e => e.CheckInCount);
-                    var barWidth = maxCheckin > 0 ? (ev.CheckInCount * 100 / maxCheckin) : 0;
-                    <div>
-                        <div class="flex items-center justify-between text-sm mb-1.5">
-                            <span class="font-medium text-charcoal flex items-center gap-2">
-                                <span class="h-3 w-3 rounded-full bg-charcoal"></span>
-                                @ev.Title
-                            </span>
-                            <span class="font-bold text-charcoal font-mono">@ev.CheckInCount sinh viên</span>
-                        </div>
-                        <div class="w-full bg-canvas h-3 rounded-full overflow-hidden">
-                            <div class="bg-charcoal h-full rounded-full transition-all duration-500" style="width: @(barWidth)%"></div>
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 
-        <!-- Registration timelines -->
-        <div class="bg-white border border-border rounded-xl p-6 shadow-bento lg:col-span-2">
-            <h3 class="text-base font-bold text-charcoal mb-4">Xu Hướng Số Lượng Đăng Ký Theo Thời Gian</h3>
-            <div class="mt-8 flex items-end justify-between h-48 pt-6">
-                @foreach (var trend in mockRegistrationTrends)
-                {
-                    var maxVal = mockRegistrationTrends.Max(t => t.Count);
-                    var heightPercent = maxVal > 0 ? (trend.Count * 100 / maxVal) : 0;
-                    <div class="flex flex-col items-center flex-1 group">
-                        <span class="text-xs font-bold text-charcoal mb-2 opacity-0 group-hover:opacity-100 transition-opacity font-mono">@trend.Count Đăng ký</span>
-                        <!-- Custom Gradient Bar -->
-                        <div class="w-10 bg-gradient-to-t from-slate-200 to-charcoal/20 group-hover:to-charcoal rounded-t transition-all duration-300" style="height: @(heightPercent * 1.3)px"></div>
-                        <span class="text-xs text-muted mt-2">@trend.Date</span>
-                    </div>
-                }
+            <!-- Top Organizers Bar Chart -->
+            <div class="bg-white border border-border rounded-xl p-6 shadow-bento">
+                <h3 class="text-base font-bold text-charcoal mb-4 flex items-center justify-between">
+                    Top 5 Ban Tổ Chức Tích Cực
+                    <span class="text-xs text-muted font-normal">Số sự kiện đã tạo</span>
+                </h3>
+                <BarChart Labels="@stats.TopOrganizers.Select(o => o.OrganizerName).ToList()"
+                          Data="@stats.TopOrganizers.Select(o => (double)o.EventCount).ToList()"
+                          DatasetLabel="Sự kiện"
+                          Height="240" />
             </div>
-        </div>
 
-    </div>
+            <!-- Check-in Rate Doughnut -->
+            <div class="bg-white border border-border rounded-xl p-6 shadow-bento">
+                <h3 class="text-base font-bold text-charcoal mb-4">Tỷ Lệ Điểm Danh Tổng Quan</h3>
+                <DoughnutChart Labels="@(new List<string> { "Đã điểm danh", "Chưa điểm danh" })"
+                               Data="@(new List<double> { stats.CheckInRate, Math.Max(0, 100 - stats.CheckInRate) })"
+                               DatasetLabel="Tỷ lệ (%)"
+                               Colors="@(new List<string> { "#1A1F36", "#E3E8EE" })"
+                               Height="240" />
+            </div>
+
+            <!-- Monthly Events Line Chart (full width) -->
+            <div class="bg-white border border-border rounded-xl p-6 shadow-bento lg:col-span-2">
+                <h3 class="text-base font-bold text-charcoal mb-4">Xu Hướng Số Lượng Sự Kiện Theo Tháng</h3>
+                <LineChart Labels="@stats.MonthlyEvents.Select(m => m.Month).ToList()"
+                           Data="@stats.MonthlyEvents.Select(m => (double)m.EventCount).ToList()"
+                           DatasetLabel="Sự kiện"
+                           Height="220" />
+            </div>
+
+        </div>
+    }
 </div>
 
 @code {
-    private List<MockEventReportDto> mockEventStats = new()
+    private TenantAdminDashboardStatsDto? stats;
+
+    protected override async Task OnInitializedAsync()
     {
-        new() { Title = "Hackathon HUFLIT 2026", RegCount = 150, CheckInCount = 120, RegPercent = 100, CheckInPercent = 80 },
-        new() { Title = "Workshop Git & GitHub", RegCount = 85, CheckInCount = 78, RegPercent = 85, CheckInPercent = 78 },
-        new() { Title = "Seminar AI & Deep Learning", RegCount = 120, CheckInCount = 95, RegPercent = 95, CheckInPercent = 75 },
-        new() { Title = "Coding Contest", RegCount = 60, CheckInCount = 45, RegPercent = 60, CheckInPercent = 45 },
-        new() { Title = "NCKH Sinh Viên", RegCount = 40, CheckInCount = 38, RegPercent = 40, CheckInPercent = 38 }
-    };
-
-    private List<MockTrendDto> mockRegistrationTrends = new()
-    {
-        new() { Date = "Thứ Hai", Count = 45 },
-        new() { Date = "Thứ Ba", Count = 60 },
-        new() { Date = "Thứ Tư", Count = 85 },
-        new() { Date = "Thứ Năm", Count = 55 },
-        new() { Date = "Thứ Sáu", Count = 110 },
-        new() { Date = "Thứ Bảy", Count = 130 },
-        new() { Date = "Chủ Nhật", Count = 95 }
-    };
-
-    private async Task ExportReport()
-    {
-        var csvBuilder = new StringBuilder();
-        // Add BOM
-        csvBuilder.Append("\uFEFF");
-        csvBuilder.AppendLine("BÁO CÁO TỔNG HỢP HOẠT ĐỘNG SỰ KIỆN");
-        csvBuilder.AppendLine($"Ngày xuất báo cáo: {DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")}");
-        csvBuilder.AppendLine();
-        csvBuilder.AppendLine("Tên sự kiện,Số lượng đăng ký,Số lượng điểm danh,Tỷ lệ điểm danh (%)");
-        foreach (var ev in mockEventStats)
-        {
-            var rate = ev.RegCount > 0 ? (ev.CheckInCount * 100 / ev.RegCount) : 0;
-            csvBuilder.AppendLine($"{ev.Title},{ev.RegCount},{ev.CheckInCount},{rate}%");
-        }
-
-        var bytes = Encoding.UTF8.GetBytes(csvBuilder.ToString());
-        var base64 = Convert.ToBase64String(bytes);
-
-        // Register download JS function dynamically
-        await JSRuntime.InvokeVoidAsync("eval", @"
-            window.downloadFile = (fileName, contentType, base64Content) => {
-                const binary = atob(base64Content);
-                const array = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) {
-                    array[i] = binary.charCodeAt(i);
-                }
-                const blob = new Blob([array], {type: contentType});
-                const link = document.createElement('a');
-                link.href = window.URL.createObjectURL(blob);
-                link.download = fileName;
-                link.click();
-                window.URL.revokeObjectURL(link.href);
-            };
-        ");
-
-        await JSRuntime.InvokeVoidAsync("downloadFile", "bao-cao-tong-hop-su-kien.csv", "text/csv;charset=utf-8", base64);
-        ToastService.ShowSuccess("Báo cáo tổng hợp đã được xuất thành công.");
-    }
-
-    private class MockEventReportDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public int RegCount { get; set; }
-        public int CheckInCount { get; set; }
-        public int RegPercent { get; set; }
-        public int CheckInPercent { get; set; }
-    }
-
-    private class MockTrendDto
-    {
-        public string Date { get; set; } = string.Empty;
-        public int Count { get; set; }
+        stats = await TenantAdminService.GetStatsAsync();
     }
 }

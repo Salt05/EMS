@@ -14,17 +14,17 @@ namespace EMS.BlazorWASM.Services;
 public interface ISuperAdminServiceClient
 {
     Task<SuperAdminDashboardStatsDto> GetStatsAsync();
-    Task<List<TenantDTO>> GetTenantsAsync();
+    Task<List<TenantDTO>> GetTenantsAsync(bool bypassCache = false);
     Task<TenantDTO?> CreateTenantAsync(TenantDTO tenant);
     Task<bool> UpdateTenantAsync(string id, TenantDTO tenant);
     Task<bool> DeleteTenantAsync(string id);
-    Task<List<AdminUserItemDto>> GetUsersAsync();
+    Task<List<AdminUserItemDto>> GetUsersAsync(bool bypassCache = false);
     Task<bool> CreateUserAsync(AdminCreateUserRequestDto request);
     Task<bool> UpdateUserRoleAsync(string id, string roleId);
     Task<bool> UpdateUserTenantAsync(string id, string tenantId);
     Task<bool> ToggleUserActiveAsync(string id);
     Task<bool> DeleteUserAsync(string id);
-    Task<List<EventResponseDto>> GetEventsAsync();
+    Task<List<EventResponseDto>> GetEventsAsync(bool bypassCache = false);
     Task<bool> CancelEventAsync(string id, string reason);
 }
 
@@ -53,11 +53,11 @@ public class SuperAdminServiceClient : ISuperAdminServiceClient
         }
     }
 
-    public async Task<List<TenantDTO>> GetTenantsAsync()
+    public async Task<List<TenantDTO>> GetTenantsAsync(bool bypassCache = false)
     {
         try
         {
-            var res = await _httpClient.GetFromJsonAsync<List<TenantDTO>>("api/superadmin/tenants");
+            var res = await _httpClient.GetFromJsonAsync<List<TenantDTO>>($"api/superadmin/tenants?bypassCache={bypassCache}");
             return res ?? TenantsMock.Tenants;
         }
         catch
@@ -130,11 +130,11 @@ public class SuperAdminServiceClient : ISuperAdminServiceClient
         return false;
     }
 
-    public async Task<List<AdminUserItemDto>> GetUsersAsync()
+    public async Task<List<AdminUserItemDto>> GetUsersAsync(bool bypassCache = false)
     {
         try
         {
-            var res = await _httpClient.GetFromJsonAsync<List<AdminUserItemDto>>("api/superadmin/users");
+            var res = await _httpClient.GetFromJsonAsync<List<AdminUserItemDto>>($"api/superadmin/users?bypassCache={bypassCache}");
             return res ?? UsersMock.Users;
         }
         catch
@@ -261,11 +261,11 @@ public class SuperAdminServiceClient : ISuperAdminServiceClient
         return false;
     }
 
-    public async Task<List<EventResponseDto>> GetEventsAsync()
+    public async Task<List<EventResponseDto>> GetEventsAsync(bool bypassCache = false)
     {
         try
         {
-            var res = await _httpClient.GetFromJsonAsync<List<EventResponseDto>>("api/superadmin/events");
+            var res = await _httpClient.GetFromJsonAsync<List<EventResponseDto>>($"api/superadmin/events?bypassCache={bypassCache}");
             return res ?? EventsMock.Events;
         }
         catch

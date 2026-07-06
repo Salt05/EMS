@@ -60,3 +60,18 @@ public class EventRegistrationCountDto
     public string EventTitle { get; set; } = string.Empty;
     public int RegistrationCount { get; set; }
 }
+
+/// <summary>Statistics for a single event (P8_E2_F1_T3).</summary>
+public class EventStatsDto
+{
+    public string EventId { get; set; } = string.Empty;
+    public string EventTitle { get; set; } = string.Empty;
+    public string StatusName { get; set; } = string.Empty;
+    public int Capacity { get; set; }
+    public int TotalRegistrations { get; set; }
+    public int Confirmed { get; set; }
+    public int Pending { get; set; }
+    public int Cancelled { get; set; }
+    public int CheckedIn { get; set; }
+    public double CheckInRate { get; set; }
+}

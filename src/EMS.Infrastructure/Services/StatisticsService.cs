@@ -168,6 +168,32 @@ public class StatisticsService : IStatisticsService
         };
     }
 
+    // ============ SINGLE EVENT STATS (P8_E2_F1_T3) ============
+
+    public async Task<EventStatsDto> GetEventStatsAsync(string tenantId, string eventId)
+    {
+        var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
+        if (ev == null) throw new InvalidOperationException($"Event {eventId} not found");
+
+        var regs = await _registrationService.GetRegistrationsByEventAsync(eventId, tenantId);
+
+        return new EventStatsDto
+        {
+            EventId = ev.Id,
+            EventTitle = ev.Title,
+            StatusName = ev.Status.ToString(),
+            Capacity = ev.Capacity,
+            TotalRegistrations = regs.Count(IsActive),
+            Confirmed = regs.Count(r => r.Status == RegistrationStatus.Confirmed),
+            Pending = regs.Count(r => r.Status == RegistrationStatus.Pending),
+            Cancelled = regs.Count(r => r.Status == RegistrationStatus.Cancelled),
+            CheckedIn = regs.Count(r => r.CheckedIn),
+            CheckInRate = regs.Count(IsActive) > 0
+                ? Math.Round(regs.Count(r => r.CheckedIn) * 100.0 / regs.Count(IsActive), 1)
+                : 0
+        };
+    }
+
     // ============ HELPERS ============
 
     // A registration counts towards attendance figures unless it was cancelled or rejected.

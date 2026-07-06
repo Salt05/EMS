@@ -24,6 +24,7 @@ public interface IOrganizerServiceClient
     Task<bool> CreateEventAsync(CreateEventDto request);
     Task<bool> UpdateEventAsync(string id, UpdateEventDto request);
     Task<bool> DeleteEventAsync(string id);
+    Task<byte[]> ExportEventReportAsync(string eventId, string format);
 }
 
 public class OrganizerServiceClient : IOrganizerServiceClient
@@ -244,5 +245,19 @@ public class OrganizerServiceClient : IOrganizerServiceClient
             return true;
         }
         return false;
+    }
+
+    public async Task<byte[]> ExportEventReportAsync(string eventId, string format)
+    {
+        try
+        {
+            var url = $"api/reports/events/{eventId}/registrations?format={format}";
+            return await _httpClient.GetByteArrayAsync(url);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting event report for event {EventId} in format {Format}", eventId, format);
+            return Array.Empty<byte>();
+        }
     }
 }

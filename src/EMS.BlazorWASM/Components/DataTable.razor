@@ -43,7 +43,7 @@
                         </td>
                     </tr>
                 }
-                else if (Items == null || !Items.Any())
+                else if (DisplayedItems == null || !DisplayedItems.Any())
                 {
                     <tr>
                         <td colspan="100" class="py-10 text-center text-sm text-muted">
@@ -53,9 +53,10 @@
                 }
                 else
                 {
-                    @foreach (var item in Items)
+                    @foreach (var item in DisplayedItems)
                     {
-                        <tr class="hover:bg-canvas transition-colors">
+                        <tr class="hover:bg-canvas transition-colors @(OnRowClick.HasDelegate ? "cursor-pointer" : "")" 
+                            @onclick="() => HandleRowClick(item)">
                             @RowTemplate(item)
                         </tr>
                     }
@@ -99,9 +100,31 @@
     [Parameter] public int PageSize { get; set; } = 10;
     [Parameter] public EventCallback<int> PageChanged { get; set; }
     [Parameter] public EventCallback<string> SearchChanged { get; set; }
+    [Parameter] public EventCallback<TItem> OnRowClick { get; set; }
 
     private string SearchQuery { get; set; } = string.Empty;
     private int MaxPage => (int)Math.Ceiling((double)TotalCount / PageSize);
+
+    private async Task HandleRowClick(TItem item)
+    {
+        if (OnRowClick.HasDelegate)
+        {
+            await OnRowClick.InvokeAsync(item);
+        }
+    }
+
+    private IEnumerable<TItem> DisplayedItems
+    {
+        get
+        {
+            if (Items == null) return Enumerable.Empty<TItem>();
+            if (Items.Count >= TotalCount && TotalCount > PageSize)
+            {
+                return Items.Skip((Page - 1) * PageSize).Take(PageSize);
+            }
+            return Items;
+        }
+    }
 
     private async Task OnSearchInput(ChangeEventArgs e)
     {

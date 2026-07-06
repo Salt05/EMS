@@ -114,8 +114,9 @@ builder.Services.AddHangfire(config => config
     .UseMemoryStorage());
 builder.Services.AddHangfireServer();
 
-// ============ HTTP CONTEXT ============
+// ============ HTTP CONTEXT & CACHING ============
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 
 // ============ JWT AUTHENTICATION ============
 var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey not configured");

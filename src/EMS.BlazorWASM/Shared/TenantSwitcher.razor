@@ -1,7 +1,8 @@
 @inject ITenantServiceClient TenantService
+@inject NavigationManager NavigationManager
 @inject ILogger<TenantSwitcher> Logger
 
-<AuthorizeView Roles="superadmin,admin">
+<AuthorizeView Roles="superadmin">
     <Authorized>
         <div class="tenant-switcher">
             <label class="tenant-label">
@@ -83,6 +84,8 @@
             {
                 await OnTenantSwitched.InvokeAsync(newTenantId);
             }
+
+            NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
         }
     }
 }

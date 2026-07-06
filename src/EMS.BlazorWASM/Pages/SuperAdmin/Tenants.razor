@@ -12,18 +12,23 @@
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
                 Quản lý Tổ chức (Tenants)
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
-                    ⏳ DEMO
-                </span>
             </h1>
             <p class="text-sm text-muted mt-1">Danh sách các trường, tổ chức sử dụng hệ thống quản lý sự kiện EMS.</p>
         </div>
-        <button @onclick="OpenAddModal" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]">
-            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Thêm Tenant mới
-        </button>
+        <div class="flex items-center gap-2">
+            <button @onclick="() => LoadData(true)" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 border border-border rounded-md hover:bg-canvas text-sm font-semibold text-charcoal bg-white shadow-sm transition-colors active:scale-[0.98]">
+                <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3-3 3 3m-3-3v12" />
+                </svg>
+                Làm mới dữ liệu
+            </button>
+            <button @onclick="OpenAddModal" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]">
+                <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Thêm Tenant mới
+            </button>
+        </div>
     </div>
 
     <!-- Data Table -->
@@ -51,8 +56,8 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@tenant.Name</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@tenant.Subdomain</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@tenant.Email</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(tenant.Id == "huflit" ? 1500 : tenant.Id == "bachkhoa" ? 1200 : tenant.Id == "khtn" ? 800 : 350)</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(tenant.Id == "huflit" ? 45 : tenant.Id == "bachkhoa" ? 32 : tenant.Id == "khtn" ? 20 : 10)</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@tenant.UserCount</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@tenant.EventCount</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@tenant.CreatedAt.ToString("dd/MM/yyyy")</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm">
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium @(tenant.IsActive ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800")">
@@ -132,12 +137,12 @@
         await LoadData();
     }
 
-    private async Task LoadData()
+    private async Task LoadData(bool bypassCache = false)
     {
         isLoading = true;
         try
         {
-            allTenants = await SuperAdminService.GetTenantsAsync();
+            allTenants = await SuperAdminService.GetTenantsAsync(bypassCache);
             ApplyFilter();
         }
         catch (Exception ex)

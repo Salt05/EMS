@@ -10,4 +10,6 @@ public class TenantDTO
     public string? Address { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public int UserCount { get; set; }
+    public int EventCount { get; set; }
 }

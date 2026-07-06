@@ -43,7 +43,12 @@ public class FirestoreEventService : IEventService
     {
         try
         {
-            Query query = _firestoreDb.Collection(CollectionName).WhereEqualTo("tenantId", tenantId);
+            Query query = _firestoreDb.Collection(CollectionName);
+
+            if (!string.IsNullOrEmpty(tenantId) && !tenantId.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.WhereEqualTo("tenantId", tenantId);
+            }
 
             if (status.HasValue)
             {
