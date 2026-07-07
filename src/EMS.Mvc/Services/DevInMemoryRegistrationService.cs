@@ -126,4 +126,52 @@ public class DevInMemoryRegistrationService : IRegistrationService
         reg.UpdatedAt = DateTime.UtcNow;
         return Task.FromResult(true);
     }
+
+    public async Task<(bool Success, string Message)> CheckInAsync(string tenantId, string eventId, string studentEmail, string checkInCode)
+    {
+        // 1. Lấy thông tin sự kiện
+        var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
+        if (ev == null)
+            return (false, "Không tìm thấy sự kiện.");
+
+        // 2. Kiểm tra sự kiện đang diễn ra
+        var now = DateTime.UtcNow;
+        if (now < ev.StartTime)
+            return (false, "Sự kiện chưa bắt đầu, chưa thể check-in.");
+        if (now > ev.EndTime)
+            return (false, "Sự kiện đã kết thúc, không thể check-in.");
+
+        // 3. Kiểm tra mã check-in hợp lệ
+        if (string.IsNullOrWhiteSpace(ev.CheckInCode))
+            return (false, "Sự kiện chưa có mã check-in. Vui lòng liên hệ ban tổ chức.");
+
+        if (!string.Equals(ev.CheckInCode.Trim(), checkInCode.Trim(), StringComparison.OrdinalIgnoreCase))
+            return (false, "Mã check-in không đúng. Vui lòng kiểm tra lại.");
+
+        if (ev.CheckInCodeExpiredAt.HasValue && now > ev.CheckInCodeExpiredAt.Value)
+            return (false, "Mã check-in đã hết hạn. Vui lòng xin mã mới từ ban tổ chức.");
+
+        // 4. Tìm đăng ký hợp lệ của sinh viên
+        var reg = Registrations.FirstOrDefault(r =>
+            r.EventId == eventId &&
+            r.TenantId == tenantId &&
+            r.StudentEmail.Equals(studentEmail, StringComparison.OrdinalIgnoreCase));
+
+        if (reg == null)
+            return (false, "Bạn chưa đăng ký tham gia sự kiện này.");
+
+        if (reg.Status != RegistrationStatus.Approved)
+            return (false, "Đăng ký của bạn chưa được phê duyệt.");
+
+        // 5. Kiểm tra đã check-in rồi chưa
+        if (reg.CheckedIn)
+            return (false, $"Bạn đã check-in sự kiện này lúc {reg.CheckedInAt?.ToLocalTime().ToString("HH:mm dd/MM/yyyy")}.");
+
+        // 6. Thực hiện check-in
+        reg.CheckedIn = true;
+        reg.CheckedInAt = now;
+        reg.UpdatedAt = now;
+
+        return (true, $"Check-in thành công! Chào mừng bạn đến với \"{ev.Title}\".");
+    }
 }

@@ -10,19 +10,19 @@
 }
 
 @functions {
-    string GetEventBadgeClass(string title, string description)
+    string GetBadgeClass(string title, string description)
     {
         var text = (title + " " + description).ToLower();
         if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "bg-primary text-white";
+            return "event-badge-academic";
         if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "bg-success text-white";
+            return "event-badge-art";
         if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "bg-warning text-dark";
-        return "bg-info text-white";
+            return "event-badge-sport";
+        return "event-badge-default";
     }
 
-    string GetEventBadgeName(string title, string description)
+    string GetBadgeName(string title, string description)
     {
         var text = (title + " " + description).ToLower();
         if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
@@ -38,131 +38,169 @@
 <div class="container my-5">
     <!-- Back Navigation -->
     <div class="mb-4">
-        <a asp-action="Index" class="btn btn-sm btn-light border rounded-pill px-3 py-2 text-decoration-none text-secondary">
-            <i class="bi bi-arrow-left-short me-1"></i>Quay lại danh sách
+        <a asp-action="Index" class="btn-glass">
+            <i class="ri-arrow-left-s-line"></i> Quay lại danh sách
         </a>
     </div>
 
     <!-- Error Message Alert -->
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-4" role="alert">
-            <i class="bi bi-exclamation-octagon-fill me-2"></i>@TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert-glass alert-glass-danger mb-4" role="alert">
+            <i class="ri-error-warning-line" style="font-size:1.15rem;"></i>
+            <span>@TempData["ErrorMessage"]</span>
         </div>
     }
 
     <div class="row g-4">
-        <!-- Left: Image & Info -->
+        <!-- Left: Image & Content -->
         <div class="col-lg-8">
-            <div class="premium-card overflow-hidden mb-4">
-                <img src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=60" : Model.ImageUrl)" 
-                     class="img-fluid w-100" 
-                     style="height: 380px; object-fit: cover;" 
-                     onerror="this.onerror=null;this.src='https://placehold.co/1200x400/6366f1/ffffff?text=EMS+Event';"
-                     alt="@Model.Title">
-                
-                <div class="p-4 p-md-5">
-                    <span class="badge @GetEventBadgeClass(Model.Title, Model.Description) px-3 py-2 mb-3">
-                        @GetEventBadgeName(Model.Title, Model.Description)
-                    </span>
-                    <h1 class="fw-bold text-dark mb-4">@Model.Title</h1>
+            <div class="glass-card overflow-hidden mb-4">
+                <!-- Double-bezel image -->
+                <div class="detail-image-wrap">
+                    <div class="detail-image-shell">
+                        <img src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=60" : Model.ImageUrl)"
+                             alt="@Model.Title"
+                             onerror="this.onerror=null;this.src='https://placehold.co/1200x400/6366f1/ffffff?text=EMS+Event';">
+                    </div>
+                </div>
 
-                    <h5 class="fw-bold mb-3"><i class="bi bi-file-text me-2 text-primary"></i>Giới thiệu sự kiện</h5>
-                    <div class="text-secondary leading-relaxed" style="white-space: pre-line;">
+                <div class="p-4 p-md-5">
+                    <span class="event-badge @GetBadgeClass(Model.Title, Model.Description)" style="position:static; display:inline-block; margin-bottom:1rem;">
+                        @GetBadgeName(Model.Title, Model.Description)
+                    </span>
+                    <h1 class="heading-gradient heading-gradient-md mb-4">@Model.Title</h1>
+
+                    <span class="eyebrow-tag" style="margin-bottom:0.75rem;">Giới thiệu sự kiện</span>
+                    <div style="color:var(--text-secondary); line-height:1.8; white-space:pre-line;">
                         @Model.Description
                     </div>
                 </div>
             </div>
+
+            <!-- Agenda Timeline View -->
+            <partial name="_AgendaTimeline" model="Model" />
         </div>
 
         <!-- Right: Detail Metadata & CTA -->
         <div class="col-lg-4">
-            <div class="premium-card p-4 position-sticky" style="top: 100px;">
-                <h4 class="fw-bold text-dark mb-4 border-bottom pb-2">Thông tin chi tiết</h4>
-                
-                <div class="d-flex align-items-start mb-3">
-                    <div class="text-primary me-3 fs-4 mt-0.5">
-                        <i class="bi bi-clock"></i>
+            <div class="glass-card-strong p-4 position-sticky" style="top:100px;">
+                <h4 class="fw-bold mb-4 pb-2" style="border-bottom:1px solid var(--border-subtle);">Thông tin chi tiết</h4>
+
+                <!-- Time -->
+                <div class="detail-meta-row">
+                    <div class="detail-meta-icon icon-primary">
+                        <i class="ri-time-line"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark small text-uppercase">Thời gian</div>
-                        <div class="text-secondary small">
+                        <div class="form-glass-label" style="margin-bottom:0.25rem;">Thời gian</div>
+                        <div style="color:var(--text-secondary); font-size:0.88rem;">
                             <strong>Bắt đầu:</strong><br/> @Model.StartTime.ToString("dd/MM/yyyy HH:mm")<br/>
                             <strong>Kết thúc:</strong><br/> @Model.EndTime.ToString("dd/MM/yyyy HH:mm")
                         </div>
                     </div>
                 </div>
 
-                <div class="d-flex align-items-start mb-3">
-                    <div class="text-success me-3 fs-4 mt-0.5">
-                        <i class="bi bi-geo-alt"></i>
+                <!-- Location -->
+                <div class="detail-meta-row">
+                    <div class="detail-meta-icon icon-success">
+                        <i class="ri-map-pin-2-line"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark small text-uppercase">Địa điểm</div>
-                        <div class="text-secondary small">@Model.Location</div>
+                        <div class="form-glass-label" style="margin-bottom:0.25rem;">Địa điểm</div>
+                        <div style="color:var(--text-secondary); font-size:0.88rem;">@Model.Location</div>
                     </div>
                 </div>
 
-                <div class="d-flex align-items-start mb-3">
-                    <div class="text-warning me-3 fs-4 mt-0.5">
-                        <i class="bi bi-people"></i>
+                <!-- Capacity -->
+                <div class="detail-meta-row">
+                    <div class="detail-meta-icon icon-warning">
+                        <i class="ri-group-line"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark small text-uppercase">Sức chứa tối đa</div>
-                        <div class="text-secondary small">@Model.Capacity người tham gia</div>
+                        <div class="form-glass-label" style="margin-bottom:0.25rem;">Sức chứa tối đa</div>
+                        <div style="color:var(--text-secondary); font-size:0.88rem;">@Model.Capacity người tham gia</div>
                     </div>
                 </div>
 
-                <div class="d-flex align-items-start mb-4">
-                    <div class="text-info me-3 fs-4 mt-0.5">
-                        <i class="bi bi-ticket-perforated"></i>
+                <!-- Fee -->
+                <div class="detail-meta-row" style="margin-bottom:1.5rem;">
+                    <div class="detail-meta-icon icon-info">
+                        <i class="ri-ticket-line"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark small text-uppercase">Lệ phí</div>
-                        <div class="text-success small fw-bold">MIỄN PHÍ</div>
+                        <div class="form-glass-label" style="margin-bottom:0.25rem;">Lệ phí</div>
+                        <div style="color:var(--success); font-weight:700; font-size:0.88rem;">MIỄN PHÍ</div>
                     </div>
                 </div>
 
-                <div class="border-top pt-4">
+                <div class="mb-4">
+                    <a asp-action="DownloadIcs" asp-route-id="@Model.Id" class="btn-glass w-100 justify-content-center">
+                        <i class="ri-calendar-event-line me-1"></i> Tải file lịch (.ics)
+                    </a>
+                </div>
+
+                <div style="border-top:1px solid var(--border-subtle); padding-top:1.25rem;">
                     @if (displayName != null)
                     {
                         @if (ViewBag.RegistrationStatus == EMS.Core.Entities.Enums.RegistrationStatus.Approved)
                         {
-                            <div class="alert alert-success py-2.5 text-center mb-3 small rounded-3" role="alert">
-                                <i class="bi bi-check-circle-fill me-1"></i> Bạn đã đăng ký tham gia sự kiện này.
+                            <div class="alert-glass alert-glass-success mb-3" style="justify-content:center;">
+                                <i class="ri-checkbox-circle-line"></i>
+                                <span style="font-size:0.85rem;">Bạn đã đăng ký tham gia sự kiện này.</span>
                             </div>
+
+                            @if (ViewBag.RegistrationCheckedIn == true)
+                            {
+                                <div class="alert-glass alert-glass-success mb-3" style="justify-content:center; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">
+                                    <i class="ri-checkbox-circle-fill" style="color:var(--success);"></i>
+                                    <span style="font-size:0.85rem; color:var(--success); font-weight:600;">Bạn đã check-in thành công.</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="mb-3">
+                                    <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn-cta w-100 justify-content-center py-2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 20px rgba(16,185,129,0.35);">
+                                        <span>Check-in sự kiện</span>
+                                        <span class="btn-icon-circle" style="background:rgba(255,255,255,0.2); color:#fff;"><i class="ri-qr-code-line"></i></span>
+                                    </a>
+                                </div>
+                            }
+
                             <form asp-action="Cancel" method="post">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-outline-danger w-100 py-2.5 rounded-3">
-                                    <i class="bi bi-x-circle me-2"></i>Hủy đăng ký vé
+                                <button type="submit" class="btn-danger-outline w-100 py-2">
+                                    <i class="ri-close-circle-line"></i> Hủy đăng ký vé
                                 </button>
                             </form>
                         }
                         else if (ViewBag.RegistrationStatus == EMS.Core.Entities.Enums.RegistrationStatus.Pending)
                         {
-                            <div class="alert alert-warning py-2.5 text-center mb-3 small rounded-3" role="alert">
-                                <i class="bi bi-hourglass-split me-1"></i> Đăng ký đang chờ phê duyệt.
+                            <div class="alert-glass alert-glass-warning mb-3" style="justify-content:center;">
+                                <i class="ri-hourglass-line"></i>
+                                <span style="font-size:0.85rem;">Đăng ký đang chờ phê duyệt.</span>
                             </div>
                             <form asp-action="Cancel" method="post">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-outline-danger w-100 py-2.5 rounded-3">
-                                    <i class="bi bi-x-circle me-2"></i>Hủy yêu cầu đăng ký
+                                <button type="submit" class="btn-danger-outline w-100 py-2">
+                                    <i class="ri-close-circle-line"></i> Hủy yêu cầu đăng ký
                                 </button>
                             </form>
                         }
                         else if (ViewBag.RegistrationStatus == EMS.Core.Entities.Enums.RegistrationStatus.Rejected)
                         {
-                            <div class="alert alert-danger py-2.5 text-center mb-3 small rounded-3" role="alert">
-                                <i class="bi bi-x-octagon-fill me-1"></i> Đăng ký của bạn đã bị từ chối.
+                            <div class="alert-glass alert-glass-danger mb-3" style="justify-content:center;">
+                                <i class="ri-forbid-line"></i>
+                                <span style="font-size:0.85rem;">Đăng ký của bạn đã bị từ chối.</span>
                             </div>
                             <form asp-action="Register" method="post">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-premium w-100 py-3 rounded-3">
-                                    <i class="bi bi-lightning-charge me-2"></i>Đăng ký lại
+                                <button type="submit" class="btn-cta w-100 justify-content-center py-3">
+                                    <span>Đăng ký lại</span>
+                                    <span class="btn-icon-circle"><i class="ri-refresh-line"></i></span>
                                 </button>
                             </form>
                         }
@@ -171,23 +209,26 @@
                             <form asp-action="Register" method="post">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-premium w-100 py-3 rounded-3">
-                                    <i class="bi bi-lightning-charge me-2"></i>Đăng ký vé miễn phí
+                                <button type="submit" class="btn-cta w-100 justify-content-center py-3">
+                                    <span>Đăng ký vé miễn phí</span>
+                                    <span class="btn-icon-circle"><i class="ri-flashlight-line"></i></span>
                                 </button>
                             </form>
                         }
                     }
                     else
                     {
-                        <div class="alert alert-warning py-3 text-center mb-3 small" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Bạn cần đăng nhập để đăng ký.
+                        <div class="alert-glass alert-glass-warning mb-3" style="justify-content:center;">
+                            <i class="ri-error-warning-line"></i>
+                            <span style="font-size:0.85rem;">Bạn cần đăng nhập để đăng ký.</span>
                         </div>
-                        <a asp-controller="Auth" asp-action="Login" class="btn btn-premium w-100 py-2.5">
-                            <i class="bi bi-box-arrow-in-right me-2"></i>Đăng nhập ngay
+                        <a asp-controller="Auth" asp-action="Login" class="btn-cta w-100 justify-content-center py-2">
+                            <span>Đăng nhập ngay</span>
+                            <span class="btn-icon-circle"><i class="ri-login-box-line"></i></span>
                         </a>
                     }
                 </div>
             </div>
         </div>
     </div>
-</div>
+

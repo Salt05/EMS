@@ -137,6 +137,48 @@ public class DevInMemoryEventService : IEventService
                 ApprovedAt = now.AddDays(-2),
                 CreatedAt = now.AddDays(-6),
                 UpdatedAt = now.AddDays(-2)
+            },
+            // Sự kiện đang diễn ra giả lập — dùng để test Check-in
+            new()
+            {
+                Id = "evt-checkin-demo",
+                TenantId = tenantId,
+                Title = "Demo Check-in: Hội thảo Kỹ năng mềm",
+                Description = "Sự kiện đang diễn ra ngay bây giờ. Dùng mã ABC123 để test tính năng check-in.",
+                Location = "Phòng Hội thảo C301",
+                StartTime = now.AddMinutes(-30),
+                EndTime = now.AddHours(3),
+                Capacity = 50,
+                ImageUrl = "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&auto=format&fit=crop&q=60",
+                OrganizerId = "admin-user",
+                Status = EventStatus.Approved,
+                ApprovedById = "admin-user",
+                ApprovedAt = now.AddDays(-1),
+                CheckInCode = "ABC123",
+                CheckInCodeExpiredAt = now.AddHours(3),
+                CreatedAt = now.AddDays(-2),
+                UpdatedAt = now.AddDays(-1)
+            },
+            // Sự kiện có mã check-in đã hết hạn — dùng để test case hết hạn
+            new()
+            {
+                Id = "evt-checkin-expired",
+                TenantId = tenantId,
+                Title = "Demo Check-in: [Hết Hạn] Seminar Hướng nghiệp",
+                Description = "Sự kiện đang diễn ra nhưng mã check-in đã hết hạn. Dùng mã EXP999 để test.",
+                Location = "Hội trường A",
+                StartTime = now.AddHours(-1),
+                EndTime = now.AddHours(2),
+                Capacity = 100,
+                ImageUrl = "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800&auto=format&fit=crop&q=60",
+                OrganizerId = "admin-user",
+                Status = EventStatus.Approved,
+                ApprovedById = "admin-user",
+                ApprovedAt = now.AddDays(-1),
+                CheckInCode = "EXP999",
+                CheckInCodeExpiredAt = now.AddMinutes(-5), // Hết hạn từ 5 phút trước
+                CreatedAt = now.AddDays(-2),
+                UpdatedAt = now.AddDays(-1)
             }
         };
     }

@@ -17,6 +17,7 @@ if (useInMemoryData)
     builder.Services.AddSingleton<IEventService, DevInMemoryEventService>();
     builder.Services.AddSingleton<ITenantService, DevInMemoryTenantService>();
     builder.Services.AddSingleton<IRegistrationService, DevInMemoryRegistrationService>();
+    builder.Services.AddSingleton<IAgendaService, DevInMemoryAgendaService>();
 }
 else
 {
@@ -55,11 +56,13 @@ else
     builder.Services.AddScoped<ITenantService, FirestoreTenantService>();
     builder.Services.AddScoped<IEventService, FirestoreEventService>();
     builder.Services.AddScoped<IRegistrationService, FirestoreRegistrationService>();
+    builder.Services.AddScoped<IAgendaService, FirestoreAgendaService>();
 }
 
 // ============ SHARED SERVICES ============
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
+builder.Services.AddScoped<ICalendarService, CalendarService>();
 
 var app = builder.Build();
 

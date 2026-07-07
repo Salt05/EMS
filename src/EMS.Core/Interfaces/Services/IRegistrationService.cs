@@ -49,4 +49,14 @@ public interface IRegistrationService
     /// <param name="studentEmail">The student's email address.</param>
     /// <returns>True if cancellation was successful; otherwise, false.</returns>
     Task<bool> CancelRegistrationAsync(string tenantId, string eventId, string studentEmail);
+
+    /// <summary>
+    /// Performs check-in for a registered student using a check-in code.
+    /// </summary>
+    /// <param name="tenantId">The tenant identifier.</param>
+    /// <param name="eventId">The event identifier.</param>
+    /// <param name="studentEmail">The student's email address.</param>
+    /// <param name="checkInCode">The 6-character check-in code provided by the organizer.</param>
+    /// <returns>A tuple with Success flag and a descriptive Message in Vietnamese.</returns>
+    Task<(bool Success, string Message)> CheckInAsync(string tenantId, string eventId, string studentEmail, string checkInCode);
 }

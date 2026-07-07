@@ -10,23 +10,23 @@
 }
 
 @functions {
-    string GetEventBadgeClass(string title, string description)
+    string GetBadgeClass(string title, string description)
     {
         var text = (title + " " + description).ToLower();
         if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "bg-primary text-white";
+            return "event-badge-academic";
         if (text.Contains("nhiếp ảnh") || text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa"))
-            return "bg-success text-white";
+            return "event-badge-art";
         if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run"))
-            return "bg-warning text-dark";
+            return "event-badge-sport";
         if (text.Contains("tình nguyện") || text.Contains("xanh") || text.Contains("môi trường"))
-            return "bg-success text-white";
+            return "event-badge-volunteer";
         if (text.Contains("hackathon") || text.Contains("innovation") || text.Contains("lập trình"))
-            return "bg-dark text-white";
-        return "bg-info text-white";
+            return "event-badge-tech";
+        return "event-badge-default";
     }
 
-    string GetEventBadgeName(string title, string description)
+    string GetBadgeName(string title, string description)
     {
         var text = (title + " " + description).ToLower();
         if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
@@ -44,68 +44,92 @@
     }
 }
 
-<!-- Hero Section -->
-<div class="hero-section">
-    <span class="feature-tag">Hệ Thống Quản Lý Sự Kiện EMS</span>
+<!-- ═══ Hero Section ═══ -->
+<section class="hero-section">
+    <span class="eyebrow-tag">Hệ Thống Quản Lý Sự Kiện</span>
+
     @if (displayName != null)
     {
-        <h1 class="hero-title">Chào mừng trở lại, <br/><span class="text-primary">@displayName!</span></h1>
-        <p class="hero-subtitle">Khám phá các sự kiện học thuật, câu lạc bộ, nghệ thuật nổi bật nhất dành riêng cho bạn tuần này.</p>
-        <div class="d-flex justify-content-center gap-3">
-            <a href="#events" class="btn btn-premium px-4 py-2.5">
-                <i class="bi bi-calendar-range me-2"></i>Xem sự kiện
+        <h1 class="heading-gradient heading-gradient-lg mb-3">
+            Chào mừng trở lại,<br/>@displayName!
+        </h1>
+        <p class="subtitle-text mb-4" style="max-width:560px; margin-left:auto; margin-right:auto;">
+            Khám phá các sự kiện học thuật, câu lạc bộ, nghệ thuật nổi bật nhất dành riêng cho bạn tuần này.
+        </p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <a href="#events" class="btn-cta">
+                <span>Xem sự kiện</span>
+                <span class="btn-icon-circle"><i class="ri-calendar-2-line"></i></span>
             </a>
-            <a asp-controller="Events" asp-action="MyEvents" class="btn btn-premium-outline px-4 py-2.5">
-                <i class="bi bi-ticket-detailed me-2"></i>Vé của tôi
+            <a asp-controller="Events" asp-action="MyEvents" class="btn-cta-outline">
+                <i class="ri-ticket-2-line"></i>
+                <span>Vé của tôi</span>
             </a>
         </div>
     }
     else
     {
-        <h1 class="hero-title">Kết nối sinh viên &<br/>Khám phá sự kiện học đường</h1>
-        <p class="hero-subtitle">Đăng ký tham gia, điểm danh QR-code và tích lũy điểm rèn luyện thông qua các hoạt động ngoại khóa một cách dễ dàng.</p>
-        <div class="d-flex justify-content-center gap-3">
-            <a asp-controller="Auth" asp-action="Register" class="btn btn-premium px-4 py-2.5">
-                <i class="bi bi-rocket-takeoff me-2"></i>Bắt đầu ngay
+        <h1 class="heading-gradient heading-gradient-lg mb-3">
+            Kết nối sinh viên &<br/>Khám phá sự kiện học đường
+        </h1>
+        <p class="subtitle-text mb-4" style="max-width:560px; margin-left:auto; margin-right:auto;">
+            Đăng ký tham gia, điểm danh QR-code và tích lũy điểm rèn luyện thông qua các hoạt động ngoại khóa một cách dễ dàng.
+        </p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <a asp-controller="Auth" asp-action="Register" class="btn-cta">
+                <span>Bắt đầu ngay</span>
+                <span class="btn-icon-circle"><i class="ri-arrow-right-up-line"></i></span>
             </a>
-            <a href="#events" class="btn btn-premium-outline px-4 py-2.5">
-                <i class="bi bi-compass me-2"></i>Tìm hiểu thêm
+            <a href="#events" class="btn-cta-outline">
+                <i class="ri-compass-3-line"></i>
+                <span>Tìm hiểu thêm</span>
             </a>
         </div>
     }
-</div>
+</section>
 
-<!-- Statistics Cards -->
+<!-- ═══ Statistics — Double Bezel ═══ -->
 <div class="row g-4 mb-5 justify-content-center">
     <div class="col-md-3 col-sm-6">
-        <div class="premium-card p-4 text-center">
-            <h3 class="fw-bold text-primary mb-1">@(Model?.Count ?? 0)+</h3>
-            <p class="text-muted small mb-0">Sự kiện đang mở</p>
+        <div class="bezel-outer">
+            <div class="bezel-inner glass-card-strong p-4 stat-card">
+                <div class="stat-value text-primary-custom">@(Model?.Count ?? 0)+</div>
+                <div class="stat-label">Sự kiện đang mở</div>
+            </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="premium-card p-4 text-center">
-            <h3 class="fw-bold text-success mb-1">1,500+</h3>
-            <p class="text-muted small mb-0">Sinh viên đăng ký</p>
+        <div class="bezel-outer">
+            <div class="bezel-inner glass-card-strong p-4 stat-card">
+                <div class="stat-value text-success-custom">1,500+</div>
+                <div class="stat-label">Sinh viên đăng ký</div>
+            </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="premium-card p-4 text-center">
-            <h3 class="fw-bold text-warning mb-1">98%</h3>
-            <p class="text-muted small mb-0">Phản hồi tích cực</p>
+        <div class="bezel-outer">
+            <div class="bezel-inner glass-card-strong p-4 stat-card">
+                <div class="stat-value text-warning-custom">98%</div>
+                <div class="stat-label">Phản hồi tích cực</div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- ══ Event Slider Section ══ -->
-<div class="my-5" id="events">
+<!-- ═══ Event Slider Section ═══ -->
+<section class="my-5" id="events">
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
-            <h2 class="fw-bold mb-1"><i class="bi bi-fire text-danger me-2"></i>Sự kiện đang nổi bật</h2>
-            <p class="text-muted mb-0">Danh sách sự kiện đang mở đăng ký tham gia</p>
+            <span class="eyebrow-tag">Đang Diễn Ra</span>
+            <h2 class="section-heading">
+                <i class="ri-fire-line text-danger-custom me-2"></i>Sự kiện nổi bật
+            </h2>
+            <p class="text-muted-custom mb-0">Danh sách sự kiện đang mở đăng ký tham gia</p>
         </div>
-        <a asp-controller="Events" asp-action="Index" class="text-primary fw-semibold text-decoration-none small d-none d-sm-inline-block">
-            Xem tất cả <i class="bi bi-arrow-right"></i>
+        <a asp-controller="Events" asp-action="Index"
+           class="btn-cta-outline btn-cta-sm d-none d-sm-inline-flex">
+            <span>Xem tất cả</span>
+            <span class="btn-icon-circle"><i class="ri-arrow-right-line"></i></span>
         </a>
     </div>
 
@@ -118,50 +142,58 @@
     @if (!allEvents.Any())
     {
         <div class="text-center py-5">
-            <div class="mb-3 text-muted fs-1"><i class="bi bi-calendar-x"></i></div>
-            <h5 class="text-secondary">Hiện tại chưa có sự kiện nào.</h5>
+            <div class="mb-3" style="font-size:3rem; color:var(--text-muted);"><i class="ri-calendar-close-line"></i></div>
+            <h5 style="color:var(--text-secondary);">Hiện tại chưa có sự kiện nào.</h5>
         </div>
     }
     else
     {
         <!-- Slider outer -->
-        <div class="evt-slider-outer">
+        <div class="slider-outer">
             <!-- Viewport -->
-            <div class="evt-viewport">
-                <!-- Track width = pageCount × 100% of viewport -->
-                <div class="evt-track" id="evtTrack"
+            <div class="slider-viewport">
+                <div id="evtTrack"
                      style="display:flex; width:@(pageCount * 100)%; transition:transform 0.6s cubic-bezier(0.4,0,0.2,1); will-change:transform;">
                     @for (int p = 0; p < pageCount; p++)
                     {
                         var pageEvts = allEvents.Skip(p * pageSize).Take(pageSize).ToList();
-                        <!-- Each slide = (100/pageCount)% of track = 100% of viewport -->
                         <div style="flex-shrink:0; width:@(Math.Round(100.0/pageCount,6))%; box-sizing:border-box; padding:4px 0;">
                             <div class="row g-4">
                                 @foreach (var ev in pageEvts)
                                 {
                                     <div class="col-lg-4 col-md-6 col-12">
-                                        <div class="premium-card event-card position-relative h-100 d-flex flex-column">
-                                            <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)"
-                                                 class="card-img-top event-image" alt="@ev.Title"
-                                                 onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
-                                            <span class="event-badge @GetEventBadgeClass(ev.Title, ev.Description ?? "")">@GetEventBadgeName(ev.Title, ev.Description ?? "")</span>
-                                            <div class="p-4 flex-grow-1">
-                                                <h5 class="fw-bold text-dark mb-2">@ev.Title</h5>
-                                                <p class="text-muted small mb-3">
-                                                    <i class="bi bi-calendar-event me-1"></i> @ev.StartTime.ToString("dd/MM/yyyy HH:mm") – @ev.EndTime.ToString("HH:mm")<br />
-                                                    <i class="bi bi-geo-alt me-1"></i> @ev.Location
-                                                </p>
+                                        <div class="event-glass-card">
+                                            <!-- Double-bezel image -->
+                                            <div class="event-image-wrap">
+                                                <div class="event-image-shell">
+                                                    <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)"
+                                                         alt="@ev.Title"
+                                                         onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
+                                                    <span class="event-badge @GetBadgeClass(ev.Title, ev.Description ?? "")">@GetBadgeName(ev.Title, ev.Description ?? "")</span>
+                                                </div>
+                                            </div>
+                                            <!-- Content -->
+                                            <div class="event-card-body">
+                                                <h5 class="event-card-title">@ev.Title</h5>
+                                                <div class="event-card-meta">
+                                                    <div><i class="ri-time-line"></i> @ev.StartTime.ToString("dd/MM/yyyy HH:mm") – @ev.EndTime.ToString("HH:mm")</div>
+                                                    <div><i class="ri-map-pin-2-line"></i> @ev.Location</div>
+                                                </div>
                                                 @{
                                                     var dsc = (ev.Description?.Length > 110)
                                                         ? ev.Description.Substring(0, 107) + "..."
                                                         : (ev.Description ?? "");
                                                 }
-                                                <p class="text-secondary small mb-0">@dsc</p>
+                                                <p class="event-card-desc">@dsc</p>
                                             </div>
-                                            <div class="event-footer d-flex justify-content-between align-items-center mt-auto">
-                                                <span class="small text-muted"><i class="bi bi-people me-1"></i> Sức chứa: @ev.Capacity</span>
+                                            <!-- Footer -->
+                                            <div class="event-card-footer">
+                                                <span><i class="ri-group-line me-1"></i> Sức chứa: @ev.Capacity</span>
                                                 <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id"
-                                                   class="btn btn-sm btn-premium py-1 px-3">Chi tiết</a>
+                                                   class="btn-cta btn-cta-sm">
+                                                    <span>Chi tiết</span>
+                                                    <span class="btn-icon-circle"><i class="ri-arrow-right-up-line"></i></span>
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
@@ -173,97 +205,42 @@
             </div>
 
             <!-- Arrow buttons -->
-            <button class="evt-arrow evt-arrow-prev" id="evtPrev" aria-label="Trước">
-                <i class="bi bi-chevron-left"></i>
+            <button class="slider-arrow slider-arrow-prev" id="evtPrev" aria-label="Trước">
+                <i class="ri-arrow-left-s-line"></i>
             </button>
-            <button class="evt-arrow evt-arrow-next" id="evtNext" aria-label="Tiếp">
-                <i class="bi bi-chevron-right"></i>
+            <button class="slider-arrow slider-arrow-next" id="evtNext" aria-label="Tiếp">
+                <i class="ri-arrow-right-s-line"></i>
             </button>
         </div>
 
         <!-- Dots -->
-        <div class="evt-dots mt-4" id="evtDots">
+        <div class="slider-dots" id="evtDots">
             @for (int p = 0; p < pageCount; p++)
             {
-                <button class="evt-dot @(p == 0 ? "active" : "")"
+                <button class="slider-dot @(p == 0 ? "active" : "")"
                         data-page="@p" aria-label="Trang @(p+1)"></button>
             }
         </div>
-
-
     }
-</div>
-
-<style>
-    .evt-slider-outer {
-        position: relative;
-        padding: 0 52px;
-    }
-    .evt-viewport {
-        overflow: hidden;
-        border-radius: 12px;
-    }
-    .evt-arrow {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-55%);
-        width: 46px; height: 46px;
-        border-radius: 50%;
-        border: none;
-        background: #fff;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        color: #6366f1;
-        font-size: 1.2rem;
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer;
-        z-index: 10;
-        padding: 0;
-        transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
-        line-height: 1;
-    }
-    .evt-arrow:hover {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: #fff;
-        box-shadow: 0 6px 24px rgba(99,102,241,0.4);
-        transform: translateY(-55%) scale(1.1);
-    }
-    .evt-arrow-prev { left: 0; }
-    .evt-arrow-next { right: 0; }
-    @@media (max-width: 575px) {
-        .evt-slider-outer { padding: 0 38px; }
-        .evt-arrow { width: 36px; height: 36px; font-size: 1rem; }
-    }
-    .evt-dots { display: flex; justify-content: center; gap: 8px; }
-    .evt-dot {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        background: #d1d5db;
-        border: none; padding: 0; cursor: pointer;
-        transition: background 0.25s, width 0.3s, border-radius 0.3s;
-    }
-    .evt-dot.active { background: #6366f1; width: 26px; border-radius: 4px; }
-
-</style>
+</section>
 
 @section Scripts {
 <script>
 (function () {
-    var INTERVAL = 30000; // 30 giây
-
+    var INTERVAL = 30000;
     var track   = document.getElementById('evtTrack');
     var prev    = document.getElementById('evtPrev');
     var next    = document.getElementById('evtNext');
     var dotsWrap= document.getElementById('evtDots');
     if (!track || !prev || !next) return;
 
-    var dots    = dotsWrap ? Array.from(dotsWrap.querySelectorAll('.evt-dot')) : [];
-    var total   = dots.length || 1;
-    var cur     = 0;
-    var timer   = null;
+    var dots  = dotsWrap ? Array.from(dotsWrap.querySelectorAll('.slider-dot')) : [];
+    var total = dots.length || 1;
+    var cur   = 0;
+    var timer = null;
 
     function goTo(n) {
         cur = ((n % total) + total) % total;
-        // Each slide = (1/total) of track => shift = cur/total of track = cur*(100/total)% of track
         track.style.transform = 'translateX(-' + (cur * 100 / total) + '%)';
         dots.forEach(function(d, i) { d.classList.toggle('active', i === cur); });
     }
@@ -279,7 +256,6 @@
         d.addEventListener('click', function() { goTo(+d.dataset.page); startAuto(); });
     });
 
-    // Pause on hover
     track.addEventListener('mouseenter', function() { clearInterval(timer); });
     track.addEventListener('mouseleave', startAuto);
 

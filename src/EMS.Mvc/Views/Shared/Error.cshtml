@@ -1,25 +1,40 @@
-﻿@model ErrorViewModel
+@model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = "Lỗi";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<div class="row justify-content-center align-items-center mt-5">
+    <div class="col-xl-6 col-lg-7 col-md-9 col-12">
+        <div class="glass-card-strong p-4 p-md-5 text-center">
+            <div class="auth-icon-bezel mb-4 mx-auto" style="border-color:rgba(239,68,68,0.2);">
+                <div class="auth-icon-inner" style="background:rgba(239,68,68,0.1); color:var(--danger);">
+                    <i class="ri-error-warning-line"></i>
+                </div>
+            </div>
+            
+            <h1 class="heading-gradient mb-2" style="background: linear-gradient(135deg, var(--text-main) 30%, var(--danger) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Đã xảy ra lỗi</h1>
+            <p class="subtitle-text mb-4">
+                Hệ thống gặp sự cố khi xử lý yêu cầu của bạn. Vui lòng thử lại sau hoặc liên hệ ban quản trị.
+            </p>
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+            @if (Model.ShowRequestId)
+            {
+                <div class="alert-glass alert-glass-danger mb-4 justify-content-center font-monospace small">
+                    <i class="ri-terminal-box-line"></i>
+                    <span>Mã yêu cầu (Request ID): <code>@Model.RequestId</code></span>
+                </div>
+            }
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+            <div class="d-flex justify-content-center gap-3">
+                <a asp-controller="Home" asp-action="Index" class="btn-cta">
+                    <span>Về trang chủ</span>
+                    <span class="btn-icon-circle"><i class="ri-home-4-line"></i></span>
+                </a>
+                <a href="javascript:history.back()" class="btn-cta-outline">
+                    <i class="ri-arrow-left-line"></i>
+                    <span>Quay lại</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

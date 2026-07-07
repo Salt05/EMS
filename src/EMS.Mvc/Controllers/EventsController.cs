@@ -15,15 +15,21 @@ public class EventsController : Controller
 {
     private readonly IEventService _eventService;
     private readonly IRegistrationService _registrationService;
+    private readonly IAgendaService _agendaService;
+    private readonly ICalendarService _calendarService;
     private readonly ILogger<EventsController> _logger;
 
     public EventsController(
         IEventService eventService, 
         IRegistrationService registrationService, 
+        IAgendaService agendaService,
+        ICalendarService calendarService,
         ILogger<EventsController> logger)
     {
         _eventService = eventService;
         _registrationService = registrationService;
+        _agendaService = agendaService;
+        _calendarService = calendarService;
         _logger = logger;
     }
 
@@ -78,6 +84,7 @@ public class EventsController : Controller
             if (reg != null)
             {
                 regStatus = reg.Status;
+                ViewBag.RegistrationCheckedIn = reg.CheckedIn;
             }
         }
         ViewBag.RegistrationStatus = regStatus;
@@ -185,6 +192,114 @@ public class EventsController : Controller
         }
 
         return View(registeredEvents);
+    }
+
+    [HttpGet("api/events/{eventId}/agenda")]
+    public async Task<IActionResult> GetAgenda(string eventId)
+    {
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        _logger.LogInformation($"AJAX loading agenda for event {eventId} and tenant {tenantId}");
+        var agenda = await _agendaService.GetAgendaByEventAsync(eventId, tenantId);
+
+        var response = agenda.Select(a => new
+        {
+            id = a.Id,
+            eventId = a.EventId,
+            title = a.Title,
+            description = a.Description,
+            speaker = a.Speaker,
+            startTime = a.StartTime.ToString("dd/MM/yyyy HH:mm"),
+            endTime = a.EndTime.ToString("HH:mm"),
+            materialUrl = a.MaterialUrl,
+            order = a.Order
+        });
+
+        return Json(response);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadIcs(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return BadRequest("Invalid event ID");
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
+        if (ev == null)
+        {
+            return NotFound("Event not found");
+        }
+
+        var bytes = _calendarService.GenerateEventIcs(ev);
+        return File(bytes, "text/calendar", $"{ev.Id}.ics");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CheckIn(string id)
+    {
+        var (displayName, userEmail, _) = GetUserSession();
+        if (userEmail == null)
+        {
+            TempData["ErrorMessage"] = "Bạn cần đăng nhập để check-in sự kiện.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (string.IsNullOrEmpty(id))
+            return NotFound();
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
+
+        if (ev == null || ev.Status != EventStatus.Approved)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy sự kiện hoặc sự kiện không hợp lệ.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var vm = new CheckInViewModel { Event = ev };
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CheckIn(string id, string checkInCode)
+    {
+        var (displayName, userEmail, _) = GetUserSession();
+        if (userEmail == null)
+        {
+            TempData["ErrorMessage"] = "Bạn cần đăng nhập để check-in sự kiện.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        if (string.IsNullOrEmpty(id))
+            return NotFound();
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
+
+        if (ev == null)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy sự kiện.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var (success, message) = await _registrationService.CheckInAsync(tenantId, id, userEmail, checkInCode?.Trim()?.ToUpperInvariant() ?? "");
+
+        if (success)
+            _logger.LogInformation($"Student {userEmail} checked in to event {id}");
+        else
+            _logger.LogWarning($"Check-in failed for student {userEmail}, event {id}: {message}");
+
+        var vm = new CheckInViewModel
+        {
+            Event = ev,
+            CheckInCode = checkInCode ?? "",
+            CheckInSuccess = success,
+            CheckInMessage = message
+        };
+        return View(vm);
     }
 
     private (string? displayName, string? userEmail, string? userRole) GetUserSession()

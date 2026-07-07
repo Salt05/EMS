@@ -22,6 +22,10 @@ public class Event
     public DateTime? ApprovedAt { get; set; }
     public string? RejectionReason { get; set; }
 
+    // Check-in code configuration
+    public string? CheckInCode { get; set; }
+    public DateTime? CheckInCodeExpiredAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -48,6 +52,8 @@ public class Event
         if (ApprovedById != null) doc["approvedById"] = ApprovedById;
         if (ApprovedAt.HasValue) doc["approvedAt"] = ApprovedAt.Value.ToUniversalTime();
         if (RejectionReason != null) doc["rejectionReason"] = RejectionReason;
+        if (CheckInCode != null) doc["checkInCode"] = CheckInCode;
+        if (CheckInCodeExpiredAt.HasValue) doc["checkInCodeExpiredAt"] = CheckInCodeExpiredAt.Value.ToUniversalTime();
 
         return doc;
     }

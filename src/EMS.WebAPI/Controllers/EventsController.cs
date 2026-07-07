@@ -14,11 +14,19 @@ namespace EMS.WebAPI.Controllers;
 public class EventsController : ControllerBase
 {
     private readonly IEventService _eventService;
+    private readonly ICalendarService _calendarService;
+    private readonly ITenantService _tenantService;
     private readonly ILogger<EventsController> _logger;
 
-    public EventsController(IEventService eventService, ILogger<EventsController> logger)
+    public EventsController(
+        IEventService eventService,
+        ICalendarService calendarService,
+        ITenantService tenantService,
+        ILogger<EventsController> logger)
     {
         _eventService = eventService;
+        _calendarService = calendarService;
+        _tenantService = tenantService;
         _logger = logger;
     }
 
@@ -156,7 +164,58 @@ public class EventsController : ControllerBase
         return Ok(new { message = "Event rejected" });
     }
 
+    /// <summary>
+    /// Xuất file lịch .ics cho sự kiện
+    /// </summary>
+    /// <param name="id">ID của sự kiện</param>
+    /// <returns>File iCalendar (.ics)</returns>
+    /// <response code="200">Trả về file .ics</response>
+    /// <response code="400">Nếu ID sự kiện không hợp lệ</response>
+    /// <response code="404">Nếu không tìm thấy sự kiện</response>
+    [HttpGet("{id}/calendar.ics")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadIcs(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return BadRequest("Invalid event ID");
+        }
+
+        var tenantId = await ResolveTenantIdAsync();
+        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
+        if (ev == null)
+        {
+            return NotFound("Event not found");
+        }
+
+        var icsBytes = _calendarService.GenerateEventIcs(ev);
+        return File(icsBytes, "text/calendar", $"{ev.Id}.ics");
+    }
+
     // ============ HELPERS ============
+
+    private async Task<string> ResolveTenantIdAsync()
+    {
+        var claimTenantId = GetTenantId();
+        if (!string.IsNullOrEmpty(claimTenantId)) return claimTenantId;
+
+        var subdomain = HttpContext.Items["Subdomain"]?.ToString();
+        if (!string.IsNullOrEmpty(subdomain))
+        {
+            var tenant = await _tenantService.GetTenantBySubdomainAsync(subdomain);
+            if (tenant != null) return tenant.Id;
+        }
+
+        if (Request.Headers.TryGetValue("X-Tenant-ID", out var tenantIdHeader))
+        {
+            return tenantIdHeader.ToString();
+        }
+
+        return "default-tenant";
+    }
 
     private string GetTenantId() => User.FindFirst("tenantId")?.Value ?? string.Empty;
 
