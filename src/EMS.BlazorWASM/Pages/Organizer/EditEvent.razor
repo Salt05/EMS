@@ -2,77 +2,129 @@
 @using EMS.Shared.DTOs.Events
 @using EMS.BlazorWASM.Services
 @inject IEventServiceClient EventService
+@inject IOrganizerServiceClient OrganizerService
 @inject NavigationManager NavigationManager
 @attribute [Authorize(Roles = "manager,admin")]
 
-<h3>Edit Event</h3>
-<hr />
+<PageTitle>Chỉnh sửa Sự kiện — EMS</PageTitle>
 
-@if (isLoading)
-{
-    <p>Loading event data...</p>
-}
-else if (eventDto == null)
-{
-    <div class="alert alert-danger">Event not found or you lack permissions.</div>
-}
-else
-{
-    <div class="row">
-        <div class="col-md-8">
+<div class="max-w-3xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-charcoal">
+            Chỉnh sửa Sự kiện
+        </h1>
+        <p class="text-sm text-muted mt-1">Cập nhật thông tin chi tiết cho sự kiện của bạn.</p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="flex justify-center items-center py-20">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-charcoal"></div>
+        </div>
+    }
+    else if (eventDto == null)
+    {
+        <div class="p-6 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-sm">
+            Không tìm thấy thông tin sự kiện hoặc bạn không có quyền chỉnh sửa.
+        </div>
+    }
+    else
+    {
+        <div class="bg-white border border-border rounded-xl p-8 shadow-bento">
             <EditForm Model="eventDto" OnValidSubmit="HandleValidSubmit">
                 <DataAnnotationsValidator />
                 
-                <div class="mb-3">
-                    <label class="form-label">Title <span class="text-danger">*</span></label>
-                    <InputText @bind-Value="eventDto.Title" class="form-control" />
-                    <ValidationMessage For="@(() => eventDto.Title)" class="text-danger" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <InputTextArea @bind-Value="eventDto.Description" class="form-control" rows="4" />
-                    <ValidationMessage For="@(() => eventDto.Description)" class="text-danger" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Location</label>
-                    <InputText @bind-Value="eventDto.Location" class="form-control" />
-                    <ValidationMessage For="@(() => eventDto.Location)" class="text-danger" />
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Start Time <span class="text-danger">*</span></label>
-                        <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.StartTime" class="form-control" />
-                        <ValidationMessage For="@(() => eventDto.StartTime)" class="text-danger" />
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Tiêu đề sự kiện <span class="text-rose-500">*</span></label>
+                        <InputText @bind-Value="eventDto.Title" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" placeholder="Nhập tiêu đề sự kiện..." />
+                        <ValidationMessage For="@(() => eventDto.Title)" class="text-rose-600 mt-1 text-xs" />
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">End Time <span class="text-danger">*</span></label>
-                        <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.EndTime" class="form-control" />
-                        <ValidationMessage For="@(() => eventDto.EndTime)" class="text-danger" />
+
+                    <div>
+                        <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Mô tả sự kiện</label>
+                        <InputTextArea @bind-Value="eventDto.Description" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" rows="5" placeholder="Mô tả chi tiết về nội dung sự kiện..." />
+                        <ValidationMessage For="@(() => eventDto.Description)" class="text-rose-600 mt-1 text-xs" />
                     </div>
-                </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Capacity (0 = unlimited)</label>
-                    <InputNumber @bind-Value="eventDto.Capacity" class="form-control" />
-                    <ValidationMessage For="@(() => eventDto.Capacity)" class="text-danger" />
-                </div>
+                    <div>
+                        <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Địa điểm tổ chức</label>
+                        <InputText @bind-Value="eventDto.Location" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" placeholder="Ví dụ: Hội trường A1, cơ sở 1..." />
+                        <ValidationMessage For="@(() => eventDto.Location)" class="text-rose-600 mt-1 text-xs" />
+                    </div>
 
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-danger">@errorMessage</div>
-                }
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Thời gian bắt đầu <span class="text-rose-500">*</span></label>
+                            <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.StartTime" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" />
+                            <ValidationMessage For="@(() => eventDto.StartTime)" class="text-rose-600 mt-1 text-xs" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Thời gian kết thúc <span class="text-rose-500">*</span></label>
+                            <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.EndTime" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" />
+                            <ValidationMessage For="@(() => eventDto.EndTime)" class="text-rose-600 mt-1 text-xs" />
+                        </div>
+                    </div>
 
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">Save Changes</button>
-                    <button type="button" class="btn btn-secondary ms-2" @onclick="Cancel">Cancel</button>
+                    <div>
+                        <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Sức chứa tối đa (Capacity)</label>
+                        <InputNumber @bind-Value="eventDto.Capacity" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" />
+                        <p class="text-[10px] text-muted mt-1">Lưu ý: Điền 0 nếu sự kiện không giới hạn số lượng sinh viên tham gia.</p>
+                        <ValidationMessage For="@(() => eventDto.Capacity)" class="text-rose-600 mt-1 text-xs" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Đường dẫn hình ảnh (URL)</label>
+                        <InputText @bind-Value="eventDto.ImageUrl" class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" placeholder="Nhập URL hình ảnh (ví dụ: https://example.com/image.jpg)..." />
+                        <ValidationMessage For="@(() => eventDto.ImageUrl)" class="text-rose-600 mt-1 text-xs" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="p-3 bg-rose-50 border border-rose-100 text-rose-800 rounded-lg text-xs font-semibold">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <div class="flex items-center justify-between pt-4 border-t border-border gap-4">
+                        <div>
+                            <button type="button" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-md hover:bg-rose-100 transition-colors active:scale-[0.98]" @onclick="AskDeleteEvent">
+                                Xóa sự kiện
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button type="button" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors active:scale-[0.98]" @onclick="Cancel">
+                                Hủy bỏ
+                            </button>
+                            <button type="submit" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]" disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                                    <span>Đang lưu...</span>
+                                }
+                                else
+                                {
+                                    <span>Lưu thay đổi</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </EditForm>
         </div>
-    </div>
-}
+    }
+</div>
+
+<!-- Confirm Delete Modal -->
+<ConfirmModal Title="Xác nhận xóa sự kiện"
+              Message="@($"Bạn có chắc chắn muốn xóa sự kiện này? Hành động này không thể hoàn tác.")"
+              IsOpen="isDeleteOpen"
+              IsDanger="true"
+              ConfirmText="Xóa sự kiện"
+              CancelText="Hủy bỏ"
+              OnConfirm="ConfirmDeleteEvent"
+              OnCancel="() => isDeleteOpen = false" />
 
 @code {
     [Parameter] public string Id { get; set; } = string.Empty;
@@ -81,6 +133,7 @@ else
     private bool isLoading = true;
     private bool isSubmitting = false;
     private string? errorMessage;
+    private bool isDeleteOpen = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -102,16 +155,42 @@ else
     {
         if (eventDto!.EndTime <= eventDto.StartTime)
         {
-            errorMessage = "End Time must be after Start Time.";
+            errorMessage = "Thời gian kết thúc phải sau thời gian bắt đầu.";
             return;
         }
 
         isSubmitting = true;
         var success = await EventService.UpdateEventAsync(Id, eventDto);
-        if (success) NavigationManager.NavigateTo("/organizer/my-events");
+        if (success)
+        {
+            OrganizerService.InvalidateCache();
+            NavigationManager.NavigateTo("/organizer/my-events");
+        }
         else
         {
-            errorMessage = "Update failed. Check permissions and try again.";
+            errorMessage = "Không thể cập nhật sự kiện. Vui lòng kiểm tra lại quyền hạn hoặc kết nối mạng.";
+            isSubmitting = false;
+        }
+    }
+
+    private void AskDeleteEvent()
+    {
+        isDeleteOpen = true;
+    }
+
+    private async Task ConfirmDeleteEvent()
+    {
+        isDeleteOpen = false;
+        isSubmitting = true;
+        var success = await OrganizerService.DeleteEventAsync(Id);
+        if (success)
+        {
+            OrganizerService.InvalidateCache();
+            NavigationManager.NavigateTo("/organizer/my-events");
+        }
+        else
+        {
+            errorMessage = "Xóa sự kiện thất bại. Vui lòng thử lại.";
             isSubmitting = false;
         }
     }

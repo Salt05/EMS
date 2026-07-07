@@ -5,16 +5,18 @@ Tất cả các tài khoản dưới đây đều sử dụng **Mật khẩu chu
 ---
 
 ## 👑 1. Quản Trị Hệ Thống (System Super Admin)
+
 * **Email:** `admin@ems.com`
 * **Vai trò:** Super Admin (Có toàn quyền quản lý Tenants, Users, Events chéo toàn bộ hệ thống).
 
 ---
 
 ## 🏢 2. Đại học Quốc gia Hà Nội (VNU)
+
 * **Subdomain:** `default`
 * **Danh sách tài khoản:**
   * **Tenant Admin:** `admin.vnu@ems.com` (Quản trị viên Trường VNU)
-  * **Ban Tổ chức (Organizer):**
+  * **Ban OrganizerOrganizero):**
     * `org1.vnu@ems.com` (CLB Công nghệ VNU)
     * `org2.vnu@ems.com` (Đoàn Hội VNU)
   * **Sinh viên (Student):**
@@ -28,6 +30,7 @@ Tất cả các tài khoản dưới đây đều sử dụng **Mật khẩu chu
 ---
 
 ## 🏢 3. Đại học Bách Khoa Hà Nội (HUST)
+
 * **Subdomain:** `hust`
 * **Danh sách tài khoản:**
   * **Tenant Admin:** `admin.hust@ems.com` (Quản trị viên Trường HUST)
@@ -45,6 +48,7 @@ Tất cả các tài khoản dưới đây đều sử dụng **Mật khẩu chu
 ---
 
 ## 🏢 4. Trường Đại học FPT (FPT)
+
 * **Subdomain:** `fpt`
 * **Danh sách tài khoản:**
   * **Tenant Admin:** `admin.fpt@ems.com` (Quản trị viên Trường FPT)
@@ -62,6 +66,7 @@ Tất cả các tài khoản dưới đây đều sử dụng **Mật khẩu chu
 ---
 
 ## 🏢 5. Đại học Kinh tế Quốc dân (NEU)
+
 * **Subdomain:** `neu`
 * **Danh sách tài khoản:**
   * **Tenant Admin:** `admin.neu@ems.com` (Quản trị viên Trường NEU)
@@ -79,6 +84,7 @@ Tất cả các tài khoản dưới đây đều sử dụng **Mật khẩu chu
 ---
 
 ## 🏢 6. Đại học RMIT Việt Nam (RMIT)
+
 * **Subdomain:** `rmit`
 * **Danh sách tài khoản:**
   * **Tenant Admin:** `admin.rmit@ems.com` (Quản trị viên Trường RMIT)

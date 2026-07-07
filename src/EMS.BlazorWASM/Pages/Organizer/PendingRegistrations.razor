@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "manager")]
 @inject IOrganizerServiceClient OrganizerService
 @inject ToastService ToastService
+@inject ILocalStorageService LocalStorage
 @using EMS.Shared.DTOs.Events
 @using EMS.Shared.DTOs.Registrations
 
@@ -10,11 +11,8 @@
 <div class="max-w-7xl mx-auto pb-12 pt-6">
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-2xl font-bold tracking-tight text-charcoal flex items-center gap-2">
+        <h1 class="text-2xl font-bold tracking-tight text-charcoal">
             Phê duyệt Đăng ký Sinh viên
-            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
-                ⏳ DEMO
-            </span>
         </h1>
         <p class="text-sm text-muted mt-1">Duyệt hoặc từ chối đơn đăng ký tham gia sự kiện của sinh viên.</p>
     </div>
@@ -23,7 +21,7 @@
     <div class="bg-white border border-border rounded-xl p-6 shadow-bento mb-8">
         <div class="max-w-md">
             <label class="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Chọn Sự kiện</label>
-            <select class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnEventSelected">
+            <select class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnEventSelected" value="@selectedEventId">
                 <option value="">-- Chọn sự kiện của bạn --</option>
                 @foreach (var evt in myEvents)
                 {
@@ -132,11 +130,20 @@
     protected override async Task OnInitializedAsync()
     {
         myEvents = await OrganizerService.GetEventsAsync();
+
+        // Restore selected event from local storage
+        var savedEventId = await LocalStorage.GetItemAsync<string>("SelectedEventId_Organizer_PendingRegistrations");
+        if (!string.IsNullOrEmpty(savedEventId) && myEvents.Any(e => e.Id == savedEventId))
+        {
+            selectedEventId = savedEventId;
+            await LoadRegistrations();
+        }
     }
 
     private async Task OnEventSelected(ChangeEventArgs e)
     {
         selectedEventId = e.Value?.ToString() ?? "";
+        await LocalStorage.SetItemAsync("SelectedEventId_Organizer_PendingRegistrations", selectedEventId);
         if (!string.IsNullOrEmpty(selectedEventId))
         {
             await LoadRegistrations();
@@ -174,7 +181,7 @@
         }
         else if (activeTab == "rejected")
         {
-            filteredRegistrations = registrations.Where(r => r.Status == 6).ToList();
+            filteredRegistrations = registrations.Where(r => r.Status == 5).ToList();
         }
     }
 

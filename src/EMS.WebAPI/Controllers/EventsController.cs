@@ -156,6 +156,52 @@ public class EventsController : ControllerBase
         return Ok(new { message = "Event rejected" });
     }
 
+    // POST /api/events/{id}/generate-code
+    [HttpPost("{id}/generate-code")]
+    public async Task<IActionResult> GenerateCheckInCode(string id, [FromQuery] int durationMinutes = 30)
+    {
+        var tenantId = GetTenantId();
+        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
+
+        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
+        if (ev == null) return NotFound("Event not found");
+
+        if (ev.OrganizerId != GetUserId() && !IsAdminOrManager())
+            return Forbid();
+
+        // Generate a 6-character uppercase check-in code
+        ev.CheckInCode = System.Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
+        ev.CheckInCodeExpiresAt = System.DateTime.UtcNow.AddMinutes(durationMinutes);
+
+        var success = await _eventService.UpdateEventAsync(ev);
+        if (!success) return StatusCode(500, "Failed to update event check-in code");
+
+        return Ok(ev.CheckInCode);
+    }
+
+    // POST /api/events/{id}/expire-code
+    [HttpPost("{id}/expire-code")]
+    public async Task<IActionResult> ExpireCheckInCode(string id)
+    {
+        var tenantId = GetTenantId();
+        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
+
+        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
+        if (ev == null) return NotFound("Event not found");
+
+        if (ev.OrganizerId != GetUserId() && !IsAdminOrManager())
+            return Forbid();
+
+        // Clear the check-in code
+        ev.CheckInCode = null;
+        ev.CheckInCodeExpiresAt = null;
+
+        var success = await _eventService.UpdateEventAsync(ev);
+        if (!success) return StatusCode(500, "Failed to expire event check-in code");
+
+        return Ok(new { message = "Code expired successfully" });
+    }
+
     // ============ HELPERS ============
 
     private string GetTenantId() => User.FindFirst("tenantId")?.Value ?? string.Empty;

@@ -18,7 +18,7 @@ public interface ITenantAdminServiceClient
     Task<List<EventResponseDto>> GetEventsAsync();
     Task<bool> ApproveEventAsync(string id);
     Task<bool> RejectEventAsync(string id, string reason);
-    Task<string> GenerateCheckInCodeAsync(string id);
+    Task<string> GenerateCheckInCodeAsync(string id, int durationMinutes = 30);
     Task<List<RegistrationResponseDto>> GetAttendeesAsync(string id);
     Task<bool> CreateEventAsync(CreateEventDto request);
     Task<bool> UpdateEventAsync(string id, UpdateEventDto request);
@@ -113,27 +113,25 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
         return false;
     }
 
-    public async Task<string> GenerateCheckInCodeAsync(string id)
+    public async Task<string> GenerateCheckInCodeAsync(string id, int durationMinutes = 30)
     {
         try
         {
-            var res = await _httpClient.PostAsync($"api/admin/events/{id}/generate-code", null);
-            if (res.IsSuccessStatusCode)
-            {
-                var content = await res.Content.ReadAsStringAsync();
-                return content;
-            }
+            var res = await _httpClient.PostAsync($"api/events/{id}/generate-code?durationMinutes={durationMinutes}", null);
+            res.EnsureSuccessStatusCode();
+            var content = await res.Content.ReadAsStringAsync();
+            return content;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API POST /api/admin/events/{id}/generate-code chưa có, đang tạo code trên mock data.");
+            _logger.LogWarning(ex, $"[DEMO] API POST /api/events/{id}/generate-code lỗi hoặc chưa có, đang tạo code trên mock data.");
         }
 
         var ev = EventsMock.Events.Find(e => e.Id == id);
         if (ev != null)
         {
             ev.CheckInCode = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
-            ev.CheckInCodeExpiresAt = DateTime.UtcNow.AddMinutes(30);
+            ev.CheckInCodeExpiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
             return ev.CheckInCode;
         }
         return string.Empty;

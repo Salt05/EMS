@@ -3,57 +3,278 @@
 @using EMS.BlazorWASM.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
-@inject IEventServiceClient EventService
+@using System.Text
+@inject IOrganizerServiceClient OrganizerService
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
 @attribute [Authorize(Roles = "manager,admin")]
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>My Events</h3>
-    <button class="btn btn-primary" @onclick="CreateNewEvent">Create New Event</button>
-</div>
+<PageTitle>Sự kiện của tôi — EMS</PageTitle>
 
-@if (isLoading)
-{
-    <p>Loading events...</p>
-}
-else if (events == null || !events.Any())
-{
-    <div class="alert alert-info">You haven't created any events yet.</div>
-}
-else
-{
-    <table class="table table-striped table-hover">
-        <thead class="table-dark">
-            <tr>
-                <th>Title</th>
-                <th>Start Time</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var ev in events)
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">
+                Sự kiện của tôi
+            </h1>
+            <p class="text-sm text-muted mt-1">Danh sách các sự kiện do bạn tổ chức và quản lý.</p>
+        </div>
+        <!-- Filters and Button Container -->
+        <div class="flex flex-wrap items-center gap-4">
+            <!-- Status Filter Dropdown -->
+            <div class="relative group select-none">
+                <button class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-lg shadow-sm hover:bg-slate-50 transition-all focus:outline-none">
+                    <span>Trạng thái</span>
+                    <span class="bg-charcoal text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                        @GetSelectedStatusesDisplay()
+                    </span>
+                    <svg class="h-4 w-4 text-muted transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <!-- Popup wrapper with padding bridge to prevent losing hover state -->
+                <div class="absolute left-full top-0 pl-2 w-52 hidden group-hover:block z-50">
+                    <div class="bg-white border border-border rounded-xl shadow-lg p-3">
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusAll" @onchange="ToggleStatusAll" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-bold text-charcoal">Tất cả</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusPending" @onchange="TogglePending" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Pending</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusApproved" @onchange="ToggleApproved" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Approved</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusOngoing" @onchange="ToggleOngoing" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Ongoing</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusEnded" @onchange="ToggleEnded" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Ended</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusCancelled" @onchange="ToggleCancelled" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Cancelled</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusRejected" @onchange="ToggleRejected" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Rejected</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time Filter Dropdown -->
+            <div class="relative group select-none">
+                <button class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-lg shadow-sm hover:bg-slate-50 transition-all focus:outline-none">
+                    <span>Time</span>
+                    <span class="bg-charcoal text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                        @GetSelectedTimesDisplay()
+                    </span>
+                    <svg class="h-4 w-4 text-muted transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <!-- Popup wrapper with padding bridge to prevent losing hover state -->
+                <div class="absolute left-full top-0 pl-2 w-48 hidden group-hover:block z-50">
+                    <div class="bg-white border border-border rounded-xl shadow-lg p-3">
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeAll" @onchange="ToggleTimeAll" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-bold text-charcoal">Tất cả</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeEnded" @onchange="ToggleTimeEndedOpt" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Đã kết thúc</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeOngoing" @onchange="ToggleTimeOngoingOpt" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Đang diễn ra</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeUpcoming" @onchange="ToggleUpcoming" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Chưa diễn ra</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Event Button -->
+            <button class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]" @onclick="CreateNewEvent">
+                <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Tạo sự kiện mới
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    @if (isLoading)
+    {
+        <div class="flex justify-center items-center py-20">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-charcoal"></div>
+        </div>
+    }
+    else if (events == null || !events.Any())
+    {
+        <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
+            <div class="h-12 w-12 rounded-full bg-canvas flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <h3 class="text-sm font-bold text-charcoal mb-1">Chưa có sự kiện nào</h3>
+            <p class="text-xs text-muted max-w-sm">Tạo một sự kiện mới để bắt đầu quản lý đơn đăng ký và điểm danh sinh viên.</p>
+        </div>
+    }
+    else if (!filteredEvents.Any())
+    {
+        <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
+            <h3 class="text-sm font-bold text-charcoal mb-1">Không tìm thấy sự kiện phù hợp</h3>
+            <p class="text-xs text-muted max-w-sm">Vui lòng thay đổi cấu hình bộ lọc trạng thái hoặc thời gian để tìm kiếm.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Bento Horizontal Cards List -->
+        <div class="space-y-6">
+            @foreach (var ev in DisplayedEvents)
             {
-                <tr>
-                    <td>@ev.Title</td>
-                    <td>@ev.StartTime.ToLocalTime().ToString("g")</td>
-                    <td><span class="badge bg-secondary">@ev.StatusName</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-primary me-2" @onclick="() => ViewRegistrations(ev.Id)">Registrations</button>
-                        <button class="btn btn-sm btn-info me-2" @onclick="() => EditEvent(ev.Id)">Edit</button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteEvent(ev.Id)">Delete</button>
-                    </td>
-                </tr>
+                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-200">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
+                        
+                        <!-- Image Block (Left) -->
+                        <div class="md:col-span-1 min-h-[160px] md:h-auto rounded-xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center p-3 select-none">
+                            @if (!string.IsNullOrEmpty(ev.ImageUrl))
+                            {
+                                <img src="@ev.ImageUrl" class="object-cover w-full h-full rounded-lg" alt="@ev.Title" />
+                            }
+                            else
+                            {
+                                <span class="text-slate-400 font-extrabold text-sm uppercase tracking-wider">Hình ảnh</span>
+                            }
+                        </div>
+                        
+                        <!-- Info Block (Middle) -->
+                        <div class="md:col-span-2 rounded-xl bg-slate-50/50 border border-slate-100 p-4 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-lg font-bold text-charcoal leading-tight line-clamp-2">
+                                    @ev.Title
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-2 leading-relaxed line-clamp-3 font-normal">
+                                    @ev.Description
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-slate-200/60">
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 font-semibold truncate flex-1 flex items-center gap-1.5">
+                                    <svg class="h-3.5 w-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    @ev.Location
+                                </div>
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 font-bold text-center min-w-[4rem] flex items-center justify-center gap-1" title="Sức chứa (Capacity)">
+                                    <svg class="h-3.5 w-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    @(ev.Capacity == 0 ? "∞" : ev.Capacity.ToString())
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Time & Actions Block (Right) -->
+                        <div class="md:col-span-1 rounded-xl bg-slate-50/50 border border-slate-100 p-4 flex flex-col justify-between gap-3">
+                            <div class="space-y-2">
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-mono text-center font-bold text-charcoal flex items-center justify-center gap-1.5 shadow-sm">
+                                    <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    @FormatEventTime(ev.StartTime)
+                                </div>
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-mono text-center font-bold text-charcoal flex items-center justify-center gap-1.5 shadow-sm">
+                                    <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    @FormatEventTime(ev.EndTime)
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between gap-2 mt-auto pt-2">
+                                <span class="inline-flex items-center justify-center px-2 py-1.5 rounded text-[10px] font-bold border @GetStatusBadgeClass(ev.Status) shadow-sm bg-white shrink-0 min-w-[4.5rem] text-center">
+                                    @ev.StatusName
+                                </span>
+                                <button @onclick="() => EditEvent(ev.Id)" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors flex-1 text-center">
+                                    Sửa
+                                </button>
+                                <button @onclick="() => ViewRegistrations(ev.Id)" class="bg-white border border-slate-800 hover:bg-slate-100 text-charcoal rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm transition-colors flex-1 text-center">
+                                    Chi tiết
+                                </button>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
             }
-        </tbody>
-    </table>
-}
+        </div>
+
+        <!-- Custom Pagination -->
+        @if (filteredEvents.Count > pageSize)
+        {
+            <div class="px-6 py-4 border border-border rounded-xl mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white text-sm text-muted shadow-sm">
+                <div>
+                    Hiển thị từ <strong>@((page - 1) * pageSize + 1)</strong> đến <strong>@(Math.Min(page * pageSize, filteredEvents.Count))</strong> trong tổng số <strong>@filteredEvents.Count</strong> sự kiện
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="px-3 py-1.5 border border-border rounded-md hover:bg-canvas disabled:opacity-50 transition-colors focus:outline-none" 
+                            disabled="@(page == 1)" @onclick="() => ChangePage(page - 1)">
+                        Trước
+                    </button>
+                    <span class="font-medium text-charcoal font-mono">Trang @(page) / @MaxPage</span>
+                    <button class="px-3 py-1.5 border border-border rounded-md hover:bg-canvas disabled:opacity-50 transition-colors focus:outline-none" 
+                            disabled="@(page == MaxPage)" @onclick="() => ChangePage(page + 1)">
+                        Sau
+                    </button>
+                </div>
+            </div>
+        }
+    }
+</div>
 
 @code {
     private List<EventResponseDto>? events;
+    private List<EventResponseDto> DisplayedEvents => filteredEvents
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToList();
+    private List<EventResponseDto> filteredEvents = new();
     private bool isLoading = true;
     private string currentUserId = string.Empty;
+    
+    private int page = 1;
+    private int pageSize = 5; // Shown as a vertical list, 5 per page is very neat!
+
+    // Filter State - Statuses
+    private bool filterStatusAll = true;
+    private bool filterStatusPending = false;
+    private bool filterStatusApproved = false;
+    private bool filterStatusOngoing = false;
+    private bool filterStatusEnded = false;
+    private bool filterStatusCancelled = false;
+    private bool filterStatusRejected = false;
+
+    // Filter State - Time
+    private bool filterTimeAll = true;
+    private bool filterTimeUpcoming = false;
+    private bool filterTimeOngoing = false;
+    private bool filterTimeEnded = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,22 +283,168 @@ else
         await LoadEvents();
     }
 
-    private async Task LoadEvents()
+    private async Task LoadEvents(bool bypassCache = false)
     {
         isLoading = true;
-        var allEvents = await EventService.GetEventsAsync();
-        // Lọc hiển thị event do chính user này tạo
-        events = allEvents.Where(e => e.OrganizerId == currentUserId).ToList();
-        isLoading = false;
+        try
+        {
+            events = await OrganizerService.GetEventsAsync(bypassCache);
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error loading events: " + ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
-    private void CreateNewEvent() => NavigationManager.NavigateTo("/organizer/events/create");
+    private void ApplyFilters()
+    {
+        if (events == null)
+        {
+            filteredEvents = new List<EventResponseDto>();
+            return;
+        }
+
+        var temp = events;
+
+        // Apply Status filter
+        if (!filterStatusAll)
+        {
+            temp = temp.Where(e =>
+                (filterStatusPending && e.Status == 1) ||
+                (filterStatusApproved && e.Status == 2) ||
+                (filterStatusOngoing && e.Status == 3) ||
+                (filterStatusEnded && e.Status == 4) ||
+                (filterStatusCancelled && e.Status == 5) ||
+                (filterStatusRejected && e.Status == 6)
+            ).ToList();
+        }
+
+        // Apply Time filter
+        if (!filterTimeAll)
+        {
+            var now = DateTime.UtcNow;
+            temp = temp.Where(e =>
+                (filterTimeUpcoming && e.StartTime > now) ||
+                (filterTimeOngoing && e.StartTime <= now && e.EndTime >= now) ||
+                (filterTimeEnded && e.EndTime < now)
+            ).ToList();
+        }
+
+        filteredEvents = temp;
+        page = 1; // Reset to page 1 on filter trigger
+    }
+
+    private void ToggleStatusAll()
+    {
+        filterStatusAll = true;
+        filterStatusPending = false;
+        filterStatusApproved = false;
+        filterStatusOngoing = false;
+        filterStatusEnded = false;
+        filterStatusCancelled = false;
+        filterStatusRejected = false;
+        ApplyFilters();
+    }
+
+    private void TogglePending() { filterStatusPending = !filterStatusPending; CheckStatusAll(); }
+    private void ToggleApproved() { filterStatusApproved = !filterStatusApproved; CheckStatusAll(); }
+    private void ToggleOngoing() { filterStatusOngoing = !filterStatusOngoing; CheckStatusAll(); }
+    private void ToggleEnded() { filterStatusEnded = !filterStatusEnded; CheckStatusAll(); }
+    private void ToggleCancelled() { filterStatusCancelled = !filterStatusCancelled; CheckStatusAll(); }
+    private void ToggleRejected() { filterStatusRejected = !filterStatusRejected; CheckStatusAll(); }
+
+    private void CheckStatusAll()
+    {
+        if (filterStatusPending || filterStatusApproved || filterStatusOngoing || filterStatusEnded || filterStatusCancelled || filterStatusRejected)
+        {
+            filterStatusAll = false;
+        }
+        else
+        {
+            filterStatusAll = true;
+        }
+        ApplyFilters();
+    }
+
+    private void ToggleTimeAll()
+    {
+        filterTimeAll = true;
+        filterTimeUpcoming = false;
+        filterTimeOngoing = false;
+        filterTimeEnded = false;
+        ApplyFilters();
+    }
+
+    private void ToggleUpcoming() { filterTimeUpcoming = !filterTimeUpcoming; CheckTimeAll(); }
+    private void ToggleTimeOngoingOpt() { filterTimeOngoing = !filterTimeOngoing; CheckTimeAll(); }
+    private void ToggleTimeEndedOpt() { filterTimeEnded = !filterTimeEnded; CheckTimeAll(); }
+
+    private void CheckTimeAll()
+    {
+        if (filterTimeUpcoming || filterTimeOngoing || filterTimeEnded)
+        {
+            filterTimeAll = false;
+        }
+        else
+        {
+            filterTimeAll = true;
+        }
+        ApplyFilters();
+    }
+
+    private string GetSelectedStatusesDisplay()
+    {
+        if (filterStatusAll) return "Tất cả";
+        var list = new List<string>();
+        if (filterStatusPending) list.Add("Pending");
+        if (filterStatusApproved) list.Add("Approved");
+        if (filterStatusOngoing) list.Add("Ongoing");
+        if (filterStatusEnded) list.Add("Ended");
+        if (filterStatusCancelled) list.Add("Cancelled");
+        if (filterStatusRejected) list.Add("Rejected");
+        if (list.Count > 1) return $"{list[0]} +{list.Count - 1}";
+        return list.Count == 0 ? "Tất cả" : list[0];
+    }
+
+    private string GetSelectedTimesDisplay()
+    {
+        if (filterTimeAll) return "Tất cả";
+        var list = new List<string>();
+        if (filterTimeEnded) list.Add("Đã kết thúc");
+        if (filterTimeOngoing) list.Add("Đang diễn ra");
+        if (filterTimeUpcoming) list.Add("Chưa diễn ra");
+        if (list.Count > 1) return $"{list[0]} +{list.Count - 1}";
+        return list.Count == 0 ? "Tất cả" : list[0];
+    }
+
+    private string FormatEventTime(DateTime time)
+    {
+        var local = time.ToLocalTime();
+        var formatted = local.ToString("dd/MM/yyyy hh:mm");
+        var suffix = local.Hour < 12 ? " SA" : " CH";
+        return formatted + suffix;
+    }
+
+    private int MaxPage => filteredEvents.Count == 0 ? 1 : (int)Math.Ceiling((double)filteredEvents.Count / pageSize);
+    private void ChangePage(int newPage) => page = newPage;
+
+    private void CreateNewEvent() => NavigationManager.NavigateTo("/organizer/my-events");
     private void EditEvent(string id) => NavigationManager.NavigateTo($"/organizer/events/edit/{id}");
     private void ViewRegistrations(string id) => NavigationManager.NavigateTo($"/organizer/events/{id}/registrations");
-    
-    private async Task DeleteEvent(string id)
+
+    private string GetStatusBadgeClass(int status) => status switch
     {
-        var success = await EventService.DeleteEventAsync(id);
-        if (success) await LoadEvents();
-    }
+        1 => "border-amber-200 text-amber-800 bg-amber-50",     // Pending
+        2 => "border-emerald-200 text-emerald-800 bg-emerald-50", // Approved
+        3 => "border-blue-200 text-blue-800 bg-blue-50",         // Ongoing
+        4 => "border-slate-200 text-slate-800 bg-slate-50",       // Ended
+        5 => "border-slate-200 text-slate-800 bg-slate-50",       // Cancelled
+        6 => "border-rose-200 text-rose-800 bg-rose-50",         // Rejected
+        _ => "border-slate-200 text-slate-800 bg-slate-50"
+    };
 }
