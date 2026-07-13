@@ -1,32 +1,61 @@
 @model List<EMS.Core.Entities.Event>
 @{
-    ViewData["Title"] = "Khám phá Sự kiện";
+    ViewData["Title"] = "Trạng thái Sự kiện";
     var searchString = ViewData["SearchString"] as string;
+
+    var now = DateTime.UtcNow;
+
+    // Phân loại sự kiện theo trạng thái thực tế
+    string GetStatusKey(EMS.Core.Entities.Event ev) {
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled ||
+            ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected ||
+            ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
+            return "other";
+        if (now >= ev.StartTime && now <= ev.EndTime) return "ongoing";
+        if (now < ev.StartTime) return "upcoming";
+        return "ended";
+    }
+
+    var allEvents = Model ?? new List<EMS.Core.Entities.Event>();
+    var ongoingEvents  = allEvents.Where(e => GetStatusKey(e) == "ongoing").OrderBy(e => e.StartTime).ToList();
+    var upcomingEvents = allEvents.Where(e => GetStatusKey(e) == "upcoming").OrderBy(e => e.StartTime).ToList();
+    var endedEvents    = allEvents.Where(e => GetStatusKey(e) == "ended" || GetStatusKey(e) == "other")
+                                  .OrderByDescending(e => e.EndTime).ToList();
 }
 
 @functions {
-    string GetBadgeClass(string title, string description)
+    string GetEventStatusClass(EMS.Core.Entities.Event ev)
     {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "event-badge-academic";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "event-badge-art";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "event-badge-sport";
-        return "event-badge-default";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
+            return "status-badge-cancelled";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
+            return "status-badge-rejected";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
+            return "status-badge-pending";
+
+        var now = DateTime.UtcNow;
+        if (now < ev.StartTime)
+            return "status-badge-upcoming";
+        if (now >= ev.StartTime && now <= ev.EndTime)
+            return "status-badge-ongoing";
+        return "status-badge-ended";
     }
 
-    string GetBadgeName(string title, string description)
+    string GetEventStatusName(EMS.Core.Entities.Event ev)
     {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "Học thuật";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "Nghệ thuật";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "Thể thao";
-        return "Sự kiện";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
+            return "Đã hủy";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
+            return "Đã từ chối";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
+            return "Chờ phê duyệt";
+
+        var now = DateTime.UtcNow;
+        if (now < ev.StartTime)
+            return "Chưa diễn ra";
+        if (now >= ev.StartTime && now <= ev.EndTime)
+            return "Đang diễn ra";
+        return "Đã kết thúc";
     }
 }
 
@@ -35,13 +64,13 @@
     <div class="row mb-4">
         <div class="col-12">
             <span class="eyebrow-tag">Cổng Sinh Viên</span>
-            <h1 class="heading-gradient heading-gradient-md mb-2">Khám phá các sự kiện</h1>
-            <p class="subtitle-text">Tìm kiếm và đăng ký tham gia các hoạt động ngoại khóa, câu lạc bộ, học thuật.</p>
+            <h1 class="heading-gradient heading-gradient-md mb-2">Trạng thái Sự kiện</h1>
+            <p class="subtitle-text">Theo dõi trạng thái tất cả sự kiện: đang diễn ra, sắp diễn ra và đã kết thúc.</p>
         </div>
     </div>
 
     <!-- Search Section — Glass Card -->
-    <div class="glass-card-strong p-4 mb-5">
+    <div class="glass-card-strong p-4 mb-4">
         <form method="get" asp-controller="Events" asp-action="Index" class="row g-3 align-items-end">
             <div class="col-md-9">
                 <div style="position:relative;">
@@ -62,7 +91,7 @@
         </form>
     </div>
 
-    <!-- Result Banner -->
+    <!-- Result Banner (khi tìm kiếm) -->
     @if (!string.IsNullOrEmpty(searchString))
     {
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -76,67 +105,144 @@
         </div>
     }
 
-    <!-- Event Cards Grid -->
-    <div class="row g-4">
-        @if (Model == null || !Model.Any())
-        {
-            <div class="col-12 text-center py-5">
-                <div class="glass-card p-5 mx-auto" style="max-width:500px;">
-                    <div class="mb-4" style="font-size:3.5rem; color:var(--text-muted);">
-                        <i class="ri-search-eye-line"></i>
-                    </div>
-                    <h4 class="fw-bold mb-2">Không tìm thấy sự kiện nào</h4>
-                    <p class="text-muted-custom mb-4">Không có sự kiện nào khớp với từ khóa tìm kiếm hoặc chưa có sự kiện được đăng lên hệ thống.</p>
-                    <a asp-action="Index" class="btn-cta btn-cta-sm">
-                        <span>Xem tất cả sự kiện</span>
-                        <span class="btn-icon-circle"><i class="ri-refresh-line"></i></span>
-                    </a>
+    @if (Model == null || !Model.Any())
+    {
+        <div class="col-12 text-center py-5">
+            <div class="glass-card p-5 mx-auto" style="max-width:500px;">
+                <div class="mb-4" style="font-size:3.5rem; color:var(--text-muted);">
+                    <i class="ri-search-eye-line"></i>
                 </div>
+                <h4 class="fw-bold mb-2">Không tìm thấy sự kiện nào</h4>
+                <p class="text-muted-custom mb-4">Không có sự kiện nào khớp với từ khóa tìm kiếm hoặc chưa có sự kiện được đăng lên hệ thống.</p>
+                <a asp-action="Index" class="btn-cta btn-cta-sm">
+                    <span>Xem tất cả sự kiện</span>
+                    <span class="btn-icon-circle"><i class="ri-refresh-line"></i></span>
+                </a>
             </div>
-        }
-        else
-        {
-            @foreach (var ev in Model)
+        </div>
+    }
+    else
+    {
+        <!-- ── Status Tabs ────────────────────────────────────────────────────── -->
+        <ul class="status-tab-list mb-5" id="statusTabs" role="tablist">
+            <li>
+                <button class="status-tab-btn active" data-tab="ongoing" role="tab"
+                        aria-selected="true" id="tab-ongoing">
+                    <span class="status-tab-dot dot-ongoing"></span>
+                    Đang diễn ra
+                    <span class="status-tab-count">@ongoingEvents.Count</span>
+                </button>
+            </li>
+            <li>
+                <button class="status-tab-btn" data-tab="upcoming" role="tab"
+                        aria-selected="false" id="tab-upcoming">
+                    <span class="status-tab-dot dot-upcoming"></span>
+                    Chưa diễn ra
+                    <span class="status-tab-count">@upcomingEvents.Count</span>
+                </button>
+            </li>
+            <li>
+                <button class="status-tab-btn" data-tab="ended" role="tab"
+                        aria-selected="false" id="tab-ended">
+                    <span class="status-tab-dot dot-ended"></span>
+                    Đã diễn ra
+                    <span class="status-tab-count">@endedEvents.Count</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- ── Tab Panels ─────────────────────────────────────────────────────── -->
+
+        <!-- Đang diễn ra -->
+        <div class="status-tab-panel" id="panel-ongoing">
+            @if (!ongoingEvents.Any())
             {
-                <div class="col-lg-4 col-md-6">
-                    <div class="event-glass-card">
-                        <!-- Double-bezel image -->
-                        <div class="event-image-wrap">
-                            <div class="event-image-shell">
-                                <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)"
-                                     alt="@ev.Title"
-                                     onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
-                                <span class="event-badge @GetBadgeClass(ev.Title, ev.Description)">@GetBadgeName(ev.Title, ev.Description)</span>
-                            </div>
-                        </div>
-
-                        <div class="event-card-body">
-                            <h5 class="event-card-title">@ev.Title</h5>
-                            <div class="event-card-meta">
-                                <div><i class="ri-time-line"></i> @ev.StartTime.ToString("dd/MM/yyyy HH:mm") - @ev.EndTime.ToString("HH:mm")</div>
-                                <div><i class="ri-map-pin-2-line"></i> @ev.Location</div>
-                            </div>
-                            @{
-                                var displayDesc = ev.Description;
-                                if (displayDesc.Length > 120)
-                                {
-                                    displayDesc = displayDesc.Substring(0, 117) + "...";
-                                }
-                            }
-                            <p class="event-card-desc">@displayDesc</p>
-                        </div>
-
-                        <div class="event-card-footer">
-                            <span><i class="ri-group-line me-1"></i> Sức chứa: @ev.Capacity</span>
-                            <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id"
-                               class="btn-cta btn-cta-sm">
-                                <span>Chi tiết</span>
-                                <span class="btn-icon-circle"><i class="ri-arrow-right-up-line"></i></span>
-                            </a>
-                        </div>
-                    </div>
+                <div class="status-tab-empty">
+                    <i class="ri-live-line"></i>
+                    <p>Hiện không có sự kiện nào đang diễn ra.</p>
                 </div>
             }
-        }
-    </div>
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var ev in ongoingEvents)
+                    {
+                        @await Html.PartialAsync("_EventCard", ev)
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Chưa diễn ra -->
+        <div class="status-tab-panel d-none" id="panel-upcoming">
+            @if (!upcomingEvents.Any())
+            {
+                <div class="status-tab-empty">
+                    <i class="ri-calendar-schedule-line"></i>
+                    <p>Hiện chưa có sự kiện sắp diễn ra.</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var ev in upcomingEvents)
+                    {
+                        @await Html.PartialAsync("_EventCard", ev)
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Đã diễn ra -->
+        <div class="status-tab-panel d-none" id="panel-ended">
+            @if (!endedEvents.Any())
+            {
+                <div class="status-tab-empty">
+                    <i class="ri-history-line"></i>
+                    <p>Chưa có sự kiện nào đã kết thúc.</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var ev in endedEvents)
+                    {
+                        @await Html.PartialAsync("_EventCard", ev)
+                    }
+                </div>
+            }
+        </div>
+    }
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var tabs   = document.querySelectorAll('.status-tab-btn');
+            var panels = document.querySelectorAll('.status-tab-panel');
+
+            tabs.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var target = btn.dataset.tab;
+
+                    // Update tab active state
+                    tabs.forEach(function (t) {
+                        t.classList.remove('active');
+                        t.setAttribute('aria-selected', 'false');
+                    });
+                    btn.classList.add('active');
+                    btn.setAttribute('aria-selected', 'true');
+
+                    // Show/hide panels
+                    panels.forEach(function (p) {
+                        if (p.id === 'panel-' + target) {
+                            p.classList.remove('d-none');
+                        } else {
+                            p.classList.add('d-none');
+                        }
+                    });
+                });
+            });
+        })();
+    </script>
+}

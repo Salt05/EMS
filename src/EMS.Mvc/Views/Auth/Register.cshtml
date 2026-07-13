@@ -13,10 +13,10 @@
                     </div>
                 </div>
                 <h2 class="fw-bold mb-1">Đăng ký tài khoản</h2>
-                <p class="text-muted-custom small">Đăng ký tài khoản sinh viên tham gia sự kiện</p>
+                <p class="text-muted-custom small">Đăng ký tài khoản để xem các sự kiện tương ứng của trường học của bạn</p>
             </div>
 
-            <form asp-controller="Auth" asp-action="Register" method="post">
+            <form asp-controller="Auth" asp-action="Register" method="post" id="registerForm">
                 <div asp-validation-summary="ModelOnly" class="alert-glass alert-glass-danger small mb-3" role="alert"></div>
 
                 <div class="row">
@@ -28,7 +28,7 @@
 
                     <div class="col-md-6 mb-3">
                         <label asp-for="Email" class="form-glass-label"><i class="ri-mail-line me-1"></i> Email <span class="text-danger">*</span></label>
-                        <input asp-for="Email" type="email" class="form-glass-input" placeholder="user@domain.com" required autocomplete="email" />
+                        <input asp-for="Email" type="email" id="emailInput" class="form-glass-input" placeholder="student@university.edu.vn hoặc email cá nhân" required autocomplete="email" />
                         <span asp-validation-for="Email" class="text-danger small mt-1 d-block"></span>
                     </div>
                 </div>
@@ -56,7 +56,7 @@
 
                 <div class="mb-4 form-check d-flex align-items-center">
                     <input type="checkbox" class="form-check-input me-2" id="terms" required>
-                    <label class="form-check-label text-muted-custom small" for="terms">Tôi đồng ý với các <a href="#" class="text-decoration-none fw-medium text-primary-custom">Điều khoản & Điều kiện</a> của hệ thống.</label>
+                    <label class="form-check-label text-muted-custom small" for="terms">Tôi đồng ý với các <a href="#" class="text-decoration-none fw-medium text-primary-custom">Điều khoản &amp; Điều kiện</a> của hệ thống.</label>
                 </div>
 
                 <button type="submit" class="btn-cta w-100 justify-content-center py-2.5 mb-3">

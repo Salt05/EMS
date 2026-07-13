@@ -10,28 +10,38 @@
 }
 
 @functions {
-    string GetBadgeClass(string title, string description)
+    string GetEventStatusClass(EMS.Core.Entities.Event ev)
     {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "event-badge-academic";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "event-badge-art";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "event-badge-sport";
-        return "event-badge-default";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
+            return "status-badge-cancelled";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
+            return "status-badge-rejected";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
+            return "status-badge-pending";
+
+        var now = DateTime.UtcNow;
+        if (now < ev.StartTime)
+            return "status-badge-upcoming";
+        if (now >= ev.StartTime && now <= ev.EndTime)
+            return "status-badge-ongoing";
+        return "status-badge-ended";
     }
 
-    string GetBadgeName(string title, string description)
+    string GetEventStatusName(EMS.Core.Entities.Event ev)
     {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "Học thuật";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "Nghệ thuật";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "Thể thao";
-        return "Sự kiện";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
+            return "Đã hủy";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
+            return "Đã từ chối";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
+            return "Chờ phê duyệt";
+
+        var now = DateTime.UtcNow;
+        if (now < ev.StartTime)
+            return "Chưa diễn ra";
+        if (now >= ev.StartTime && now <= ev.EndTime)
+            return "Đang diễn ra";
+        return "Đã kết thúc";
     }
 }
 
@@ -66,8 +76,8 @@
                 </div>
 
                 <div class="p-4 p-md-5">
-                    <span class="event-badge @GetBadgeClass(Model.Title, Model.Description)" style="position:static; display:inline-block; margin-bottom:1rem;">
-                        @GetBadgeName(Model.Title, Model.Description)
+                    <span class="event-badge @GetEventStatusClass(Model)" style="position:static; display:inline-block; margin-bottom:1rem;">
+                        @GetEventStatusName(Model)
                     </span>
                     <h1 class="heading-gradient heading-gradient-md mb-4">@Model.Title</h1>
 
@@ -159,12 +169,47 @@
                             }
                             else
                             {
-                                <div class="mb-3">
-                                    <a asp-action="CheckIn" asp-route-id="@Model.Id" class="btn-cta w-100 justify-content-center py-2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 20px rgba(16,185,129,0.35);">
-                                        <span>Check-in sự kiện</span>
-                                        <span class="btn-icon-circle" style="background:rgba(255,255,255,0.2); color:#fff;"><i class="ri-qr-code-line"></i></span>
-                                    </a>
-                                </div>
+                                <!-- Thông tin mã điểm danh hiện tại nếu có -->
+                                @if (!string.IsNullOrEmpty(Model.CheckInCode))
+                                {
+                                    <div class="alert-glass alert-glass-info mb-3 text-center" style="justify-content:center; background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.25);">
+                                        <span style="font-size:0.85rem; color:var(--primary); font-weight:600;">
+                                            Mã điểm danh: <span style="font-size: 1.15rem; letter-spacing: 1.5px; font-family: monospace; color: var(--primary);">@Model.CheckInCode</span>
+                                        </span>
+                                    </div>
+
+                                    <!-- Form nhập mã điểm danh trực tiếp -->
+                                    <form asp-action="CheckIn" method="post" class="mb-3">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@Model.Id" />
+                                        <div class="mb-2">
+                                            <label class="form-glass-label mb-1" style="font-size: 0.8rem;">Nhập mã check-in</label>
+                                            <input type="text" name="checkInCode" 
+                                                   class="form-glass-input text-center text-uppercase fw-bold" 
+                                                   placeholder="Nhập mã 6 ký tự" maxlength="6" required 
+                                                   style="letter-spacing: 2px; font-size: 1.1rem; height: 42px;" />
+                                        </div>
+                                        <button type="submit" class="btn-cta w-100 justify-content-center py-2" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                            <span>Xác nhận Điểm danh</span>
+                                            <span class="btn-icon-circle" style="background:rgba(255,255,255,0.2); color:#fff;"><i class="ri-checkbox-circle-line"></i></span>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <div class="alert-glass alert-glass-warning mb-3 text-center" style="justify-content:center; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2);">
+                                        <span style="font-size:0.85rem; color: var(--warning);">Sự kiện này chưa được tạo mã điểm danh.</span>
+                                    </div>
+                                }
+
+                                <!-- Nút tạo mã điểm danh -->
+                                <form asp-action="GenerateCheckInCode" method="post" class="mb-3">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="eventId" value="@Model.Id" />
+                                    <button type="submit" class="btn-cta-outline w-100 justify-content-center py-2" style="border-color: var(--primary); color: var(--primary);">
+                                        <i class="ri-refresh-line me-1"></i> Tạo mã điểm danh
+                                    </button>
+                                </form>
                             }
 
                             <form asp-action="Cancel" method="post">

@@ -20,8 +20,21 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
-        var events = await _eventService.GetEventsByTenantAsync(tenantId, EventStatus.Approved);
+        // Nếu chưa đăng nhập (IsGuest = true hoặc không có TenantId) → không load events
+        var isGuest  = HttpContext.Items["IsGuest"] as bool? ?? true;
+        var tenantId = HttpContext.Items["TenantId"]?.ToString();
+
+        if (isGuest || string.IsNullOrEmpty(tenantId))
+        {
+            // Trả về trang landing với danh sách sự kiện rỗng
+            ViewBag.IsGuest = true;
+            return View(new List<EMS.Core.Entities.Event>());
+        }
+
+        ViewBag.IsGuest = false;
+        _logger.LogInformation($"Fetching home events for tenant {tenantId}");
+
+        var events   = await _eventService.GetEventsByTenantAsync(tenantId, EventStatus.Approved);
         var topEvents = events.Take(6).ToList();
         return View(topEvents);
     }

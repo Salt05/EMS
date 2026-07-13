@@ -833,12 +833,12 @@ html[data-theme="dark"] .dropdown-glass .dropdown-item:hover {
   letter-spacing: 0.02em;
 }
 
-.event-badge-academic  { background: rgba(99,102,241,0.9);  color: #fff; }
-.event-badge-art       { background: rgba(16,185,129,0.9);  color: #fff; }
-.event-badge-sport     { background: rgba(245,158,11,0.92); color: #1E293B; }
-.event-badge-volunteer { background: rgba(16,185,129,0.9);  color: #fff; }
-.event-badge-tech      { background: rgba(30,41,59,0.88);   color: #fff; }
-.event-badge-default   { background: rgba(6,182,212,0.9);   color: #fff; }
+.status-badge-upcoming  { background: rgba(99,102,241,0.9);  color: #fff; } /* Chưa diễn ra */
+.status-badge-ongoing   { background: rgba(16,185,129,0.9);  color: #fff; } /* Đang diễn ra */
+.status-badge-ended     { background: rgba(100,116,139,0.9); color: #fff; } /* Đã kết thúc */
+.status-badge-cancelled { background: rgba(239,68,68,0.9);   color: #fff; } /* Đã hủy */
+.status-badge-pending   { background: rgba(245,158,11,0.9);  color: #fff; } /* Chờ phê duyệt */
+.status-badge-rejected  { background: rgba(239,68,68,0.9);   color: #fff; } /* Bị từ chối */
 
 /* Event card content */
 .event-card-body {
@@ -1494,3 +1494,419 @@ html[data-theme="dark"] .btn-close {
 
 /* ── GPU-safe: animate ONLY transform and opacity (per guideline) ── */
 /* Ensure no width/height/top/left animations exist above ↑           */
+
+/* ═══════════════════════════════════════════════════════════════
+   TENANT / SCHOOL STYLES — Guest Banner & School Chips
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Guest Events Banner ─────────────────────────────────────── */
+.guest-events-banner {
+  background: var(--bg-glass-strong);
+  border: 1.5px solid var(--border-glass);
+  border-radius: 24px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 40px rgba(99,102,241,0.10);
+  padding: 3rem 2rem;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.guest-banner-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15));
+  border: 2px solid rgba(99,102,241,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  color: var(--primary);
+  margin: 0 auto 1.5rem;
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241,0.15); }
+  50%       { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(99,102,241,0); }
+}
+
+.guest-banner-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.75rem;
+}
+
+.guest-banner-desc {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  max-width: 480px;
+  margin: 0 auto 2rem;
+}
+
+/* ── 3-school grid in guest banner ──────────────────────────── */
+.guest-schools-grid {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.guest-school-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 16px;
+  border: 1.5px solid;
+  background: var(--bg-glass);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 160px;
+}
+
+.guest-school-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+.guest-school-card.huflit  { border-color: rgba(99,102,241,0.40); }
+.guest-school-card.hcmute  { border-color: rgba(16,185,129,0.40); }
+.guest-school-card.hcmut   { border-color: rgba(245,158,11,0.40); }
+
+.school-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.huflit .school-logo  { background: rgba(99,102,241,0.12); color: #6366F1; }
+.hcmute .school-logo  { background: rgba(16,185,129,0.12); color: #10B981; }
+.hcmut  .school-logo  { background: rgba(245,158,11,0.12); color: #F59E0B; }
+
+.school-info { text-align: left; }
+
+.school-name {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.school-abbr {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.school-domain {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.guest-banner-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── School Chips — Login page ──────────────────────────────── */
+.school-chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.school-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1.5px solid;
+  cursor: default;
+}
+
+.chip-huflit { background: rgba(99,102,241,0.10); border-color: rgba(99,102,241,0.35); color: #6366F1; }
+.chip-hcmute { background: rgba(16,185,129,0.10); border-color: rgba(16,185,129,0.35); color: #10B981; }
+.chip-hcmut  { background: rgba(245,158,11,0.10);  border-color: rgba(245,158,11,0.35);  color: #d97706; }
+
+/* ── School Select Grid — Register page ─────────────────────── */
+.school-select-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.school-select-card {
+  border-radius: 16px;
+  border: 2px solid var(--border-subtle);
+  background: var(--bg-glass);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  overflow: hidden;
+  position: relative;
+}
+
+.school-select-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.school-select-card.selected {
+  border-color: var(--primary);
+  background: rgba(99,102,241,0.07);
+}
+
+.school-select-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.school-select-inner {
+  padding: 1rem 0.75rem;
+  text-align: center;
+}
+
+.school-select-icon {
+  font-size: 1.6rem;
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+#card-huflit .school-select-icon { color: #6366F1; }
+#card-hcmute .school-select-icon { color: #10B981; }
+#card-hcmut  .school-select-icon { color: #F59E0B; }
+
+#card-huflit.selected  { border-color: #6366F1; background: rgba(99,102,241,0.08); }
+#card-hcmute.selected  { border-color: #10B981; background: rgba(16,185,129,0.08); }
+#card-hcmut.selected   { border-color: #F59E0B; background: rgba(245,158,11,0.08); }
+
+.school-select-name {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.school-select-domain {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: monospace;
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 480px) {
+  .guest-schools-grid  { flex-direction: column; align-items: center; }
+  .guest-school-card   { width: 100%; max-width: 280px; }
+  .school-select-grid  { grid-template-columns: 1fr; }
+}
+
+[data-theme="dark"] .guest-events-banner {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(99,102,241,0.25);
+}
+
+[data-theme="dark"] .guest-school-card {
+  background: rgba(30, 41, 59, 0.6);
+}
+
+[data-theme="dark"] .school-select-card {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(99,102,241,0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STATUS TAB LIST — Trạng thái sự kiện page
+   ═══════════════════════════════════════════════════════════════ */
+
+.status-tab-list {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  background: var(--bg-glass-strong);
+  border: 1.5px solid var(--border-glass);
+  border-radius: 20px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  width: fit-content;
+}
+
+.status-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 1.3rem;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+  white-space: nowrap;
+}
+
+.status-tab-btn:hover {
+  background: var(--bg-glass);
+  color: var(--text-main);
+}
+
+.status-tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(99,102,241,0.35);
+}
+
+/* Dot indicators */
+.status-tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-ongoing  { background: #10B981; box-shadow: 0 0 0 3px rgba(16,185,129,0.25); }
+.dot-upcoming { background: #6366F1; box-shadow: 0 0 0 3px rgba(99,102,241,0.25); }
+.dot-ended    { background: #94A3B8; box-shadow: 0 0 0 3px rgba(148,163,184,0.25); }
+
+/* Pulsing dot for ongoing */
+.status-tab-btn.active .dot-ongoing {
+  animation: dot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+  50%       { box-shadow: 0 0 0 5px rgba(16,185,129,0); }
+}
+
+/* Count badge */
+.status-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(0,0,0,0.10);
+  color: inherit;
+}
+
+.status-tab-btn.active .status-tab-count {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+/* Tab panel */
+.status-tab-panel {
+  animation: fadeInPanel 0.3s ease;
+}
+
+@keyframes fadeInPanel {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Empty state inside panel */
+.status-tab-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.status-tab-empty i {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.status-tab-empty p {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .status-tab-list {
+  background: rgba(15, 23, 42, 0.75);
+  border-color: rgba(99,102,241,0.2);
+}
+
+[data-theme="dark"] .status-tab-btn:hover {
+  background: rgba(99,102,241,0.12);
+}
+
+/* ── Status Event Badges ─────────────────────────────────────── */
+.status-badge-upcoming {
+  background: rgba(99,102,241,0.15);
+  color: #6366F1;
+  border: 1px solid rgba(99,102,241,0.3);
+}
+
+.status-badge-ongoing {
+  background: rgba(16,185,129,0.15);
+  color: #059669;
+  border: 1px solid rgba(16,185,129,0.35);
+}
+
+.status-badge-ended {
+  background: rgba(100,116,139,0.12);
+  color: #64748B;
+  border: 1px solid rgba(100,116,139,0.25);
+}
+
+.status-badge-cancelled {
+  background: rgba(239,68,68,0.12);
+  color: #DC2626;
+  border: 1px solid rgba(239,68,68,0.25);
+}
+
+.status-badge-pending {
+  background: rgba(245,158,11,0.12);
+  color: #D97706;
+  border: 1px solid rgba(245,158,11,0.25);
+}
+
+.status-badge-rejected {
+  background: rgba(239,68,68,0.10);
+  color: #B91C1C;
+  border: 1px solid rgba(239,68,68,0.20);
+}
+
+[data-theme="dark"] .status-badge-upcoming  { background: rgba(99,102,241,0.20);  color: #A5B4FC; }
+[data-theme="dark"] .status-badge-ongoing   { background: rgba(16,185,129,0.20);  color: #34D399; }
+[data-theme="dark"] .status-badge-ended     { background: rgba(100,116,139,0.18); color: #94A3B8; }
+[data-theme="dark"] .status-badge-cancelled { background: rgba(239,68,68,0.18);   color: #F87171; }
+[data-theme="dark"] .status-badge-pending   { background: rgba(245,158,11,0.18);  color: #FCD34D; }
+[data-theme="dark"] .status-badge-rejected  { background: rgba(239,68,68,0.15);   color: #FCA5A5; }
+
+@media (max-width: 640px) {
+  .status-tab-list { gap: 0.25rem; }
+  .status-tab-btn  { padding: 0.5rem 0.8rem; font-size: 0.82rem; }
+}

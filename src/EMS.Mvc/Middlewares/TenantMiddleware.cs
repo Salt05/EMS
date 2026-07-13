@@ -18,45 +18,69 @@ public class TenantMiddleware
     {
         try
         {
-            var host = context.Request.Host.Host;
-            var subdomain = tenantResolver.ResolveTenantFromHost(host);
+            // ── 1. Ưu tiên đọc tenantId từ cookie user_session ──────────────────
+            //       Format: fullName|email|role|tenantId
+            var tenantIdFromSession = TryGetTenantIdFromCookie(context);
 
-            if (string.IsNullOrEmpty(subdomain))
+            if (!string.IsNullOrEmpty(tenantIdFromSession))
             {
-                subdomain = "default";
-            }
-
-            var tenant = await tenantService.GetTenantBySubdomainAsync(subdomain);
-
-            // Fallback: If tenant is not found (common on localhost without custom subdomain),
-            // fetch all tenants and pick the first one, or fallback to tenant-1.
-            if (tenant == null)
-            {
-                var tenants = await tenantService.GetTenantsAsync();
-                if (tenants.Count > 0)
+                var sessionTenant = await tenantService.GetTenantByIdAsync(tenantIdFromSession);
+                if (sessionTenant != null)
                 {
-                    tenant = tenants[0];
+                    context.Items["TenantId"]   = sessionTenant.Id;
+                    context.Items["TenantName"] = sessionTenant.Name;
+                    context.Items["IsGuest"]    = false;
+                    _logger.LogInformation($"Tenant from session: {sessionTenant.Name} ({sessionTenant.Id})");
+                    await _next(context);
+                    return;
                 }
             }
 
-            if (tenant != null)
+            // ── 2. Fallback: resolve từ subdomain (giống logic cũ) ─────────────
+            var host      = context.Request.Host.Host;
+            var subdomain = tenantResolver.ResolveTenantFromHost(host);
+
+            if (string.IsNullOrEmpty(subdomain))
+                subdomain = "default";
+
+            var tenant = await tenantService.GetTenantBySubdomainAsync(subdomain);
+
+            // Nếu vẫn không tìm thấy, không gán tenantId (user chưa đăng nhập)
+            if (tenant == null)
             {
-                context.Items["TenantId"] = tenant.Id;
-                context.Items["TenantName"] = tenant.Name;
-                _logger.LogInformation($"Tenant resolved: {tenant.Name} ({tenant.Id}) for subdomain: {subdomain}");
+                context.Items["TenantId"]   = null;
+                context.Items["TenantName"] = "EMS Portal";
+                context.Items["IsGuest"]    = true;
+                _logger.LogInformation($"No tenant resolved for subdomain '{subdomain}' — treating as guest.");
             }
             else
             {
-                context.Items["TenantId"] = DevInMemoryTenantService.DefaultTenantId;
-                context.Items["TenantName"] = "EMS Portal";
-                _logger.LogWarning($"Could not resolve tenant for subdomain: {subdomain}. Falling back to default.");
+                context.Items["TenantId"]   = tenant.Id;
+                context.Items["TenantName"] = tenant.Name;
+                // Nếu không có session cookie → guest (không xem được events)
+                context.Items["IsGuest"]    = true;
+                _logger.LogInformation($"Tenant from subdomain: {tenant.Name} ({tenant.Id})");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError($"Error resolving tenant in TenantMiddleware: {ex.Message}");
+            context.Items["IsGuest"] = true;
         }
 
         await _next(context);
+    }
+
+    private static string? TryGetTenantIdFromCookie(HttpContext context)
+    {
+        var session = context.Request.Cookies["user_session"];
+        if (string.IsNullOrEmpty(session)) return null;
+
+        var parts = session.Split('|');
+        // Format mới: fullName|email|role|tenantId (4 phần)
+        if (parts.Length >= 4)
+            return parts[3];
+
+        return null;
     }
 }

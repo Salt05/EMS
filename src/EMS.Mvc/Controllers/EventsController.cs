@@ -36,7 +36,16 @@ public class EventsController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(string? searchString)
     {
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        // Yêu cầu đăng nhập để xem sự kiện
+        var isGuest  = HttpContext.Items["IsGuest"] as bool? ?? true;
+        var tenantId = HttpContext.Items["TenantId"]?.ToString();
+
+        if (isGuest || string.IsNullOrEmpty(tenantId))
+        {
+            TempData["ErrorMessage"] = "Bạn cần đăng nhập bằng tài khoản sinh viên để xem sự kiện.";
+            return RedirectToAction("Login", "Auth", new { returnUrl = Url.Action("Index", "Events") });
+        }
+
         _logger.LogInformation($"Fetching events for tenant {tenantId}");
 
         // Fetch only approved events for students
@@ -236,6 +245,47 @@ public class EventsController : Controller
         return File(bytes, "text/calendar", $"{ev.Id}.ics");
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateCheckInCode(string eventId)
+    {
+        var (displayName, userEmail, _) = GetUserSession();
+        if (userEmail == null)
+        {
+            TempData["ErrorMessage"] = "Bạn cần đăng nhập để thực hiện chức năng này.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
+        if (ev == null)
+        {
+            TempData["ErrorMessage"] = "Không tìm thấy sự kiện.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Tạo mã điểm danh ngẫu nhiên gồm 6 ký tự viết hoa
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var random = new System.Random();
+        var code = new string(System.Linq.Enumerable.Repeat(chars, 6)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+
+        ev.CheckInCode = code;
+        ev.CheckInCodeExpiredAt = System.DateTime.UtcNow.AddHours(4); // Có giá trị trong 4 giờ
+
+        var success = await _eventService.UpdateEventAsync(ev);
+        if (success)
+        {
+            TempData["SuccessMessage"] = $"Đã tạo mã điểm danh thành công: {code}";
+        }
+        else
+        {
+            TempData["ErrorMessage"] = "Không thể cập nhật mã điểm danh cho sự kiện.";
+        }
+
+        return RedirectToAction(nameof(Detail), new { id = eventId });
+    }
+
     [HttpGet]
     public async Task<IActionResult> CheckIn(string id)
     {
@@ -311,6 +361,8 @@ public class EventsController : Controller
         }
 
         var parts = userSession.Split('|');
+        // Format mới: fullName|email|role|tenantId
+        // Format cũ:  fullName|email|role
         if (parts.Length >= 3)
         {
             return (parts[0], parts[1], parts[2]);
