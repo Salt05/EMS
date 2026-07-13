@@ -58,12 +58,12 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
     {
         try
         {
-            var res = await _httpClient.GetFromJsonAsync<List<EventResponseDto>>("api/admin/events");
-            return res ?? EventsMock.Events.Where(e => e.TenantId == "huflit").ToList();
+            var res = await _httpClient.GetFromJsonAsync<List<EventResponseDto>>("api/events");
+            return res ?? new List<EventResponseDto>();
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("[DEMO] API /api/admin/events chưa có, đang dùng mock data.");
+            _logger.LogError(ex, "Lỗi khi gọi API GetEventsAsync, dùng mock data.");
             return EventsMock.Events.Where(e => e.TenantId == "huflit").ToList();
         }
     }
@@ -72,20 +72,12 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
     {
         try
         {
-            var res = await _httpClient.PostAsync($"api/admin/events/{id}/approve", null);
+            var res = await _httpClient.PostAsync($"api/events/{id}/approve", null);
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API POST /api/admin/events/{id}/approve chưa có, đang duyệt trên mock data.");
-        }
-
-        var ev = EventsMock.Events.Find(e => e.Id == id);
-        if (ev != null)
-        {
-            ev.Status = 2; // Approved
-            ev.StatusName = "Approved";
-            return true;
+            _logger.LogError(ex, "Lỗi khi gọi API ApproveEventAsync.");
         }
         return false;
     }
@@ -94,21 +86,12 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
     {
         try
         {
-            var res = await _httpClient.PostAsJsonAsync($"api/admin/events/{id}/reject", new RejectEventDto { Reason = reason });
+            var res = await _httpClient.PostAsJsonAsync($"api/events/{id}/reject", new RejectEventDto { Reason = reason });
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API POST /api/admin/events/{id}/reject chưa có, đang từ chối trên mock data.");
-        }
-
-        var ev = EventsMock.Events.Find(e => e.Id == id);
-        if (ev != null)
-        {
-            ev.Status = 6; // Rejected
-            ev.StatusName = "Rejected";
-            ev.RejectionReason = reason;
-            return true;
+            _logger.LogError(ex, "Lỗi khi gọi API RejectEventAsync.");
         }
         return false;
     }
@@ -124,30 +107,22 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, $"[DEMO] API POST /api/events/{id}/generate-code lỗi hoặc chưa có, đang tạo code trên mock data.");
+            _logger.LogError(ex, "Lỗi khi gọi API GenerateCheckInCodeAsync.");
+            return string.Empty;
         }
-
-        var ev = EventsMock.Events.Find(e => e.Id == id);
-        if (ev != null)
-        {
-            ev.CheckInCode = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
-            ev.CheckInCodeExpiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
-            return ev.CheckInCode;
-        }
-        return string.Empty;
     }
 
     public async Task<List<RegistrationResponseDto>> GetAttendeesAsync(string id)
     {
         try
         {
-            var res = await _httpClient.GetFromJsonAsync<List<RegistrationResponseDto>>($"api/admin/events/{id}/attendees");
-            return res ?? RegistrationsMock.Registrations.Where(r => r.EventId == id && r.CheckedIn).ToList();
+            var res = await _httpClient.GetFromJsonAsync<List<RegistrationResponseDto>>($"api/checkin/event/{id}/attendees");
+            return res ?? new List<RegistrationResponseDto>();
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API /api/admin/events/{id}/attendees chưa có, đang dùng mock data.");
-            return RegistrationsMock.Registrations.Where(r => r.EventId == id && r.CheckedIn).ToList();
+            _logger.LogError(ex, "Lỗi khi gọi API GetAttendeesAsync.");
+            return new List<RegistrationResponseDto>();
         }
     }
 
@@ -155,59 +130,26 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
     {
         try
         {
-            var res = await _httpClient.PostAsJsonAsync("api/admin/events", request);
+            var res = await _httpClient.PostAsJsonAsync("api/events", request);
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("[DEMO] API POST /api/admin/events chưa có, đang thêm vào mock data.");
+            _logger.LogError(ex, "Lỗi khi gọi API CreateEventAsync.");
         }
-
-        var ev = new EventResponseDto
-        {
-            Id = Guid.NewGuid().ToString().Substring(0, 8),
-            TenantId = "huflit",
-            Title = request.Title + " (DEMO)",
-            Description = request.Description,
-            Location = request.Location,
-            VenueId = request.VenueId,
-            StartTime = request.StartTime,
-            EndTime = request.EndTime,
-            Capacity = request.Capacity,
-            ImageUrl = request.ImageUrl,
-            OrganizerId = "user2",
-            Status = 1, // Pending
-            StatusName = "Pending",
-            CreatedAt = DateTime.UtcNow
-        };
-        EventsMock.Events.Add(ev);
-        return true;
+        return false;
     }
 
     public async Task<bool> UpdateEventAsync(string id, UpdateEventDto request)
     {
         try
         {
-            var res = await _httpClient.PutAsJsonAsync($"api/admin/events/{id}", request);
+            var res = await _httpClient.PutAsJsonAsync($"api/events/{id}", request);
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API PUT /api/admin/events/{id} chưa có, đang cập nhật mock data.");
-        }
-
-        var ev = EventsMock.Events.Find(e => e.Id == id);
-        if (ev != null)
-        {
-            ev.Title = request.Title;
-            ev.Description = request.Description;
-            ev.Location = request.Location;
-            ev.VenueId = request.VenueId;
-            ev.StartTime = request.StartTime;
-            ev.EndTime = request.EndTime;
-            ev.Capacity = request.Capacity;
-            ev.ImageUrl = request.ImageUrl;
-            return true;
+            _logger.LogError(ex, "Lỗi khi gọi API UpdateEventAsync.");
         }
         return false;
     }
@@ -216,19 +158,12 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
     {
         try
         {
-            var res = await _httpClient.DeleteAsync($"api/admin/events/{id}");
+            var res = await _httpClient.DeleteAsync($"api/events/{id}");
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API DELETE /api/admin/events/{id} chưa có, đang xóa trên mock data.");
-        }
-
-        var ev = EventsMock.Events.Find(e => e.Id == id);
-        if (ev != null)
-        {
-            EventsMock.Events.Remove(ev);
-            return true;
+            _logger.LogError(ex, "Lỗi khi gọi API DeleteEventAsync.");
         }
         return false;
     }

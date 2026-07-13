@@ -126,6 +126,8 @@ db.collection("registrations").document(reg_a_id).set({
     "tenantId": tenant_id,
     "eventId": event_id,
     "userId": student_ids["studentA@ems.com"],
+    "studentEmail": "studentA@ems.com",
+    "studentName": "Nguyễn Văn A",
     "note": "Em đăng ký tham gia sớm.",
     "status": 1,  # Pending
     "registeredAt": now - datetime.timedelta(minutes=10),
@@ -146,6 +148,8 @@ db.collection("registrations").document(reg_b_id).set({
     "tenantId": tenant_id,
     "eventId": event_id,
     "userId": student_ids["studentB@ems.com"],
+    "studentEmail": "studentB@ems.com",
+    "studentName": "Trần Thị B",
     "note": "Đăng ký nhóm nghiên cứu khoa học.",
     "status": 1,  # Pending
     "registeredAt": now - datetime.timedelta(minutes=5),
@@ -166,6 +170,8 @@ db.collection("registrations").document(reg_c_id).set({
     "tenantId": tenant_id,
     "eventId": event_id,
     "userId": student_ids["studentC@ems.com"],
+    "studentEmail": "studentC@ems.com",
+    "studentName": "Lê Văn C",
     "note": "Em đăng ký dự khuyết.",
     "status": 3,  # Waitlisted
     "registeredAt": now,

@@ -433,7 +433,7 @@
     private int MaxPage => filteredEvents.Count == 0 ? 1 : (int)Math.Ceiling((double)filteredEvents.Count / pageSize);
     private void ChangePage(int newPage) => page = newPage;
 
-    private void CreateNewEvent() => NavigationManager.NavigateTo("/organizer/my-events");
+    private void CreateNewEvent() => NavigationManager.NavigateTo("/organizer/events/create");
     private void EditEvent(string id) => NavigationManager.NavigateTo($"/organizer/events/edit/{id}");
     private void ViewRegistrations(string id) => NavigationManager.NavigateTo($"/organizer/events/{id}/registrations");
 

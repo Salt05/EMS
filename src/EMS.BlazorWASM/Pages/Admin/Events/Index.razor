@@ -2,13 +2,15 @@
 @attribute [Authorize]
 @inject EMS.BlazorWASM.Services.IEventServiceClient EventService
 @inject EMS.BlazorWASM.Services.IRegistrationServiceClient RegistrationService
+@inject NavigationManager NavigationManager
 @using EMS.Shared.DTOs.Events
+@using System.Text
 
 <PageTitle>Quản lý Sự kiện — EMS</PageTitle>
 
 <div class="max-w-7xl mx-auto pb-12 pt-6">
     <!-- Header -->
-    <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
         <div>
             <div class="flex items-center gap-2 text-xs font-medium text-muted mb-2">
                 <a href="/" class="hover:text-charcoal transition-colors">Bảng điều khiển</a>
@@ -19,108 +21,228 @@
             </div>
             <h1 class="text-2xl font-bold tracking-tight text-charcoal">Sự kiện của bạn</h1>
         </div>
-        <a href="admin/events/new" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]">
-            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Tạo Sự kiện
-        </a>
+        <!-- Filters and Button Container -->
+        <div class="flex flex-wrap items-center gap-4">
+            <!-- Status Filter Dropdown -->
+            <div class="relative group select-none">
+                <button class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-lg shadow-sm hover:bg-slate-50 transition-all focus:outline-none">
+                    <span>Trạng thái</span>
+                    <span class="bg-charcoal text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                        @GetSelectedStatusesDisplay()
+                    </span>
+                    <svg class="h-4 w-4 text-muted transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <!-- Popup wrapper with padding bridge to prevent losing hover state -->
+                <div class="absolute left-full top-0 pl-2 w-52 hidden group-hover:block z-50">
+                    <div class="bg-white border border-border rounded-xl shadow-lg p-3">
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusAll" @onchange="ToggleStatusAll" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-bold text-charcoal">Tất cả</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusPending" @onchange="TogglePending" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Pending</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusApproved" @onchange="ToggleApproved" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Approved</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusOngoing" @onchange="ToggleOngoing" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Ongoing</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusEnded" @onchange="ToggleEnded" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Ended</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusCancelled" @onchange="ToggleCancelled" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Cancelled</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterStatusRejected" @onchange="ToggleRejected" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Rejected</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time Filter Dropdown -->
+            <div class="relative group select-none">
+                <button class="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-lg shadow-sm hover:bg-slate-50 transition-all focus:outline-none">
+                    <span>Time</span>
+                    <span class="bg-charcoal text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                        @GetSelectedTimesDisplay()
+                    </span>
+                    <svg class="h-4 w-4 text-muted transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <!-- Popup wrapper with padding bridge to prevent losing hover state -->
+                <div class="absolute left-full top-0 pl-2 w-48 hidden group-hover:block z-50">
+                    <div class="bg-white border border-border rounded-xl shadow-lg p-3">
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeAll" @onchange="ToggleTimeAll" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-bold text-charcoal">Tất cả</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeEnded" @onchange="ToggleTimeEndedOpt" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Đã kết thúc</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeOngoing" @onchange="ToggleTimeOngoingOpt" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Đang diễn ra</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 hover:bg-slate-50 rounded transition-colors">
+                                <input type="checkbox" checked="@filterTimeUpcoming" @onchange="ToggleUpcoming" class="h-4 w-4 rounded-full border-slate-300 text-charcoal focus:ring-charcoal" />
+                                <span class="text-xs font-semibold text-charcoal">Chưa diễn ra</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Event Button -->
+            <a href="admin/events/new" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-charcoal rounded-md shadow-sm hover:bg-slate-800 transition-all active:scale-[0.98]">
+                <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Tạo Sự kiện
+            </a>
+        </div>
     </div>
 
+    <!-- Main Content -->
     @if (isLoading)
     {
         <div class="flex justify-center items-center py-20">
             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-charcoal"></div>
         </div>
     }
+    else if (events == null || !events.Any())
+    {
+        <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
+            <div class="h-12 w-12 rounded-full bg-canvas flex items-center justify-center mb-4">
+                <svg class="h-6 w-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <h3 class="text-sm font-bold text-charcoal mb-1">Chưa có sự kiện nào</h3>
+            <p class="text-xs text-muted max-w-sm mb-6">Hãy tạo sự kiện đầu tiên để bắt đầu đón nhận đăng ký từ những người tham gia.</p>
+            <a href="admin/events/new" class="px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors">Tạo Sự kiện Ngay</a>
+        </div>
+    }
+    else if (!filteredEvents.Any())
+    {
+        <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
+            <h3 class="text-sm font-bold text-charcoal mb-1">Không tìm thấy sự kiện phù hợp</h3>
+            <p class="text-xs text-muted max-w-sm">Vui lòng thay đổi cấu hình bộ lọc trạng thái hoặc thời gian để tìm kiếm.</p>
+        </div>
+    }
     else
     {
-        @if (events.Count == 0)
-        {
-            <div class="bg-white border border-dashed border-border rounded-xl p-12 text-center flex flex-col items-center">
-                <div class="h-12 w-12 rounded-full bg-canvas flex items-center justify-center mb-4">
-                    <svg class="h-6 w-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" />
-                    </svg>
-                </div>
-                <h3 class="text-lg font-bold text-charcoal mb-1">Chưa có sự kiện nào</h3>
-                <p class="text-sm text-muted max-w-sm mb-6">Hãy tạo sự kiện đầu tiên để bắt đầu đón nhận đăng ký từ những người tham gia.</p>
-                <a href="admin/events/new" class="px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors">Tạo Sự kiện Ngay</a>
-            </div>
-        }
-        else
-        {
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                @foreach (var evt in events)
-                {
-                    var count = registrationCounts.ContainsKey(evt.Id) ? registrationCounts[evt.Id] : 0;
-                    <a href="admin/events/@evt.Id" class="group bg-white border border-border rounded-xl overflow-hidden hover:shadow-bento-hover transition-all duration-300 flex flex-col">
-                        <div class="relative w-full aspect-video bg-canvas overflow-hidden">
-                            @if (!string.IsNullOrEmpty(evt.ImageUrl))
+        <!-- Bento Horizontal Cards List -->
+        <div class="space-y-6">
+            @foreach (var ev in DisplayedEvents)
+            {
+                var count = registrationCounts.ContainsKey(ev.Id) ? registrationCounts[ev.Id] : 0;
+                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-200">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
+                        
+                        <!-- Image Block (Left) -->
+                        <div class="md:col-span-1 min-h-[160px] md:h-auto rounded-xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center p-3 select-none">
+                            @if (!string.IsNullOrEmpty(ev.ImageUrl))
                             {
-                                <img src="@evt.ImageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/600x400/F7F9FC/1A1F36?text=No+Image'; this.onerror=null;" />
+                                <img src="@ev.ImageUrl" class="object-cover w-full h-full rounded-lg" alt="@ev.Title" />
                             }
                             else
                             {
-                                <div class="w-full h-full flex items-center justify-center bg-slate-100 group-hover:scale-105 transition-transform duration-500">
-                                    <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
+                                <span class="text-slate-400 font-extrabold text-sm uppercase tracking-wider">Hình ảnh</span>
                             }
-                            <div class="absolute top-3 left-3">
-                                @if (evt.StartTime > DateTime.Now)
-                                {
-                                    <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-white/90 text-charcoal backdrop-blur-sm border border-white/20 shadow-sm">
-                                        Sắp tới
-                                    </span>
-                                }
-                                else if (evt.EndTime < DateTime.Now)
-                                {
-                                    <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-charcoal/80 text-white backdrop-blur-sm shadow-sm">
-                                        Đã kết thúc
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/90 text-white backdrop-blur-sm shadow-sm">
-                                        Đang diễn ra
-                                    </span>
-                                }
+                        </div>
+                        
+                        <!-- Info Block (Middle) -->
+                        <div class="md:col-span-2 rounded-xl bg-slate-50/50 border border-slate-100 p-4 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-lg font-bold text-charcoal leading-tight line-clamp-2">
+                                    @ev.Title
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-2 leading-relaxed line-clamp-3 font-normal">
+                                    @ev.Description
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-slate-200/60">
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 font-semibold truncate flex-1 flex items-center gap-1.5">
+                                    <svg class="h-3.5 w-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    @ev.Location
+                                </div>
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-600 font-bold text-center min-w-[4.5rem] flex items-center justify-center gap-1" title="Số lượng đăng ký / Sức chứa">
+                                    <svg class="h-3.5 w-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    @count / @(ev.Capacity == 0 ? "∞" : ev.Capacity.ToString())
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="p-5 flex-1 flex flex-col justify-between">
-                            <div>
-                                <h3 class="text-base font-bold text-charcoal mb-1 line-clamp-1 transition-colors">@evt.Title</h3>
-                                <div class="flex items-center gap-1.5 text-xs text-muted mb-3">
-                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" />
+                        <!-- Time & Actions Block (Right) -->
+                        <div class="md:col-span-1 rounded-xl bg-slate-50/50 border border-slate-100 p-4 flex flex-col justify-between gap-3">
+                            <div class="space-y-2">
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-mono text-center font-bold text-charcoal flex items-center justify-center gap-1.5 shadow-sm">
+                                    <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
-                                    <span>@evt.StartTime.ToString("dd/MM/yyyy")</span>
+                                    @FormatEventTime(ev.StartTime)
+                                </div>
+                                <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-mono text-center font-bold text-charcoal flex items-center justify-center gap-1.5 shadow-sm">
+                                    <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    @FormatEventTime(ev.EndTime)
                                 </div>
                             </div>
                             
-                            <div class="pt-4 border-t border-canvas flex items-center justify-between">
-                                <div class="flex flex-col">
-                                    <span class="text-[10px] font-semibold text-muted uppercase tracking-wider">Người tham gia</span>
-                                    <div class="flex items-baseline gap-1">
-                                        <span class="text-sm font-bold text-charcoal">@count</span>
-                                        @if (evt.Capacity > 0)
-                                        {
-                                            <span class="text-xs text-muted">/ @evt.Capacity</span>
-                                        }
-                                    </div>
-                                </div>
-                                <div class="h-8 w-8 rounded-full border border-border flex items-center justify-center bg-canvas text-charcoal group-hover:bg-charcoal group-hover:text-white transition-colors">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
+                            <div class="flex items-center justify-between gap-2 mt-auto pt-2">
+                                <span class="inline-flex items-center justify-center px-2 py-1.5 rounded text-[10px] font-bold border @GetStatusBadgeClass(ev.Status) shadow-sm bg-white shrink-0 min-w-[5rem] text-center">
+                                    @ev.StatusName
+                                </span>
+                                <a href="admin/events/@ev.Id" class="bg-white border border-slate-800 hover:bg-slate-100 text-charcoal rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm transition-colors text-center flex-1">
+                                    Chi tiết
+                                </a>
                             </div>
                         </div>
-                    </a>
-                }
+                        
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Custom Pagination -->
+        @if (filteredEvents.Count > pageSize)
+        {
+            <div class="px-6 py-4 border border-border rounded-xl mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white text-sm text-muted shadow-sm">
+                <div>
+                    Hiển thị từ <strong>@((page - 1) * pageSize + 1)</strong> đến <strong>@(Math.Min(page * pageSize, filteredEvents.Count))</strong> trong tổng số <strong>@filteredEvents.Count</strong> sự kiện
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="px-3 py-1.5 border border-border rounded-md hover:bg-canvas disabled:opacity-50 transition-colors focus:outline-none" 
+                            disabled="@(page == 1)" @onclick="() => ChangePage(page - 1)">
+                        Trước
+                    </button>
+                    <span class="font-medium text-charcoal font-mono">Trang @(page) / @MaxPage</span>
+                    <button class="px-3 py-1.5 border border-border rounded-md hover:bg-canvas disabled:opacity-50 transition-colors focus:outline-none" 
+                            disabled="@(page == MaxPage)" @onclick="() => ChangePage(page + 1)">
+                        Sau
+                    </button>
+                </div>
             </div>
         }
     }
@@ -129,7 +251,30 @@
 @code {
     private bool isLoading = true;
     private List<EventResponseDto> events = new();
+    private List<EventResponseDto> DisplayedEvents => filteredEvents
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToList();
+    private List<EventResponseDto> filteredEvents = new();
     private Dictionary<string, int> registrationCounts = new();
+
+    private int page = 1;
+    private int pageSize = 5;
+
+    // Filter State - Statuses
+    private bool filterStatusAll = true;
+    private bool filterStatusPending = false;
+    private bool filterStatusApproved = false;
+    private bool filterStatusOngoing = false;
+    private bool filterStatusEnded = false;
+    private bool filterStatusCancelled = false;
+    private bool filterStatusRejected = false;
+
+    // Filter State - Time
+    private bool filterTimeAll = true;
+    private bool filterTimeUpcoming = false;
+    private bool filterTimeOngoing = false;
+    private bool filterTimeEnded = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,9 +286,8 @@
         isLoading = true;
         try
         {
-            events = await EventService.GetEventsAsync() ?? new List<EventResponseDto>();
-            // Sort by newest start time first
-            events = events.OrderByDescending(e => e.StartTime).ToList();
+            var rawEvents = await EventService.GetEventsAsync() ?? new List<EventResponseDto>();
+            events = rawEvents.OrderByDescending(e => e.StartTime).ToList();
             
             registrationCounts.Clear();
             foreach (var evt in events)
@@ -151,6 +295,7 @@
                 var regs = await RegistrationService.GetEventRegistrationsAsync(evt.Id);
                 registrationCounts[evt.Id] = regs?.Count ?? 0;
             }
+            ApplyFilters();
         }
         catch (Exception ex)
         {
@@ -162,4 +307,147 @@
             StateHasChanged();
         }
     }
+
+    private void ApplyFilters()
+    {
+        if (events == null)
+        {
+            filteredEvents = new List<EventResponseDto>();
+            return;
+        }
+
+        var temp = events;
+
+        // Apply Status filter
+        if (!filterStatusAll)
+        {
+            temp = temp.Where(e =>
+                (filterStatusPending && e.Status == 1) ||
+                (filterStatusApproved && e.Status == 2) ||
+                (filterStatusOngoing && e.Status == 3) ||
+                (filterStatusEnded && e.Status == 4) ||
+                (filterStatusCancelled && e.Status == 5) ||
+                (filterStatusRejected && e.Status == 6)
+            ).ToList();
+        }
+
+        // Apply Time filter
+        if (!filterTimeAll)
+        {
+            var now = DateTime.UtcNow;
+            temp = temp.Where(e =>
+                (filterTimeUpcoming && e.StartTime > now) ||
+                (filterTimeOngoing && e.StartTime <= now && e.EndTime >= now) ||
+                (filterTimeEnded && e.EndTime < now)
+            ).ToList();
+        }
+
+        filteredEvents = temp;
+        page = 1; // Reset to page 1 on filter trigger
+    }
+
+    private void ToggleStatusAll()
+    {
+        filterStatusAll = true;
+        filterStatusPending = false;
+        filterStatusApproved = false;
+        filterStatusOngoing = false;
+        filterStatusEnded = false;
+        filterStatusCancelled = false;
+        filterStatusRejected = false;
+        ApplyFilters();
+    }
+
+    private void TogglePending() { filterStatusPending = !filterStatusPending; CheckStatusAll(); }
+    private void ToggleApproved() { filterStatusApproved = !filterStatusApproved; CheckStatusAll(); }
+    private void ToggleOngoing() { filterStatusOngoing = !filterStatusOngoing; CheckStatusAll(); }
+    private void ToggleEnded() { filterStatusEnded = !filterStatusEnded; CheckStatusAll(); }
+    private void ToggleCancelled() { filterStatusCancelled = !filterStatusCancelled; CheckStatusAll(); }
+    private void ToggleRejected() { filterStatusRejected = !filterStatusRejected; CheckStatusAll(); }
+
+    private void CheckStatusAll()
+    {
+        if (filterStatusPending || filterStatusApproved || filterStatusOngoing || filterStatusEnded || filterStatusCancelled || filterStatusRejected)
+        {
+            filterStatusAll = false;
+        }
+        else
+        {
+            filterStatusAll = true;
+        }
+        ApplyFilters();
+    }
+
+    private void ToggleTimeAll()
+    {
+        filterTimeAll = true;
+        filterTimeUpcoming = false;
+        filterTimeOngoing = false;
+        filterTimeEnded = false;
+        ApplyFilters();
+    }
+
+    private void ToggleUpcoming() { filterTimeUpcoming = !filterTimeUpcoming; CheckTimeAll(); }
+    private void ToggleTimeOngoingOpt() { filterTimeOngoing = !filterTimeOngoing; CheckTimeAll(); }
+    private void ToggleTimeEndedOpt() { filterTimeEnded = !filterTimeEnded; CheckTimeAll(); }
+
+    private void CheckTimeAll()
+    {
+        if (filterTimeUpcoming || filterTimeOngoing || filterTimeEnded)
+        {
+            filterTimeAll = false;
+        }
+        else
+        {
+            filterTimeAll = true;
+        }
+        ApplyFilters();
+    }
+
+    private string GetSelectedStatusesDisplay()
+    {
+        if (filterStatusAll) return "Tất cả";
+        var list = new List<string>();
+        if (filterStatusPending) list.Add("Pending");
+        if (filterStatusApproved) list.Add("Approved");
+        if (filterStatusOngoing) list.Add("Ongoing");
+        if (filterStatusEnded) list.Add("Ended");
+        if (filterStatusCancelled) list.Add("Cancelled");
+        if (filterStatusRejected) list.Add("Rejected");
+        if (list.Count > 1) return $"{list[0]} +{list.Count - 1}";
+        return list.Count == 0 ? "Tất cả" : list[0];
+    }
+
+    private string GetSelectedTimesDisplay()
+    {
+        if (filterTimeAll) return "Tất cả";
+        var list = new List<string>();
+        if (filterTimeEnded) list.Add("Đã kết thúc");
+        if (filterTimeOngoing) list.Add("Đang diễn ra");
+        if (filterTimeUpcoming) list.Add("Chưa diễn ra");
+        if (list.Count > 1) return $"{list[0]} +{list.Count - 1}";
+        return list.Count == 0 ? "Tất cả" : list[0];
+    }
+
+    private string FormatEventTime(DateTime time)
+    {
+        var local = time.ToLocalTime();
+        var formatted = local.ToString("dd/MM/yyyy hh:mm");
+        var suffix = local.Hour < 12 ? " SA" : " CH";
+        return formatted + suffix;
+    }
+
+    private int MaxPage => filteredEvents.Count == 0 ? 1 : (int)Math.Ceiling((double)filteredEvents.Count / pageSize);
+    private void ChangePage(int newPage) => page = newPage;
+
+    private string GetStatusBadgeClass(int status) => status switch
+    {
+        1 => "border-amber-200 text-amber-800 bg-amber-50",     // Pending
+        2 => "border-emerald-200 text-emerald-800 bg-emerald-50", // Approved
+        3 => "border-blue-200 text-blue-800 bg-blue-50",         // Ongoing
+        4 => "border-slate-200 text-slate-800 bg-slate-50",       // Ended
+        5 => "border-slate-200 text-slate-800 bg-slate-50",       // Cancelled
+        6 => "border-rose-200 text-rose-800 bg-rose-50",         // Rejected
+        _ => "border-slate-200 text-slate-800 bg-slate-50"
+    };
 }

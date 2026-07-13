@@ -85,6 +85,7 @@ for uni in uni_prefixes:
         users_data.append({"email": f"sv{i}.{code}@ems.com", "name": f"Sinh viên {i} ({uni['name']})", "mssv": f"{code.upper()}{i:03d}", "dept": "Khoa Chuyên Ngành", "roles": ["student"], "tenant": tenant})
 
 user_map = {} # email -> user_id
+user_info_map = {} # user_id -> {email, name}
 auth_count = 0
 
 for u in users_data:
@@ -128,6 +129,7 @@ for u in users_data:
         "updatedAt": firestore.SERVER_TIMESTAMP
     })
     user_map[email] = user_id
+    user_info_map[user_id] = {"email": email, "name": u["name"]}
 
 print(f"✅ Đã khởi tạo thành công {len(user_map)} tài khoản trong Firestore và Auth!")
 
@@ -142,7 +144,7 @@ events_data = [
         "id": "vnu-ev-01", "tenant": "default-tenant", "title": "Hội thảo Trí tuệ Nhân tạo & AI Agent 2026",
         "desc": "Cập nhật các xu hướng AI mới nhất, DeepMind Agentic Coding và ứng dụng vào thực tế.",
         "loc": "Hội trường A1 - VNU", "cap": 100, "status": 2, "org": user_map["org1.vnu@ems.com"],
-        "start": now + datetime.timedelta(hours=2), "end": now + datetime.timedelta(hours=6),
+        "start": now - datetime.timedelta(hours=2), "end": now + datetime.timedelta(hours=2),
         "img": "https://events.ctu.edu.vn/images/uploads/2024/2025/1.png"
     },
     {
@@ -165,7 +167,7 @@ events_data = [
         "id": "hust-ev-01", "tenant": "hust-tenant", "title": "HUST Techday 2026: Khám phá Web3 & Blockchain",
         "desc": "Hội thảo khoa học công nghệ chuyên sâu về hợp đồng thông minh và tài chính phi tập trung.",
         "loc": "Hội trường C2 - HUST", "cap": 150, "status": 2, "org": user_map["org1.hust@ems.com"],
-        "start": now + datetime.timedelta(hours=3), "end": now + datetime.timedelta(hours=7),
+        "start": now - datetime.timedelta(hours=1), "end": now + datetime.timedelta(hours=3),
         "img": "https://cdn.fpt-is.com/vi/2026/02/Thumbnail-1772101607.jpg"
     },
     {
@@ -188,7 +190,7 @@ events_data = [
         "id": "fpt-ev-01", "tenant": "fpt-tenant", "title": "Diễn đàn Kinh tế & Quản trị Doanh nghiệp",
         "desc": "Khám phá chiến lược chuyển đổi số và quản trị doanh nghiệp hiện đại.",
         "loc": "Hội trường Alpha - FPT Hola", "cap": 120, "status": 2, "org": user_map["org1.fpt@ems.com"],
-        "start": now + datetime.timedelta(hours=1), "end": now + datetime.timedelta(hours=5),
+        "start": now - datetime.timedelta(hours=3), "end": now + datetime.timedelta(hours=1),
         "img": "https://kenh14cdn.com/203336854389633024/2026/3/25/kttt-1-1774400974073-1774400974660640665038.jpg"
     },
     {
@@ -211,7 +213,7 @@ events_data = [
         "id": "neu-ev-01", "tenant": "neu-tenant", "title": "Hội nghị Khoa học & Công nghệ Trẻ NEU",
         "desc": "Công bố các công trình nghiên cứu khoa học xuất sắc của sinh viên kinh tế.",
         "loc": "Hội trường A - Tòa nhà Thế kỷ NEU", "cap": 150, "status": 2, "org": user_map["org1.neu@ems.com"],
-        "start": now + datetime.timedelta(hours=4), "end": now + datetime.timedelta(hours=8),
+        "start": now - datetime.timedelta(hours=2), "end": now + datetime.timedelta(hours=2),
         "img": "https://ump.vnu.edu.vn/Uploads/Article/ngoclinh.ump/2026_5/images/GM%20HNKHCN%20TT%20(2).jpg"
     },
     {
@@ -234,7 +236,7 @@ events_data = [
         "id": "rmit-ev-01", "tenant": "rmit-tenant", "title": "RMIT Innovation & Leadership Summit 2026",
         "desc": "Hội nghị đỉnh cao về đổi mới sáng tạo và tư duy lãnh đạo trẻ trong kỷ nguyên số.",
         "loc": "RMIT Melbourne Hall", "cap": 100, "status": 2, "org": user_map["org1.rmit@ems.com"],
-        "start": now + datetime.timedelta(hours=2), "end": now + datetime.timedelta(hours=6),
+        "start": now - datetime.timedelta(hours=4), "end": now + datetime.timedelta(hours=1),
         "img": "https://i.ytimg.com/vi/mHTSA09fWSU/maxresdefault.jpg"
     },
     {
@@ -280,6 +282,8 @@ print("\n📝 [4/4] Đang khởi tạo danh sách Đăng ký & Điểm danh ng�
 total_regs = 0
 reg_id_counter = 1
 
+event_by_id = {e["id"]: e for e in events_data}
+
 # Lặp qua từng trường để sinh ngẫu nhiên lượt đăng ký của sinh viên trường đó vào sự kiện trường đó
 for uni in uni_prefixes:
     code = uni["code"]
@@ -290,16 +294,22 @@ for uni in uni_prefixes:
     
     # Cho mỗi sự kiện của trường, tạo ngẫu nhiên từ 3 đến 5 sinh viên đăng ký
     for ev_id in uni_events:
+        event_obj = event_by_id[ev_id]
+        is_future_event = event_obj["start"] > now
         selected_students = random.sample(uni_students, k=random.randint(3, 5))
         for student_id in selected_students:
             reg_id = f"reg-{code}-{reg_id_counter:03d}"
             reg_id_counter += 1
             
+            student_info = user_info_map.get(student_id, {"email": "", "name": ""})
+            student_email = student_info["email"]
+            student_name = student_info["name"]
+            
             # Phân bố trạng thái ngẫu nhiên: 50% Approved & CheckedIn, 25% Approved chưa checkin, 15% Pending, 10% Waitlist/Reject
             rand_val = random.random()
             if rand_val < 0.50:
                 status = 2 # Approved
-                checked_in = True
+                checked_in = False if is_future_event else True
                 code_str = f"{code.upper()}-{reg_id_counter:03d}"
                 note = "Em đăng ký tham gia đầy đủ ạ."
                 reason = ""
@@ -316,24 +326,27 @@ for uni in uni_prefixes:
                 note = "Em vừa gửi đơn đăng ký."
                 reason = ""
             else:
-                status = random.choice([3, 4]) # Waitlist or Rejected
+                status = random.choice([3, 5]) # Waitlisted (3) or Rejected (5)
                 checked_in = False
                 code_str = ""
                 note = "Đăng ký bổ sung."
-                reason = "Sự kiện đã hết số lượng đăng ký ưu tiên." if status == 4 else ""
+                reason = "Sự kiện đã hết số lượng đăng ký ưu tiên." if status == 5 else ""
                 
             reg_time = now - datetime.timedelta(hours=random.randint(5, 48))
             check_time = now - datetime.timedelta(minutes=random.randint(10, 180)) if checked_in else None
+            processed_time = reg_time + datetime.timedelta(minutes=random.randint(5, 30)) if status in [2, 3, 5] else None
             
-            db.collection("registrations").document(reg_id).set({
+            registration_doc = {
                 "id": reg_id,
                 "tenantId": tenant,
                 "eventId": ev_id,
                 "userId": student_id,
+                "studentEmail": student_email,
+                "studentName": student_name,
                 "note": note,
                 "status": status,
                 "registeredAt": reg_time,
-                "processedById": user_map[f"admin.{code}@ems.com"] if status > 1 else "",
+                "processedById": user_map[f"admin.{code}@ems.com"] if status in [2, 3, 5] else "",
                 "rejectionReason": reason,
                 "checkInCode": code_str,
                 "checkedIn": checked_in,
@@ -341,7 +354,11 @@ for uni in uni_prefixes:
                 "reminderSent": False,
                 "createdAt": firestore.SERVER_TIMESTAMP,
                 "updatedAt": firestore.SERVER_TIMESTAMP
-            })
+            }
+            if processed_time:
+                registration_doc["processedAt"] = processed_time
+                
+            db.collection("registrations").document(reg_id).set(registration_doc)
             total_regs += 1
 
 print(f"✅ Đã tạo thành công {total_regs} lượt Đăng ký & Điểm danh ngẫu nhiên trên toàn bộ 5 trường!")

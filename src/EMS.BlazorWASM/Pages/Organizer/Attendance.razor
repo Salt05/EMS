@@ -240,15 +240,26 @@
             var selectedEv = myEvents.Find(evt => evt.Id == selectedEventId);
             if (selectedEv != null && !string.IsNullOrEmpty(selectedEv.CheckInCode))
             {
-                checkInCode = selectedEv.CheckInCode;
                 if (selectedEv.CheckInCodeExpiresAt.HasValue)
                 {
                     var span = selectedEv.CheckInCodeExpiresAt.Value - DateTime.UtcNow;
-                    timeLeftSeconds = (int)Math.Max(0, span.TotalSeconds);
-                    if (timeLeftSeconds > 0)
+                    var seconds = (int)span.TotalSeconds;
+                    if (seconds > 0)
                     {
+                        checkInCode = selectedEv.CheckInCode;
+                        timeLeftSeconds = seconds;
                         StartCountdown();
                     }
+                    else
+                    {
+                        checkInCode = "";
+                        timeLeftSeconds = 0;
+                    }
+                }
+                else
+                {
+                    checkInCode = selectedEv.CheckInCode;
+                    timeLeftSeconds = 0;
                 }
             }
             await LoadAttendees();
@@ -362,6 +373,7 @@
             if (timeLeftSeconds <= 0 && !token.IsCancellationRequested)
             {
                 checkInCode = "";
+                isZoomed = false;
                 await InvokeAsync(StateHasChanged);
             }
         }, token);

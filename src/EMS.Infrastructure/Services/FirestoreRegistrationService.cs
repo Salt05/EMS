@@ -546,6 +546,25 @@ public class FirestoreRegistrationService : IRegistrationService
             throw new BusinessRuleException("Sự kiện đã hết chỗ.");
         }
 
+        // 5.5 Find user ID by email
+        string userId = string.Empty;
+        try
+        {
+            var userQuery = _firestoreDb.Collection("users")
+                .WhereEqualTo("tenantId", tenantId)
+                .WhereEqualTo("email", studentEmail)
+                .Limit(1);
+            var userSnapshot = await userQuery.GetSnapshotAsync();
+            if (userSnapshot.Documents.Count > 0)
+            {
+                userId = userSnapshot.Documents[0].Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, $"Failed to resolve userId for student email {studentEmail} during registration");
+        }
+
         // 6. Create or update registration
         var reg = existingReg ?? new Registration
         {
@@ -554,6 +573,11 @@ public class FirestoreRegistrationService : IRegistrationService
             StudentEmail = studentEmail,
             StudentName = studentName
         };
+
+        if (string.IsNullOrEmpty(reg.UserId) && !string.IsNullOrEmpty(userId))
+        {
+            reg.UserId = userId;
+        }
 
         reg.Status = RegistrationStatus.Approved; // Automatically approve registrations for simple flow
         reg.UpdatedAt = DateTime.UtcNow;
