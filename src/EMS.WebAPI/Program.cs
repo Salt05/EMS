@@ -96,6 +96,8 @@ builder.Services.AddScoped<IUserService, FirestoreUserService>();
 builder.Services.AddScoped<ITenantService, FirestoreTenantService>();
 builder.Services.AddScoped<IEventService, FirestoreEventService>();
 builder.Services.AddScoped<IRegistrationService, FirestoreRegistrationService>();
+builder.Services.AddScoped<IAgendaService, FirestoreAgendaService>();
+builder.Services.AddScoped<ICalendarService, CalendarService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();

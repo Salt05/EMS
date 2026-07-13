@@ -55,7 +55,7 @@ event_demo_data = {
     "approvedById": "admin-user",
     "approvedAt": now - timedelta(days=1),
     "checkInCode": "ABC123",
-    "checkInCodeExpiredAt": now + timedelta(hours=3),
+    "checkInCodeExpiresAt": now + timedelta(hours=3),
     "createdAt": now - timedelta(days=2),
     "updatedAt": now - timedelta(days=1)
 }
@@ -77,7 +77,7 @@ event_expired_data = {
     "approvedById": "admin-user",
     "approvedAt": now - timedelta(days=1),
     "checkInCode": "EXP999",
-    "checkInCodeExpiredAt": now - timedelta(minutes=5),  # Hết hạn 5 phút trước
+    "checkInCodeExpiresAt": now - timedelta(minutes=5),  # Hết hạn 5 phút trước
     "createdAt": now - timedelta(days=2),
     "updatedAt": now - timedelta(days=1)
 }
@@ -104,7 +104,7 @@ if len(users) > 0:
             "eventId": eid,
             "studentEmail": "admin@ems.com",
             "studentName": student_name,
-            "status": 1,  # Approved
+            "status": 2,  # Approved / Confirmed
             "checkedIn": False,
             "createdAt": now,
             "updatedAt": now

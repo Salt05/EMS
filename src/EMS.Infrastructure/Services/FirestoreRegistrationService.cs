@@ -634,6 +634,69 @@ public class FirestoreRegistrationService : IRegistrationService
         }
     }
 
+    public async Task<(bool Success, string Message)> CheckInAsync(string tenantId, string eventId, string studentEmail, string checkInCode)
+    {
+        try
+        {
+            // 1. Lấy thông tin sự kiện
+            var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
+            if (ev == null)
+                return (false, "Không tìm thấy sự kiện.");
+
+            // 2. Kiểm tra sự kiện đang diễn ra
+            var now = DateTime.UtcNow;
+            if (now < ev.StartTime)
+                return (false, "Sự kiện chưa bắt đầu, chưa thể check-in.");
+            if (now > ev.EndTime)
+                return (false, "Sự kiện đã kết thúc, không thể check-in.");
+
+            // 3. Validate mã check-in
+            if (string.IsNullOrWhiteSpace(ev.CheckInCode))
+                return (false, "Sự kiện chưa có mã check-in. Vui lòng liên hệ ban tổ chức.");
+
+            if (!string.Equals(ev.CheckInCode.Trim(), checkInCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                return (false, "Mã check-in không đúng. Vui lòng kiểm tra lại.");
+
+            if (ev.CheckInCodeExpiresAt.HasValue && now > ev.CheckInCodeExpiresAt.Value)
+                return (false, "Mã check-in đã hết hạn. Vui lòng xin mã mới từ ban tổ chức.");
+
+            // 4. Tìm đăng ký hợp lệ
+            var snapshot = await _firestoreDb.Collection(CollectionName)
+                .WhereEqualTo("tenantId", tenantId)
+                .WhereEqualTo("eventId", eventId)
+                .WhereEqualTo("studentEmail", studentEmail)
+                .GetSnapshotAsync();
+
+            var regDoc = snapshot.Documents.FirstOrDefault();
+            if (regDoc == null)
+                return (false, "Bạn chưa đăng ký tham gia sự kiện này.");
+
+            var reg = MapToRegistration(regDoc);
+
+            if (reg.Status != RegistrationStatus.Approved)
+                return (false, "Đăng ký của bạn chưa được phê duyệt.");
+
+            if (reg.CheckedIn)
+                return (false, $"Bạn đã check-in sự kiện này lúc {reg.CheckedInAt?.ToLocalTime().ToString("HH:mm dd/MM/yyyy")}.");
+
+            // 5. Cập nhật Firestore
+            reg.CheckedIn = true;
+            reg.CheckedInAt = now;
+            reg.UpdatedAt = now;
+
+            var docRef = _firestoreDb.Collection(CollectionName).Document(reg.Id);
+            await docRef.SetAsync(reg.ToFirestoreDocument(), SetOptions.MergeAll);
+
+            _logger.LogInformation($"Check-in successful: student {studentEmail}, event {eventId}");
+            return (true, $"Check-in thành công! Chào mừng bạn đến với \"{ev.Title}\".");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error during check-in for student {studentEmail}, event {eventId}");
+            return (false, "Đã xảy ra lỗi hệ thống khi check-in. Vui lòng thử lại sau.");
+        }
+    }
+
     private static Registration MapToRegistration(DocumentSnapshot snapshot)
     {
         var dict = snapshot.ToDictionary();

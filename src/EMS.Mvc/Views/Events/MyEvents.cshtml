@@ -8,10 +8,10 @@
     {
         return status switch
         {
-            EMS.Core.Entities.Enums.RegistrationStatus.Approved => "bg-success-subtle text-success border border-success-subtle",
-            EMS.Core.Entities.Enums.RegistrationStatus.Pending => "bg-warning-subtle text-warning border border-warning-subtle",
-            EMS.Core.Entities.Enums.RegistrationStatus.Rejected => "bg-danger-subtle text-danger border border-danger-subtle",
-            EMS.Core.Entities.Enums.RegistrationStatus.Cancelled => "bg-secondary-subtle text-secondary border border-secondary-subtle",
+            EMS.Core.Entities.Enums.RegistrationStatus.Approved => "status-approved",
+            EMS.Core.Entities.Enums.RegistrationStatus.Pending => "status-pending",
+            EMS.Core.Entities.Enums.RegistrationStatus.Rejected => "status-rejected",
+            EMS.Core.Entities.Enums.RegistrationStatus.Cancelled => "status-cancelled",
             _ => "bg-light text-dark"
         };
     }
@@ -27,39 +27,52 @@
             _ => "Không rõ"
         };
     }
+
+    string GetStatusIcon(EMS.Core.Entities.Enums.RegistrationStatus status)
+    {
+        return status switch
+        {
+            EMS.Core.Entities.Enums.RegistrationStatus.Approved => "ri-checkbox-circle-line",
+            EMS.Core.Entities.Enums.RegistrationStatus.Pending => "ri-time-line",
+            EMS.Core.Entities.Enums.RegistrationStatus.Rejected => "ri-close-circle-line",
+            EMS.Core.Entities.Enums.RegistrationStatus.Cancelled => "ri-close-circle-line",
+            _ => "ri-question-line"
+        };
+    }
 }
 
 <div class="container my-5">
     <div class="row mb-5">
         <div class="col-md-8 mx-auto text-center">
-            <h1 class="fw-bold text-dark mb-2">Sự kiện của tôi</h1>
-            <p class="text-muted leading-relaxed">
+            <span class="eyebrow-tag">Vé của bạn</span>
+            <h1 class="heading-gradient heading-gradient-md mb-2">Sự kiện của tôi</h1>
+            <p class="subtitle-text">
                 Quản lý các sự kiện bạn đã đăng ký tham gia, theo dõi trạng thái vé và thực hiện hủy đăng ký khi cần thiết.
             </p>
         </div>
     </div>
 
-    <!-- Toast Notification for inside view (in case not caught by layout) -->
+    <!-- Error Alert -->
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-4" role="alert">
-            <i class="bi bi-exclamation-octagon-fill me-2"></i>@TempData["ErrorMessage"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert-glass alert-glass-danger mb-4" role="alert">
+            <i class="ri-error-warning-line" style="font-size:1.15rem;"></i>
+            <span>@TempData["ErrorMessage"]</span>
         </div>
     }
 
     <div class="row">
         <div class="col-12">
-            <!-- Nav Tabs -->
-            <ul class="nav nav-pills custom-pills mb-4 justify-content-center" id="myEventsTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active px-4 py-2.5 rounded-pill me-2 fw-medium" id="active-tab" data-bs-toggle="pill" data-bs-target="#active-events" type="button" role="tab" aria-controls="active-events" aria-selected="true">
-                        <i class="bi bi-ticket-detailed me-2"></i>Vé hoạt động (@Model.Count(r => r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Approved || r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Pending))
+            <!-- Glass Pill Tabs -->
+            <ul class="pills-glass justify-content-center" id="myEventsTabs" role="tablist">
+                <li role="presentation">
+                    <button class="pill-glass active" id="active-tab" data-bs-toggle="pill" data-bs-target="#active-events" type="button" role="tab" aria-controls="active-events" aria-selected="true">
+                        <i class="ri-ticket-2-line"></i> Vé hoạt động (@Model.Count(r => r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Approved || r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Pending))
                     </button>
                 </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link px-4 py-2.5 rounded-pill fw-medium" id="history-tab" data-bs-toggle="pill" data-bs-target="#history-events" type="button" role="tab" aria-controls="history-events" aria-selected="false">
-                        <i class="bi bi-clock-history me-2"></i>Lịch sử & Đã hủy (@Model.Count(r => r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Cancelled || r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Rejected))
+                <li role="presentation">
+                    <button class="pill-glass" id="history-tab" data-bs-toggle="pill" data-bs-target="#history-events" type="button" role="tab" aria-controls="history-events" aria-selected="false">
+                        <i class="ri-history-line"></i> Lịch sử & Đã hủy (@Model.Count(r => r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Cancelled || r.Registration.Status == EMS.Core.Entities.Enums.RegistrationStatus.Rejected))
                     </button>
                 </li>
             </ul>
@@ -74,14 +87,15 @@
 
                     @if (!activeRegs.Any())
                     {
-                        <div class="premium-card p-5 text-center my-4">
-                            <div class="text-muted display-4 mb-3">
-                                <i class="bi bi-ticket-perforated"></i>
+                        <div class="glass-card p-5 text-center my-4">
+                            <div class="mb-3" style="font-size:3rem; color:var(--text-muted);">
+                                <i class="ri-coupon-2-line"></i>
                             </div>
                             <h4 class="fw-bold text-dark mb-2">Chưa có vé hoạt động nào</h4>
-                            <p class="text-secondary mb-4">Bạn chưa đăng ký tham gia sự kiện nào hoặc các đăng ký đều đã bị hủy.</p>
-                            <a asp-action="Index" class="btn btn-premium px-4 py-2.5">
-                                <i class="bi bi-search me-2"></i>Khám phá sự kiện ngay
+                            <p class="text-muted-custom mb-4">Bạn chưa đăng ký tham gia sự kiện nào hoặc các đăng ký đều đã bị hủy.</p>
+                            <a asp-action="Index" class="btn-cta">
+                                <span>Khám phá sự kiện ngay</span>
+                                <span class="btn-icon-circle"><i class="ri-search-line"></i></span>
                             </a>
                         </div>
                     }
@@ -91,41 +105,42 @@
                             @foreach (var item in activeRegs)
                             {
                                 <div class="col-lg-6">
-                                    <div class="premium-card d-flex flex-column flex-md-row overflow-hidden h-100 transition-hover">
-                                        <div style="width: 180px; min-width: 180px; max-height: 220px; overflow: hidden;">
-                                            <img src="@(string.IsNullOrEmpty(item.Event.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&auto=format&fit=crop&q=60" : item.Event.ImageUrl)" 
-                                                 class="w-100 h-100" 
-                                                 style="object-fit: cover; min-height: 180px;"
-                                                 onerror="this.onerror=null;this.src='https://placehold.co/600x400/6366f1/ffffff?text=EMS';"
-                                                 alt="@item.Event.Title">
+                                    <div class="ticket-glass-card d-flex flex-row overflow-hidden h-100">
+                                        <!-- Double-bezel thumbnail -->
+                                        <div class="ticket-thumb-wrap">
+                                            <div class="ticket-thumb-inner">
+                                                <img src="@(string.IsNullOrEmpty(item.Event.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&auto=format&fit=crop&q=60" : item.Event.ImageUrl)" 
+                                                     onerror="this.onerror=null;this.src='https://placehold.co/600x400/6366f1/ffffff?text=EMS';"
+                                                     alt="@item.Event.Title">
+                                            </div>
                                         </div>
                                         <div class="p-4 d-flex flex-column justify-content-between flex-grow-1">
                                             <div>
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <span class="badge @GetStatusBadgeClass(item.Registration.Status) px-2.5 py-1 rounded-pill small">
-                                                        @GetStatusText(item.Registration.Status)
+                                                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                                    <span class="status-badge @GetStatusBadgeClass(item.Registration.Status)">
+                                                        <i class="@GetStatusIcon(item.Registration.Status)"></i> @GetStatusText(item.Registration.Status)
                                                     </span>
-                                                    <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>@item.Registration.CreatedAt.ToString("dd/MM/yyyy")</small>
+                                                    <small class="text-muted-custom"><i class="ri-calendar-line me-1"></i>@item.Registration.CreatedAt.ToString("dd/MM/yyyy")</small>
                                                 </div>
-                                                <h5 class="fw-bold text-dark mb-2">
-                                                    <a asp-action="Detail" asp-route-id="@item.Event.Id" class="text-decoration-none text-dark hover-primary">
+                                                <h5 class="fw-bold mb-2">
+                                                    <a asp-action="Detail" asp-route-id="@item.Event.Id" class="link-primary-hover">
                                                         @item.Event.Title
                                                     </a>
                                                 </h5>
-                                                <div class="text-secondary small mb-3">
-                                                    <div class="mb-1"><i class="bi bi-clock me-1.5 text-primary"></i>@item.Event.StartTime.ToString("dd/MM/yyyy HH:mm")</div>
-                                                    <div><i class="bi bi-geo-alt me-1.5 text-success"></i>@item.Event.Location</div>
+                                                <div class="text-muted-custom small mb-3">
+                                                    <div class="mb-1"><i class="ri-time-line me-1 text-primary-custom"></i> @item.Event.StartTime.ToString("dd/MM/yyyy HH:mm")</div>
+                                                    <div><i class="ri-map-pin-2-line me-1 text-success-custom"></i> @item.Event.Location</div>
                                                 </div>
                                             </div>
                                             <div class="d-flex gap-2 mt-2">
-                                                <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn btn-sm btn-light border flex-grow-1 py-2">
+                                                <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-glass flex-grow-1">
                                                     Chi tiết
                                                 </a>
                                                 <form asp-action="Cancel" method="post" class="flex-grow-1">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="eventId" value="@item.Event.Id" />
                                                     <input type="hidden" name="redirectTo" value="MyEvents" />
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100 py-2" onclick="return confirm('Bạn có chắc chắn muốn hủy đăng ký vé cho sự kiện này?')">
+                                                    <button type="submit" class="btn-danger-outline w-100" onclick="return confirm('Bạn có chắc chắn muốn hủy đăng ký vé cho sự kiện này?')">
                                                         Hủy vé
                                                     </button>
                                                 </form>
@@ -146,12 +161,12 @@
 
                     @if (!historyRegs.Any())
                     {
-                        <div class="premium-card p-5 text-center my-4">
-                            <div class="text-muted display-4 mb-3">
-                                <i class="bi bi-archive"></i>
+                        <div class="glass-card p-5 text-center my-4">
+                            <div class="mb-3" style="font-size:3rem; color:var(--text-muted);">
+                                <i class="ri-inbox-line"></i>
                             </div>
                             <h4 class="fw-bold text-dark mb-2">Lịch sử trống</h4>
-                            <p class="text-secondary mb-0">Bạn chưa có sự kiện nào trong danh sách hủy hoặc từ chối.</p>
+                            <p class="text-muted-custom mb-0">Bạn chưa có sự kiện nào trong danh sách hủy hoặc từ chối.</p>
                         </div>
                     }
                     else
@@ -160,33 +175,34 @@
                             @foreach (var item in historyRegs)
                             {
                                 <div class="col-lg-6">
-                                    <div class="premium-card d-flex flex-column flex-md-row overflow-hidden h-100 opacity-75">
-                                        <div style="width: 180px; min-width: 180px; max-height: 220px; overflow: hidden;">
-                                            <img src="@(string.IsNullOrEmpty(item.Event.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&auto=format&fit=crop&q=60" : item.Event.ImageUrl)" 
-                                                 class="w-100 h-100" 
-                                                 style="object-fit: cover; min-height: 150px;"
-                                                 onerror="this.onerror=null;this.src='https://placehold.co/600x400/6b7280/ffffff?text=EMS';"
-                                                 alt="@item.Event.Title">
+                                    <div class="ticket-glass-card d-flex flex-row overflow-hidden h-100 opacity-75">
+                                        <!-- Double-bezel thumbnail -->
+                                        <div class="ticket-thumb-wrap">
+                                            <div class="ticket-thumb-inner">
+                                                <img src="@(string.IsNullOrEmpty(item.Event.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&auto=format&fit=crop&q=60" : item.Event.ImageUrl)" 
+                                                     onerror="this.onerror=null;this.src='https://placehold.co/600x400/6b7280/ffffff?text=EMS';"
+                                                     alt="@item.Event.Title">
+                                            </div>
                                         </div>
                                         <div class="p-4 d-flex flex-column justify-content-between flex-grow-1">
                                             <div>
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <span class="badge @GetStatusBadgeClass(item.Registration.Status) px-2.5 py-1 rounded-pill small">
-                                                        @GetStatusText(item.Registration.Status)
+                                                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                                    <span class="status-badge @GetStatusBadgeClass(item.Registration.Status)">
+                                                        <i class="@GetStatusIcon(item.Registration.Status)"></i> @GetStatusText(item.Registration.Status)
                                                     </span>
-                                                    <small class="text-muted">Cập nhật: @item.Registration.UpdatedAt.ToString("dd/MM/yyyy")</small>
+                                                    <small class="text-muted-custom">Cập nhật: @item.Registration.UpdatedAt.ToString("dd/MM/yyyy")</small>
                                                 </div>
-                                                <h5 class="fw-bold text-dark mb-2">
-                                                    <a asp-action="Detail" asp-route-id="@item.Event.Id" class="text-decoration-none text-dark">
+                                                <h5 class="fw-bold mb-2">
+                                                    <a asp-action="Detail" asp-route-id="@item.Event.Id" class="link-primary-hover">
                                                         @item.Event.Title
                                                     </a>
                                                 </h5>
-                                                <div class="text-secondary small mb-2">
-                                                    <div><i class="bi bi-clock me-1.5"></i>@item.Event.StartTime.ToString("dd/MM/yyyy HH:mm")</div>
+                                                <div class="text-muted-custom small mb-2">
+                                                    <div><i class="ri-time-line me-1"></i> @item.Event.StartTime.ToString("dd/MM/yyyy HH:mm")</div>
                                                 </div>
                                             </div>
                                             <div class="d-flex gap-2 mt-2">
-                                                <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn btn-sm btn-light border w-100 py-1.5">
+                                                <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-glass w-100">
                                                     Xem thông tin sự kiện
                                                 </a>
                                             </div>
@@ -202,37 +218,21 @@
     </div>
 </div>
 
-<style>
-    /* Premium style enhancements for tabs */
-    .custom-pills .nav-link {
-        color: var(--bs-secondary);
-        background: transparent;
-        transition: all 0.3s ease;
-        border: 1px solid transparent;
-    }
-    
-    .custom-pills .nav-link.active {
-        color: #ffffff;
-        background: var(--gradient-primary) !important;
-        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.25);
-    }
-    
-    .custom-pills .nav-link:hover:not(.active) {
-        background-color: rgba(0, 0, 0, 0.05);
-        color: var(--bs-dark);
-    }
-    
-    .hover-primary:hover {
-        color: var(--bs-primary) !important;
-        transition: color 0.2s ease;
-    }
-    
-    .transition-hover {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    
-    .transition-hover:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-lg);
-    }
-</style>
+@section Scripts {
+<script>
+    // Tab switching activation (Bootstrap 5 JS tab behavior check)
+    document.addEventListener("DOMContentLoaded", function() {
+        var triggerTabList = [].slice.call(document.querySelectorAll('#myEventsTabs button'));
+        triggerTabList.forEach(function(triggerEl) {
+            var tabTrigger = new bootstrap.Tab(triggerEl);
+            triggerEl.addEventListener('click', function(event) {
+                event.preventDefault();
+                // Remove active class from all buttons and add to this one
+                triggerTabList.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                tabTrigger.show();
+            });
+        });
+    });
+</script>
+}

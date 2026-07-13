@@ -78,4 +78,9 @@ public interface IRegistrationService
     /// Cancels a student's registration for an event.
     /// </summary>
     Task<bool> CancelRegistrationAsync(string tenantId, string eventId, string studentEmail);
+
+    /// <summary>
+    /// Performs check-in for a registered student using a check-in code.
+    /// </summary>
+    Task<(bool Success, string Message)> CheckInAsync(string tenantId, string eventId, string studentEmail, string checkInCode);
 }
