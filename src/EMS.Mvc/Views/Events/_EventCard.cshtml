@@ -1,0 +1,73 @@
+@model EMS.Core.Entities.Event
+@functions {
+    string GetEventStatusClass(EMS.Core.Entities.Event ev)
+    {
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
+            return "status-badge-cancelled";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
+            return "status-badge-rejected";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
+            return "status-badge-pending";
+
+        var now = DateTime.UtcNow;
+        if (now < ev.StartTime)
+            return "status-badge-upcoming";
+        if (now >= ev.StartTime && now <= ev.EndTime)
+            return "status-badge-ongoing";
+        return "status-badge-ended";
+    }
+
+    string GetEventStatusName(EMS.Core.Entities.Event ev)
+    {
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
+            return "Đã hủy";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
+            return "Đã từ chối";
+        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
+            return "Chờ phê duyệt";
+
+        var now = DateTime.UtcNow;
+        if (now < ev.StartTime)
+            return "Chưa diễn ra";
+        if (now >= ev.StartTime && now <= ev.EndTime)
+            return "Đang diễn ra";
+        return "Đã kết thúc";
+    }
+}
+
+<div class="col-lg-4 col-md-6">
+    <div class="event-glass-card">
+        <!-- Double-bezel image -->
+        <div class="event-image-wrap">
+            <div class="event-image-shell">
+                <img src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : Model.ImageUrl)"
+                     alt="@Model.Title"
+                     onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
+                <span class="event-badge @GetEventStatusClass(Model)">@GetEventStatusName(Model)</span>
+            </div>
+        </div>
+
+        <div class="event-card-body">
+            <h5 class="event-card-title">@Model.Title</h5>
+            <div class="event-card-meta">
+                <div><i class="ri-time-line"></i> @Model.StartTime.ToString("dd/MM/yyyy HH:mm") - @Model.EndTime.ToString("HH:mm")</div>
+                <div><i class="ri-map-pin-2-line"></i> @Model.Location</div>
+            </div>
+            @{
+                var displayDesc = Model.Description ?? "";
+                if (displayDesc.Length > 120)
+                    displayDesc = displayDesc.Substring(0, 117) + "...";
+            }
+            <p class="event-card-desc">@displayDesc</p>
+        </div>
+
+        <div class="event-card-footer">
+            <span><i class="ri-group-line me-1"></i> Sức chứa: @Model.Capacity</span>
+            <a asp-controller="Events" asp-action="Detail" asp-route-id="@Model.Id"
+               class="btn-cta btn-cta-sm">
+                <span>Chi tiết</span>
+                <span class="btn-icon-circle"><i class="ri-arrow-right-up-line"></i></span>
+            </a>
+        </div>
+    </div>
+</div>

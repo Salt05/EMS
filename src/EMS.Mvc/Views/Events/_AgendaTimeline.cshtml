@@ -1,0 +1,100 @@
+@model EMS.Core.Entities.Event
+
+<div class="glass-card p-4 p-md-5 mb-4" id="agenda-timeline-container" data-event-id="@Model.Id">
+    <span class="eyebrow-tag" style="margin-bottom:0.75rem;">Lịch trình</span>
+    <h3 class="section-heading mb-4"><i class="ri-history-line text-primary-custom me-2"></i>Chi tiết chương trình</h3>
+    
+    <div id="agenda-loading" class="text-center py-4">
+        <div class="spinner-border text-primary spinner-border-sm" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+        </div>
+        <span class="ms-2 text-muted-custom small">Đang tải lịch trình...</span>
+    </div>
+    
+    <div id="agenda-empty" class="text-center py-4 d-none">
+        <i class="ri-calendar-close-line text-muted" style="font-size: 2rem;"></i>
+        <p class="text-muted-custom small mt-2 mb-0">Chưa có lịch trình chi tiết cho sự kiện này.</p>
+    </div>
+
+    <div id="agenda-timeline" class="timeline-container d-none">
+        <!-- Loaded dynamically via API -->
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var container = document.getElementById('agenda-timeline-container');
+    if (!container) return;
+    var eventId = container.getAttribute('data-event-id');
+    if (!eventId) return;
+
+    var loadingEl = document.getElementById('agenda-loading');
+    var emptyEl = document.getElementById('agenda-empty');
+    var timelineEl = document.getElementById('agenda-timeline');
+
+    fetch('/api/events/' + eventId + '/agenda')
+        .then(function (response) {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(function (data) {
+            if (loadingEl) loadingEl.classList.add('d-none');
+            if (!data || data.length === 0) {
+                if (emptyEl) emptyEl.classList.remove('d-none');
+                return;
+            }
+
+            var html = '';
+            data.forEach(function (item) {
+                html += '<div class="timeline-item">';
+                html += '  <div class="timeline-dot"></div>';
+                html += '  <div class="timeline-content">';
+                html += '    <div class="timeline-time">';
+                html += '      <i class="ri-time-line"></i> ' + item.startTime + ' - ' + item.endTime;
+                html += '    </div>';
+                html += '    <div class="timeline-title">' + escapeHtml(item.title) + '</div>';
+                if (item.description) {
+                    html += '    <div class="timeline-desc">' + escapeHtml(item.description) + '</div>';
+                }
+                if (item.speaker) {
+                    html += '    <div class="timeline-speaker">';
+                    html += '      <i class="ri-user-voice-line"></i> Diễn giả: <strong>' + escapeHtml(item.speaker) + '</strong>';
+                    html += '    </div>';
+                }
+                if (item.materialUrl) {
+                    html += '    <div class="timeline-material">';
+                    html += '      <a href="' + item.materialUrl + '" target="_blank" class="btn-glass py-1 px-2.5" style="font-size: 0.75rem; border-radius: var(--r-micro);">';
+                    html += '        <i class="ri-download-cloud-2-line me-1"></i> Tải tài liệu';
+                    html += '      </a>';
+                    html += '    </div>';
+                }
+                html += '  </div>';
+                html += '</div>';
+            });
+
+            if (timelineEl) {
+                timelineEl.innerHTML = html;
+                timelineEl.classList.remove('d-none');
+            }
+        })
+        .catch(function (error) {
+            if (loadingEl) loadingEl.classList.add('d-none');
+            if (emptyEl) {
+                emptyEl.classList.remove('d-none');
+                var p = emptyEl.querySelector('p');
+                if (p) p.textContent = 'Không thể tải lịch trình sự kiện lúc này.';
+            }
+            console.error('Failed to load agenda:', error);
+        });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+});
+</script>
