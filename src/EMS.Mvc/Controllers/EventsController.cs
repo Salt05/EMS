@@ -6,6 +6,8 @@ using EMS.Core.Exceptions;
 using EMS.Mvc.Services;
 using EMS.Mvc.ViewModels;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
 
@@ -16,22 +18,26 @@ public class EventsController : Controller
     private readonly IEventService _eventService;
     private readonly IRegistrationService _registrationService;
     private readonly ILogger<EventsController> _logger;
+    private readonly IUserContext _userContext;
+    private const string DefaultTenantId = "tenant-1";
 
     public EventsController(
         IEventService eventService, 
         IRegistrationService registrationService, 
-        ILogger<EventsController> logger)
+        ILogger<EventsController> logger,
+        IUserContext userContext)
     {
         _eventService = eventService;
         _registrationService = registrationService;
         _logger = logger;
+        _userContext = userContext;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index(string? searchString)
     {
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
-        _logger.LogInformation($"Fetching events for tenant {tenantId}");
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DefaultTenantId;
+        _logger.LogInformation("Fetching events for tenant {TenantId}", tenantId);
 
         // Fetch only approved events for students
         var events = await _eventService.GetEventsByTenantAsync(tenantId, EventStatus.Approved);
@@ -58,26 +64,29 @@ public class EventsController : Controller
             return NotFound();
         }
 
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DefaultTenantId;
         var ev = await _eventService.GetEventByIdAsync(id, tenantId);
 
         if (ev == null || ev.Status != EventStatus.Approved)
         {
-            _logger.LogWarning($"Event {id} not found or not approved for tenant {tenantId}");
+            _logger.LogWarning("Event {EventId} not found or not approved for tenant {TenantId}", id, tenantId);
             TempData["ErrorMessage"] = "Không tìm thấy sự kiện hoặc sự kiện chưa được phê duyệt.";
             return RedirectToAction(nameof(Index));
         }
 
         // Get registration status if student is logged in
-        var (displayName, userEmail, _) = GetUserSession();
         RegistrationStatus? regStatus = null;
-        if (userEmail != null)
+        if (_userContext.IsLoggedIn)
         {
-            var studentRegs = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
-            var reg = studentRegs.FirstOrDefault(r => r.EventId == id);
-            if (reg != null)
+            var userEmail = _userContext.UserEmail;
+            if (userEmail != null)
             {
-                regStatus = reg.Status;
+                var studentRegs = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
+                var reg = studentRegs.FirstOrDefault(r => r.EventId == id);
+                if (reg != null)
+                {
+                    regStatus = reg.Status;
+                }
             }
         }
         ViewBag.RegistrationStatus = regStatus;
@@ -89,14 +98,22 @@ public class EventsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(string eventId)
     {
-        var (displayName, userEmail, _) = GetUserSession();
-        if (userEmail == null || displayName == null)
+        if (!_userContext.IsLoggedIn)
         {
             TempData["ErrorMessage"] = "Bạn cần đăng nhập để đăng ký sự kiện.";
             return RedirectToAction("Login", "Auth");
         }
 
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var userEmail = _userContext.UserEmail;
+        var displayName = _userContext.DisplayName;
+        
+        if (string.IsNullOrEmpty(userEmail) || string.IsNullOrEmpty(displayName))
+        {
+            TempData["ErrorMessage"] = "Thông tin đăng nhập không hợp lệ.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DefaultTenantId;
         try
         {
             await _registrationService.RegisterForEventAsync(tenantId, eventId, userEmail, displayName);
@@ -112,7 +129,7 @@ public class EventsController : Controller
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error registering student {userEmail} for event {eventId}");
+            _logger.LogError(ex, "Error registering student {UserEmail} for event {EventId}", userEmail, eventId);
             TempData["ErrorMessage"] = "Đã xảy ra lỗi hệ thống khi đăng ký. Vui lòng thử lại sau.";
         }
 
@@ -123,14 +140,20 @@ public class EventsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(string eventId, string? redirectTo = null)
     {
-        var (displayName, userEmail, _) = GetUserSession();
-        if (userEmail == null)
+        if (!_userContext.IsLoggedIn)
         {
             TempData["ErrorMessage"] = "Bạn cần đăng nhập để thực hiện chức năng này.";
             return RedirectToAction("Login", "Auth");
         }
 
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var userEmail = _userContext.UserEmail;
+        if (string.IsNullOrEmpty(userEmail))
+        {
+            TempData["ErrorMessage"] = "Thông tin đăng nhập không hợp lệ.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DefaultTenantId;
         try
         {
             await _registrationService.CancelRegistrationAsync(tenantId, eventId, userEmail);
@@ -146,7 +169,7 @@ public class EventsController : Controller
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error cancelling registration for student {userEmail}, event {eventId}");
+            _logger.LogError(ex, "Error cancelling registration for student {UserEmail}, event {EventId}", userEmail, eventId);
             TempData["ErrorMessage"] = "Đã xảy ra lỗi hệ thống khi hủy đăng ký. Vui lòng thử lại sau.";
         }
 
@@ -160,14 +183,20 @@ public class EventsController : Controller
     [HttpGet]
     public async Task<IActionResult> MyEvents()
     {
-        var (displayName, userEmail, _) = GetUserSession();
-        if (userEmail == null)
+        if (!_userContext.IsLoggedIn)
         {
             TempData["ErrorMessage"] = "Bạn cần đăng nhập để xem danh sách sự kiện của tôi.";
             return RedirectToAction("Login", "Auth");
         }
 
-        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var userEmail = _userContext.UserEmail;
+        if (string.IsNullOrEmpty(userEmail))
+        {
+            TempData["ErrorMessage"] = "Thông tin đăng nhập không hợp lệ.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DefaultTenantId;
         var registrations = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
 
         var registeredEvents = new List<MyEventViewModel>();
@@ -185,22 +214,5 @@ public class EventsController : Controller
         }
 
         return View(registeredEvents);
-    }
-
-    private (string? displayName, string? userEmail, string? userRole) GetUserSession()
-    {
-        string? userSession = Request.Cookies["user_session"];
-        if (string.IsNullOrEmpty(userSession))
-        {
-            return (null, null, null);
-        }
-
-        var parts = userSession.Split('|');
-        if (parts.Length >= 3)
-        {
-            return (parts[0], parts[1], parts[2]);
-        }
-
-        return (null, null, null);
     }
 }

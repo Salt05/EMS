@@ -4,31 +4,7 @@
     var searchString = ViewData["SearchString"] as string;
 }
 
-@functions {
-    string GetEventBadgeClass(string title, string description)
-    {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "bg-primary text-white";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "bg-success text-white";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "bg-warning text-dark";
-        return "bg-info text-white";
-    }
 
-    string GetEventBadgeName(string title, string description)
-    {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "Học thuật";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "Nghệ thuật";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "Thể thao";
-        return "Sự kiện";
-    }
-}
 
 <div class="container my-4">
     <!-- Header Section -->
@@ -93,33 +69,7 @@
             @foreach (var ev in Model)
             {
                 <div class="col-lg-4 col-md-6">
-                    <div class="premium-card event-card position-relative">
-                        <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)" 
-                             class="card-img-top event-image" alt="@ev.Title"
-                             onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
-                        <span class="event-badge @GetEventBadgeClass(ev.Title, ev.Description)">@GetEventBadgeName(ev.Title, ev.Description)</span>
-                        
-                        <div class="p-4">
-                            <h5 class="fw-bold text-dark mb-2">@ev.Title</h5>
-                            <p class="text-muted small mb-3">
-                                <i class="bi bi-calendar-event me-1"></i> @ev.StartTime.ToString("dd/MM/yyyy HH:mm") - @ev.EndTime.ToString("HH:mm")<br/>
-                                <i class="bi bi-geo-alt me-1"></i> @ev.Location
-                            </p>
-                            @{
-                                var displayDesc = ev.Description;
-                                if (displayDesc.Length > 120)
-                                {
-                                    displayDesc = displayDesc.Substring(0, 117) + "...";
-                                }
-                            }
-                            <p class="text-secondary small mb-0">@displayDesc</p>
-                        </div>
-
-                        <div class="event-footer d-flex justify-content-between align-items-center">
-                            <span class="small text-muted"><i class="bi bi-people me-1"></i> Sức chứa: @ev.Capacity</span>
-                            <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id" class="btn btn-sm btn-premium py-1.5 px-3">Chi tiết</a>
-                        </div>
-                    </div>
+                    @await Component.InvokeAsync("EventCard", new { eventItem = ev })
                 </div>
             }
         }

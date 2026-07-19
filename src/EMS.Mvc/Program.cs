@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddServerSideBlazor();
 
 var useInMemoryData = builder.Environment.IsDevelopment()
     && builder.Configuration.GetValue("Development:UseInMemoryData", true);
@@ -66,8 +67,12 @@ else
 // ============ SHARED SERVICES ============
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
+builder.Services.AddScoped<IUserContext, UserContext>();
 
 var app = builder.Build();
+
+app.UseMiddleware<ProcessingTimeMiddleware>();
+app.UseMiddleware<ApiKeyMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -86,6 +91,8 @@ app.UseRouting();
 app.UseMiddleware<TenantMiddleware>();
 
 app.UseAuthorization();
+
+app.MapBlazorHub();
 
 app.MapControllerRoute(
     name: "default",

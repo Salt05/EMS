@@ -1,39 +1,14 @@
 @model EMS.Core.Entities.Event
+@inject EMS.Mvc.Services.IUserContext UserContext
 @{
     ViewData["Title"] = Model.Title;
-    string? userSession = Context.Request.Cookies["user_session"];
-    string? displayName = null;
-    if (!string.IsNullOrEmpty(userSession))
-    {
-        displayName = userSession.Split('|')[0];
-    }
+    string? displayName = UserContext.DisplayName;
+    string? userEmail = UserContext.UserEmail;
+    string tenantId = Context.Items["TenantId"]?.ToString() ?? "tenant-1";
+    var regStatus = ViewBag.RegistrationStatus as EMS.Core.Entities.Enums.RegistrationStatus?;
 }
 
-@functions {
-    string GetEventBadgeClass(string title, string description)
-    {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "bg-primary text-white";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "bg-success text-white";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "bg-warning text-dark";
-        return "bg-info text-white";
-    }
 
-    string GetEventBadgeName(string title, string description)
-    {
-        var text = (title + " " + description).ToLower();
-        if (text.Contains("học thuật") || text.Contains("seminar") || text.Contains("workshop") || text.Contains("google"))
-            return "Học thuật";
-        if (text.Contains("nghệ thuật") || text.Contains("nhạc") || text.Contains("hội họa") || text.Contains("tranh") || text.Contains("mỹ thuật"))
-            return "Nghệ thuật";
-        if (text.Contains("thể thao") || text.Contains("bóng đá") || text.Contains("chạy") || text.Contains("run") || text.Contains("đại hội"))
-            return "Thể thao";
-        return "Sự kiện";
-    }
-}
 
 <div class="container my-5">
     <!-- Back Navigation -->
@@ -63,8 +38,31 @@
                      alt="@Model.Title">
                 
                 <div class="p-4 p-md-5">
-                    <span class="badge @GetEventBadgeClass(Model.Title, Model.Description) px-3 py-2 mb-3">
-                        @GetEventBadgeName(Model.Title, Model.Description)
+                    @{
+                        var now = DateTime.UtcNow;
+                        var startTime = Model.StartTime.Kind == DateTimeKind.Utc ? Model.StartTime : Model.StartTime.ToUniversalTime();
+                        var endTime = Model.EndTime.Kind == DateTimeKind.Utc ? Model.EndTime : Model.EndTime.ToUniversalTime();
+                        string badgeClass;
+                        string badgeText;
+
+                        if (now < startTime)
+                        {
+                            badgeClass = "bg-primary text-white";
+                            badgeText = "Sắp diễn ra";
+                        }
+                        else if (now >= startTime && now <= endTime)
+                        {
+                            badgeClass = "bg-success text-white animate-pulse";
+                            badgeText = "Đang diễn ra";
+                        }
+                        else
+                        {
+                            badgeClass = "bg-secondary text-white";
+                            badgeText = "Đã kết thúc";
+                        }
+                    }
+                    <span class="badge @badgeClass px-3 py-2 mb-3">
+                        @badgeText
                     </span>
                     <h1 class="fw-bold text-dark mb-4">@Model.Title</h1>
 
@@ -125,57 +123,15 @@
                 </div>
 
                 <div class="border-top pt-4">
-                    @if (displayName != null)
+                    @if (UserContext.IsLoggedIn)
                     {
-                        @if (ViewBag.RegistrationStatus == EMS.Core.Entities.Enums.RegistrationStatus.Approved)
-                        {
-                            <div class="alert alert-success py-2.5 text-center mb-3 small rounded-3" role="alert">
-                                <i class="bi bi-check-circle-fill me-1"></i> Bạn đã đăng ký tham gia sự kiện này.
-                            </div>
-                            <form asp-action="Cancel" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-outline-danger w-100 py-2.5 rounded-3">
-                                    <i class="bi bi-x-circle me-2"></i>Hủy đăng ký vé
-                                </button>
-                            </form>
-                        }
-                        else if (ViewBag.RegistrationStatus == EMS.Core.Entities.Enums.RegistrationStatus.Pending)
-                        {
-                            <div class="alert alert-warning py-2.5 text-center mb-3 small rounded-3" role="alert">
-                                <i class="bi bi-hourglass-split me-1"></i> Đăng ký đang chờ phê duyệt.
-                            </div>
-                            <form asp-action="Cancel" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-outline-danger w-100 py-2.5 rounded-3">
-                                    <i class="bi bi-x-circle me-2"></i>Hủy yêu cầu đăng ký
-                                </button>
-                            </form>
-                        }
-                        else if (ViewBag.RegistrationStatus == EMS.Core.Entities.Enums.RegistrationStatus.Rejected)
-                        {
-                            <div class="alert alert-danger py-2.5 text-center mb-3 small rounded-3" role="alert">
-                                <i class="bi bi-x-octagon-fill me-1"></i> Đăng ký của bạn đã bị từ chối.
-                            </div>
-                            <form asp-action="Register" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-premium w-100 py-3 rounded-3">
-                                    <i class="bi bi-lightning-charge me-2"></i>Đăng ký lại
-                                </button>
-                            </form>
-                        }
-                        else
-                        {
-                            <form asp-action="Register" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn btn-premium w-100 py-3 rounded-3">
-                                    <i class="bi bi-lightning-charge me-2"></i>Đăng ký vé miễn phí
-                                </button>
-                            </form>
-                        }
+                        <component type="typeof(EMS.Mvc.Components.EventRegister)" 
+                                   render-mode="ServerPrerendered" 
+                                   param-EventId="@Model.Id" 
+                                   param-TenantId="@tenantId"
+                                   param-UserEmail="@userEmail" 
+                                   param-DisplayName="@displayName" 
+                                   param-InitialStatus="@regStatus" />
                     }
                     else
                     {
@@ -191,3 +147,7 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="_framework/blazor.server.js"></script>
+}

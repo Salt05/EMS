@@ -1,0 +1,177 @@
+@using EMS.Core.Interfaces.Services
+@using EMS.Core.Entities.Enums
+@using EMS.Core.Exceptions
+@using Microsoft.AspNetCore.Components
+@inject IRegistrationService RegistrationService
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show rounded-3 mb-3 small" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>@successMessage
+        <button type="button" class="btn-close" @onclick="() => successMessage = null" aria-label="Close"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show rounded-3 mb-3 small" role="alert">
+        <i class="bi bi-exclamation-octagon-fill me-2"></i>@errorMessage
+        <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+    </div>
+}
+
+@if (status == RegistrationStatus.Approved)
+{
+    <div class="alert alert-success py-2.5 text-center mb-3 small rounded-3" role="alert">
+        <i class="bi bi-check-circle-fill me-1"></i> Bạn đã đăng ký tham gia sự kiện này.
+    </div>
+    <button class="btn btn-outline-danger w-100 py-2.5 rounded-3" @onclick="CancelRegistration" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span>Đang hủy...</span>
+        }
+        else
+        {
+            <i class="bi bi-x-circle me-2"></i><span>Hủy đăng ký vé</span>
+        }
+    </button>
+}
+else if (status == RegistrationStatus.Pending)
+{
+    <div class="alert alert-warning py-2.5 text-center mb-3 small rounded-3" role="alert">
+        <i class="bi bi-hourglass-split me-1"></i> Đăng ký đang chờ phê duyệt.
+    </div>
+    <button class="btn btn-outline-danger w-100 py-2.5 rounded-3" @onclick="CancelRegistration" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span>Đang hủy...</span>
+        }
+        else
+        {
+            <i class="bi bi-x-circle me-2"></i><span>Hủy yêu cầu đăng ký</span>
+        }
+    </button>
+}
+else if (status == RegistrationStatus.Rejected)
+{
+    <div class="alert alert-danger py-2.5 text-center mb-3 small rounded-3" role="alert">
+        <i class="bi bi-x-octagon-fill me-1"></i> Đăng ký của bạn đã bị từ chối.
+    </div>
+    <button class="btn btn-premium w-100 py-3 rounded-3" @onclick="RegisterForEvent" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span>Đang xử lý...</span>
+        }
+        else
+        {
+            <i class="bi bi-lightning-charge me-2"></i><span>Đăng ký lại</span>
+        }
+    </button>
+}
+else
+{
+    <button class="btn btn-premium w-100 py-3 rounded-3" @onclick="RegisterForEvent" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span>Đang xử lý...</span>
+        }
+        else
+        {
+            <i class="bi bi-lightning-charge me-2"></i><span>Đăng ký vé miễn phí</span>
+        }
+    </button>
+}
+
+@code {
+    [Parameter] public string EventId { get; set; } = string.Empty;
+    [Parameter] public string TenantId { get; set; } = string.Empty;
+    [Parameter] public string UserEmail { get; set; } = string.Empty;
+    [Parameter] public string DisplayName { get; set; } = string.Empty;
+    [Parameter] public RegistrationStatus? InitialStatus { get; set; }
+
+    private RegistrationStatus? status;
+    private string? successMessage;
+    private string? errorMessage;
+    private bool isLoading;
+
+    protected override void OnParametersSet()
+    {
+        status = InitialStatus;
+    }
+
+    private async Task RegisterForEvent()
+    {
+        if (string.IsNullOrEmpty(UserEmail))
+        {
+            errorMessage = "Bạn cần đăng nhập để đăng ký sự kiện.";
+            return;
+        }
+
+        isLoading = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await RegistrationService.RegisterForEventAsync(TenantId, EventId, UserEmail, DisplayName);
+            status = RegistrationStatus.Approved;
+            successMessage = "Đăng ký tham gia sự kiện thành công!";
+        }
+        catch (NotFoundException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (BusinessRuleException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Đã xảy ra lỗi hệ thống khi đăng ký. Vui lòng thử lại sau.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CancelRegistration()
+    {
+        if (string.IsNullOrEmpty(UserEmail))
+        {
+            errorMessage = "Bạn cần đăng nhập để thực hiện chức năng này.";
+            return;
+        }
+
+        isLoading = true;
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await RegistrationService.CancelRegistrationAsync(TenantId, EventId, UserEmail);
+            status = null;
+            successMessage = "Đã hủy đăng ký sự kiện thành công.";
+        }
+        catch (NotFoundException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (BusinessRuleException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Đã xảy ra lỗi hệ thống khi hủy đăng ký. Vui lòng thử lại sau.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
