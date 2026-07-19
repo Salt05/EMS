@@ -346,6 +346,17 @@ public class SuperAdminController : ControllerBase
             }
 
             var events = await _eventService.GetEventsByTenantAsync("all");
+            var userDict = new Dictionary<string, string>();
+            try
+            {
+                var (allUsers, _) = await _adminUserService.GetUsersAsync(null, null, null, null, 1, 1000);
+                userDict = allUsers.ToDictionary(u => u.Id, u => u.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to batch load users in SuperAdmin GetEvents");
+            }
+
             var list = events.Select(ev => new EventResponseDto
             {
                 Id = ev.Id,
@@ -359,6 +370,7 @@ public class SuperAdminController : ControllerBase
                 Capacity = ev.Capacity,
                 ImageUrl = ev.ImageUrl,
                 OrganizerId = ev.OrganizerId,
+                OrganizerEmail = userDict.TryGetValue(ev.OrganizerId, out var email) ? email : string.Empty,
                 Status = (int)ev.Status,
                 StatusName = ev.Status.ToString(),
                 ApprovedById = ev.ApprovedById,
@@ -376,6 +388,95 @@ public class SuperAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting events in SuperAdmin");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    [HttpGet("events/{id}")]
+    public async Task<IActionResult> GetEvent(string id)
+    {
+        try
+        {
+            var allEvents = await _eventService.GetEventsByTenantAsync("all");
+            var ev = allEvents.FirstOrDefault(e => e.Id == id);
+            if (ev == null) return NotFound("Event not found");
+
+            var organizerEmail = string.Empty;
+            if (!string.IsNullOrEmpty(ev.OrganizerId))
+            {
+                try
+                {
+                    var user = await _adminUserService.GetUserByIdAsync(ev.OrganizerId);
+                    if (user != null) organizerEmail = user.Email;
+                }
+                catch { }
+            }
+
+            var dto = new EventResponseDto
+            {
+                Id = ev.Id,
+                TenantId = ev.TenantId,
+                Title = ev.Title,
+                Description = ev.Description,
+                Location = ev.Location,
+                VenueId = ev.VenueId,
+                StartTime = ev.StartTime,
+                EndTime = ev.EndTime,
+                Capacity = ev.Capacity,
+                ImageUrl = ev.ImageUrl,
+                OrganizerId = ev.OrganizerId,
+                OrganizerEmail = organizerEmail,
+                Status = (int)ev.Status,
+                StatusName = ev.Status.ToString(),
+                ApprovedById = ev.ApprovedById,
+                ApprovedAt = ev.ApprovedAt,
+                RejectionReason = ev.RejectionReason,
+                CheckInCode = ev.CheckInCode,
+                CheckInCodeExpiresAt = ev.CheckInCodeExpiresAt,
+                CreatedAt = ev.CreatedAt,
+                UpdatedAt = ev.UpdatedAt
+            };
+
+            return Ok(dto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting event {Id} in SuperAdmin", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    [HttpPut("events/{id}")]
+    public async Task<IActionResult> UpdateEvent(string id, [FromBody] UpdateEventDto dto)
+    {
+        try
+        {
+            var allEvents = await _eventService.GetEventsByTenantAsync("all");
+            var ev = allEvents.FirstOrDefault(e => e.Id == id);
+            if (ev == null) return NotFound("Event not found");
+
+            if (dto.EndTime <= dto.StartTime)
+                return BadRequest("EndTime must be after StartTime");
+
+            ev.Title = dto.Title;
+            ev.Description = dto.Description;
+            ev.Location = dto.Location;
+            ev.VenueId = dto.VenueId;
+            ev.StartTime = dto.StartTime;
+            ev.EndTime = dto.EndTime;
+            ev.Capacity = dto.Capacity;
+            ev.ImageUrl = dto.ImageUrl;
+            ev.UpdatedAt = DateTime.UtcNow;
+
+            var success = await _eventService.UpdateEventAsync(ev);
+            if (!success) return StatusCode(500, "Failed to update event");
+
+            ClearSuperAdminCaches();
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating event {Id} in SuperAdmin", id);
             return StatusCode(500, "Internal server error");
         }
     }

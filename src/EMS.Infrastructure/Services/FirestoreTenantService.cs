@@ -138,7 +138,8 @@ public class FirestoreTenantService : ITenantService
             Address = dict.TryGetValue("address", out var addr) ? addr?.ToString() : null,
             CreatedAt = dict.TryGetValue("createdAt", out var created) && created is Timestamp createdTs ? createdTs.ToDateTime() : DateTime.UtcNow,
             UpdatedAt = dict.TryGetValue("updatedAt", out var updated) && updated is Timestamp updatedTs ? updatedTs.ToDateTime() : DateTime.UtcNow,
-            IsActive = dict.TryGetValue("isActive", out var active) && active is bool activeBool ? activeBool : true
+            IsActive = dict.TryGetValue("isActive", out var active) && active is bool activeBool ? activeBool : true,
+            PlatformFeePercentage = dict.TryGetValue("platformFeePercentage", out var pfp) && pfp is double pfpDouble ? pfpDouble : 5.0
         };
     }
 }

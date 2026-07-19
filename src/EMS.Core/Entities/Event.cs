@@ -26,6 +26,10 @@ public class Event
     public string? CheckInCode { get; set; }
     public DateTime? CheckInCodeExpiresAt { get; set; }
 
+    public decimal Price { get; set; }
+    public EventScope Scope { get; set; } = EventScope.Public;
+    public bool IsFree => Price <= 0;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -43,6 +47,8 @@ public class Event
             { "capacity", Capacity },
             { "organizerId", OrganizerId },
             { "status", (int)Status },
+            { "price", (double)Price },
+            { "scope", (int)Scope },
             { "createdAt", CreatedAt.ToUniversalTime() },
             { "updatedAt", UpdatedAt.ToUniversalTime() }
         };

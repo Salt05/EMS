@@ -3,6 +3,8 @@ using EMS.Infrastructure.Services;
 using EMS.Core.Interfaces.Services;
 using EMS.Mvc.Middlewares;
 using EMS.Mvc.Services;
+using EMS.BlazorWASM.Services;
+using Blazored.LocalStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,6 +71,50 @@ else
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 builder.Services.AddScoped<ICalendarService, CalendarService>();
+builder.Services.AddScoped<IVnPayService, VnPayService>();
+builder.Services.AddScoped<IUserContext, UserContext>();
+
+// ============ COOKIE AUTHENTICATION ============
+builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Auth/Login";
+        options.LogoutPath = "/Auth/Logout";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    });
+
+// ============ BLAZOR SERVER AUTH & ADMIN SERVICES ============
+builder.Services.AddServerSideBlazor();
+builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider, CookieAuthenticationStateProvider>();
+
+// Blazored.LocalStorage (required by WASM components, no-op server-side but satisfies DI)
+builder.Services.AddBlazoredLocalStorage();
+
+// HttpClient for WASM service clients to call WebAPI from server-side
+var webApiBaseUrl = builder.Configuration["WebApiBaseUrl"] ?? "https://localhost:7296";
+builder.Services.AddScoped<ServerAuthorizationMessageHandler>();
+builder.Services.AddScoped(sp =>
+{
+    var handler = sp.GetRequiredService<ServerAuthorizationMessageHandler>();
+    handler.InnerHandler = new HttpClientHandler();
+    return new HttpClient(handler)
+    {
+        BaseAddress = new Uri(webApiBaseUrl)
+    };
+});
+
+// Register all Blazor WASM service clients for Admin Dashboard
+builder.Services.AddScoped<EMS.BlazorWASM.Services.IAuthService, ServerAuthService>();
+builder.Services.AddScoped<ITenantServiceClient, ServerTenantServiceClient>();
+builder.Services.AddScoped<IEventServiceClient, EventServiceClient>();
+builder.Services.AddScoped<IRegistrationServiceClient, RegistrationServiceClient>();
+builder.Services.AddScoped<ICheckInServiceClient, CheckInServiceClient>();
+builder.Services.AddScoped<IAdminUserServiceClient, AdminUserServiceClient>();
+builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<ISuperAdminServiceClient, SuperAdminServiceClient>();
+builder.Services.AddScoped<ITenantAdminServiceClient, TenantAdminServiceClient>();
+builder.Services.AddScoped<IOrganizerServiceClient, OrganizerServiceClient>();
 
 var app = builder.Build();
 
@@ -83,12 +129,28 @@ app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
+// Serve BlazorWASM wwwroot files at /admin-assets so Admin host page can load CSS/JS
+var blazorWasmWwwroot = Path.Combine(builder.Environment.ContentRootPath, "..", "EMS.BlazorWASM", "wwwroot");
+if (Directory.Exists(blazorWasmWwwroot))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(blazorWasmWwwroot)),
+        RequestPath = "/admin-assets"
+    });
+}
+
 app.UseRouting();
+
+app.UseMiddleware<RedirectToWasmMiddleware>();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Resolve tenant subdomain on every request
 app.UseMiddleware<TenantMiddleware>();
 
-app.UseAuthorization();
+app.MapBlazorHub();
 
 app.MapControllerRoute(
     name: "default",

@@ -27,8 +27,8 @@ public class FirestoreEventService : IEventService
             if (!snapshot.Exists) return null;
 
             var ev = MapToEvent(snapshot);
-            // Tenant isolation: never leak events across tenants.
-            if (ev.TenantId != tenantId) return null;
+            // Tenant isolation: never leak events across tenants, unless superadmin (tenantId == "all").
+            if (tenantId != "all" && ev.TenantId != tenantId) return null;
 
             return ev;
         }
@@ -173,6 +173,8 @@ public class FirestoreEventService : IEventService
             RejectionReason = dict.TryGetValue("rejectionReason", out var rej) && !string.IsNullOrEmpty(rej?.ToString()) ? rej!.ToString() : null,
             CheckInCode = dict.TryGetValue("checkInCode", out var cic) && !string.IsNullOrEmpty(cic?.ToString()) ? cic!.ToString() : null,
             CheckInCodeExpiresAt = dict.TryGetValue("checkInCodeExpiresAt", out var cice) && cice is Timestamp ciceTs && ciceTs.ToDateTime() != DateTime.MinValue ? ciceTs.ToDateTime() : null,
+            Price = dict.TryGetValue("price", out var pr) && pr != null ? Convert.ToDecimal(pr) : 0m,
+            Scope = dict.TryGetValue("scope", out var sc) && sc is long scLong ? (EventScope)(int)scLong : EventScope.Public,
             CreatedAt = dict.TryGetValue("createdAt", out var created) && created is Timestamp createdTs ? createdTs.ToDateTime() : DateTime.UtcNow,
             UpdatedAt = dict.TryGetValue("updatedAt", out var updated) && updated is Timestamp updatedTs ? updatedTs.ToDateTime() : DateTime.UtcNow
         };

@@ -43,7 +43,7 @@
                     Navigation.NavigateTo("Organizer/Dashboard");
                     return;
                 }
-                if (user.IsInRole("employee"))
+                if (user.IsInRole("employee") || user.IsInRole("student") || user.IsInRole("Student"))
                 {
                     var currentUri = new Uri(Navigation.Uri);
                     string studentPortalUrl = $"{currentUri.Scheme}://{currentUri.Host}";
@@ -51,6 +51,8 @@
                     {
                         studentPortalUrl += $":{currentUri.Port}";
                     }
+
+                    studentPortalUrl += "/Home/Index";
 
                     var token = await AuthService.GetCurrentTokenAsync();
                     if (!string.IsNullOrEmpty(token))

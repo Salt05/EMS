@@ -14,11 +14,13 @@ namespace EMS.WebAPI.Controllers;
 public class EventsController : ControllerBase
 {
     private readonly IEventService _eventService;
+    private readonly IUserService _userService;
     private readonly ILogger<EventsController> _logger;
 
-    public EventsController(IEventService eventService, ILogger<EventsController> logger)
+    public EventsController(IEventService eventService, IUserService userService, ILogger<EventsController> logger)
     {
         _eventService = eventService;
+        _userService = userService;
         _logger = logger;
     }
 
@@ -30,7 +32,26 @@ public class EventsController : ControllerBase
         if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
 
         var events = await _eventService.GetEventsByTenantAsync(tenantId, status);
-        return Ok(events.Select(MapToResponse));
+        
+        // Batch fetch users to populate organizer email
+        var userDict = new Dictionary<string, string>();
+        try
+        {
+            var tenantUsers = await _userService.GetUsersByTenantAsync(tenantId);
+            userDict = tenantUsers.ToDictionary(u => u.Id, u => u.Email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to batch load user emails for events");
+        }
+
+        var responseList = events.Select(ev =>
+        {
+            var email = userDict.TryGetValue(ev.OrganizerId, out var e) ? e : string.Empty;
+            return MapToResponse(ev, email);
+        });
+
+        return Ok(responseList);
     }
 
     // GET /api/events/{id}
@@ -43,11 +64,19 @@ public class EventsController : ControllerBase
         var ev = await _eventService.GetEventByIdAsync(id, tenantId);
         if (ev == null) return NotFound("Event not found");
 
-        return Ok(MapToResponse(ev));
+        var email = string.Empty;
+        if (!string.IsNullOrEmpty(ev.OrganizerId))
+        {
+            var user = await _userService.GetUserByIdAsync(ev.OrganizerId, tenantId);
+            if (user != null) email = user.Email;
+        }
+
+        return Ok(MapToResponse(ev, email));
     }
 
     // POST /api/events
     [HttpPost]
+    [Authorize(Roles = "manager,admin,superadmin")]
     public async Task<IActionResult> CreateEvent([FromBody] CreateEventDto dto)
     {
         var tenantId = GetTenantId();
@@ -68,13 +97,16 @@ public class EventsController : ControllerBase
             Capacity = dto.Capacity,
             ImageUrl = dto.ImageUrl,
             OrganizerId = GetUserId(),
-            Status = EventStatus.Pending
+            Status = EventStatus.Pending,
+            Price = dto.Price,
+            Scope = (EventScope)dto.Scope,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         var created = await _eventService.CreateEventAsync(ev);
-        if (created == null) return StatusCode(500, "Failed to create event");
-
-        return CreatedAtAction(nameof(GetEvent), new { id = created.Id }, MapToResponse(created));
+        var email = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        return CreatedAtAction(nameof(GetEvent), new { id = created.Id }, MapToResponse(created, email));
     }
 
     // PUT /api/events/{id}
@@ -84,15 +116,14 @@ public class EventsController : ControllerBase
         var tenantId = GetTenantId();
         if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
 
-        if (dto.EndTime <= dto.StartTime)
-            return BadRequest("EndTime must be after StartTime");
-
         var ev = await _eventService.GetEventByIdAsync(id, tenantId);
         if (ev == null) return NotFound("Event not found");
 
-        // Only the organizer or an admin/manager may edit.
         if (ev.OrganizerId != GetUserId() && !IsAdminOrManager())
             return Forbid();
+
+        if (dto.EndTime <= dto.StartTime)
+            return BadRequest("EndTime must be after StartTime");
 
         ev.Title = dto.Title;
         ev.Description = dto.Description;
@@ -102,63 +133,22 @@ public class EventsController : ControllerBase
         ev.EndTime = dto.EndTime.ToUniversalTime();
         ev.Capacity = dto.Capacity;
         ev.ImageUrl = dto.ImageUrl;
+        if (ev.Status != EventStatus.Pending && dto.Price != ev.Price)
+            return BadRequest("Event fee cannot be changed after approval");
+
+        ev.Price = dto.Price;
+        ev.Scope = (EventScope)dto.Scope;
+        ev.UpdatedAt = DateTime.UtcNow;
 
         var success = await _eventService.UpdateEventAsync(ev);
         if (!success) return StatusCode(500, "Failed to update event");
 
-        return Ok(MapToResponse(ev));
-    }
-
-    // DELETE /api/events/{id}
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteEvent(string id)
-    {
-        var tenantId = GetTenantId();
-        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
-
-        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
-        if (ev == null) return NotFound("Event not found");
-
-        if (ev.OrganizerId != GetUserId() && !IsAdminOrManager())
-            return Forbid();
-
-        var success = await _eventService.DeleteEventAsync(id, tenantId);
-        if (!success) return StatusCode(500, "Failed to delete event");
-
         return NoContent();
-    }
-
-    // POST /api/events/{id}/approve
-    [HttpPost("{id}/approve")]
-    public async Task<IActionResult> ApproveEvent(string id)
-    {
-        var tenantId = GetTenantId();
-        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
-        if (!IsAdminOrManager()) return Forbid();
-
-        var success = await _eventService.ApproveEventAsync(id, tenantId, GetUserId());
-        if (!success) return NotFound("Event not found");
-
-        return Ok(new { message = "Event approved" });
-    }
-
-    // POST /api/events/{id}/reject
-    [HttpPost("{id}/reject")]
-    public async Task<IActionResult> RejectEvent(string id, [FromBody] RejectEventDto dto)
-    {
-        var tenantId = GetTenantId();
-        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
-        if (!IsAdminOrManager()) return Forbid();
-
-        var success = await _eventService.RejectEventAsync(id, tenantId, GetUserId(), dto.Reason);
-        if (!success) return NotFound("Event not found");
-
-        return Ok(new { message = "Event rejected" });
     }
 
     // POST /api/events/{id}/generate-code
     [HttpPost("{id}/generate-code")]
-    public async Task<IActionResult> GenerateCheckInCode(string id, [FromQuery] int durationMinutes = 30)
+    public async Task<IActionResult> GenerateCheckInCode(string id)
     {
         var tenantId = GetTenantId();
         if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
@@ -169,14 +159,16 @@ public class EventsController : ControllerBase
         if (ev.OrganizerId != GetUserId() && !IsAdminOrManager())
             return Forbid();
 
-        // Generate a 6-character uppercase check-in code
-        ev.CheckInCode = System.Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
-        ev.CheckInCodeExpiresAt = System.DateTime.UtcNow.AddMinutes(durationMinutes);
+        // Generate 6-digit code valid for 15 mins
+        var random = new Random();
+        var code = random.Next(100000, 999999).ToString();
+        ev.CheckInCode = code;
+        ev.CheckInCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
 
         var success = await _eventService.UpdateEventAsync(ev);
-        if (!success) return StatusCode(500, "Failed to update event check-in code");
+        if (!success) return StatusCode(500, "Failed to generate event check-in code");
 
-        return Ok(ev.CheckInCode);
+        return Ok(new { CheckInCode = code, ExpiresAt = ev.CheckInCodeExpiresAt });
     }
 
     // POST /api/events/{id}/expire-code
@@ -202,16 +194,54 @@ public class EventsController : ControllerBase
         return Ok(new { message = "Code expired successfully" });
     }
 
+    // POST /api/events/{id}/approve
+    [HttpPost("{id}/approve")]
+    public async Task<IActionResult> ApproveEvent(string id)
+    {
+        var tenantId = GetTenantId();
+        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
+        if (!IsAdminOrSuperAdmin()) return Forbid();
+
+        var success = await _eventService.ApproveEventAsync(id, tenantId, GetUserId());
+        if (!success) return NotFound("Event not found");
+
+        return Ok(new { message = "Event approved" });
+    }
+
+    // POST /api/events/{id}/reject
+    [HttpPost("{id}/reject")]
+    public async Task<IActionResult> RejectEvent(string id, [FromBody] RejectEventDto dto)
+    {
+        var tenantId = GetTenantId();
+        if (string.IsNullOrEmpty(tenantId)) return BadRequest("Invalid tenant");
+        if (!IsAdminOrSuperAdmin()) return Forbid();
+
+        var success = await _eventService.RejectEventAsync(id, tenantId, GetUserId(), dto.Reason);
+        if (!success) return NotFound("Event not found");
+
+        return Ok(new { message = "Event rejected" });
+    }
+
     // ============ HELPERS ============
 
     private string GetTenantId() => User.FindFirst("tenantId")?.Value ?? string.Empty;
 
-    private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    private string GetUserId() => User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
-    private bool IsAdminOrManager() =>
-        User.IsInRole("admin") || User.IsInRole("manager");
+    private bool IsAdminOrManager() => User.Claims.Any(c => 
+        (c.Type == "role" || c.Type == ClaimTypes.Role) && 
+        (c.Value.Equals("admin", StringComparison.OrdinalIgnoreCase) || 
+         c.Value.Equals("manager", StringComparison.OrdinalIgnoreCase) ||
+         c.Value.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+    );
 
-    private static EventResponseDto MapToResponse(Event ev) => new()
+    private bool IsAdminOrSuperAdmin() => User.Claims.Any(c =>
+        (c.Type == "role" || c.Type == ClaimTypes.Role) &&
+        (c.Value.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
+         c.Value.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+    );
+
+    private static EventResponseDto MapToResponse(Event ev, string organizerEmail = "") => new()
     {
         Id = ev.Id,
         TenantId = ev.TenantId,
@@ -224,6 +254,7 @@ public class EventsController : ControllerBase
         Capacity = ev.Capacity,
         ImageUrl = ev.ImageUrl,
         OrganizerId = ev.OrganizerId,
+        OrganizerEmail = organizerEmail,
         Status = (int)ev.Status,
         StatusName = ev.Status.ToString(),
         ApprovedById = ev.ApprovedById,
@@ -232,6 +263,9 @@ public class EventsController : ControllerBase
         CheckInCode = ev.CheckInCode,
         CheckInCodeExpiresAt = ev.CheckInCodeExpiresAt,
         CreatedAt = ev.CreatedAt,
-        UpdatedAt = ev.UpdatedAt
+        UpdatedAt = ev.UpdatedAt,
+        Price = ev.Price,
+        Scope = (int)ev.Scope,
+        ScopeName = ev.Scope.ToString()
     };
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using EMS.Mvc.Models;
 using EMS.Mvc.Services;
@@ -21,6 +22,8 @@ public class HomeController : Controller
     public async Task<IActionResult> Index()
     {
         var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        ViewBag.IsGuest = !(User.Identity?.IsAuthenticated ?? false);
+        ViewBag.DisplayName = User.FindFirstValue(ClaimTypes.Name);
         var events = await _eventService.GetEventsByTenantAsync(tenantId, EventStatus.Approved);
         var topEvents = events.Take(6).ToList();
         return View(topEvents);

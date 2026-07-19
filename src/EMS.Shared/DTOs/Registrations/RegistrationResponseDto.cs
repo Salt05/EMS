@@ -22,6 +22,14 @@ public class RegistrationResponseDto
     public DateTime? CheckedInAt { get; set; }
     public string? CheckInCode { get; set; }
     public DateTime? CheckInCodeExpiresAt { get; set; }
+    
+    // Payment Tracking
+    public bool IsPaid { get; set; }
+    public DateTime? PaymentExpiresAt { get; set; }
+    public string? PaymentTransactionId { get; set; }
+    public DateTime? PaymentDate { get; set; }
+    public decimal PlatformFee { get; set; }
+    public decimal OrganizerRevenue { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

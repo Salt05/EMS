@@ -37,6 +37,14 @@ public class Registration
     public string StudentEmail { get; set; } = string.Empty;
     public string StudentName { get; set; } = string.Empty;
 
+    // Payment tracking (VNPAY integration)
+    public bool IsPaid { get; set; }
+    public DateTime? PaymentExpiresAt { get; set; }
+    public string? PaymentTransactionId { get; set; }
+    public DateTime? PaymentDate { get; set; }
+    public decimal PlatformFee { get; set; }
+    public decimal OrganizerRevenue { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -58,6 +66,9 @@ public class Registration
             { "reminderSent", ReminderSent },
             { "studentEmail", StudentEmail },
             { "studentName", StudentName },
+            { "isPaid", IsPaid },
+            { "platformFee", (double)PlatformFee },
+            { "organizerRevenue", (double)OrganizerRevenue },
             { "createdAt", CreatedAt.ToUniversalTime() },
             { "updatedAt", UpdatedAt.ToUniversalTime() }
         };
@@ -68,6 +79,9 @@ public class Registration
         if (CheckInCodeExpiresAt.HasValue) doc["checkInCodeExpiresAt"] = CheckInCodeExpiresAt.Value.ToUniversalTime();
         if (CheckedInAt.HasValue) doc["checkedInAt"] = CheckedInAt.Value.ToUniversalTime();
         if (ReminderSentAt.HasValue) doc["reminderSentAt"] = ReminderSentAt.Value.ToUniversalTime();
+        if (PaymentTransactionId != null) doc["paymentTransactionId"] = PaymentTransactionId;
+        if (PaymentDate.HasValue) doc["paymentDate"] = PaymentDate.Value.ToUniversalTime();
+        if (PaymentExpiresAt.HasValue) doc["paymentExpiresAt"] = PaymentExpiresAt.Value.ToUniversalTime();
 
         return doc;
     }

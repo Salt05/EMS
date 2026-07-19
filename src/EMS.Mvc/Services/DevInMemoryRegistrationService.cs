@@ -73,7 +73,30 @@ public class DevInMemoryRegistrationService : IRegistrationService
 
     public Task<(Registration? Registration, string? Error)> GenerateCheckInCodeAsync(string eventId, string tenantId, string userId)
     {
-        throw new NotImplementedException();
+        return Task.FromResult<(Registration?, string?)>((null, "Not implemented in dev mode"));
+    }
+
+    public Task<bool> MarkAsPaidAsync(string registrationId, string tenantId, string transactionId, decimal amount, decimal platformFeePercentage)
+    {
+        return Task.FromResult(true);
+    }
+
+    public Task<int> ExpirePendingPaymentsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var expired = Registrations.Where(registration =>
+            registration.Status == RegistrationStatus.PendingPayment &&
+            registration.PaymentExpiresAt.HasValue &&
+            registration.PaymentExpiresAt.Value <= now).ToList();
+
+        foreach (var registration in expired)
+        {
+            registration.Status = RegistrationStatus.Cancelled;
+            registration.CancelledAt = now;
+            registration.UpdatedAt = now;
+        }
+
+        return Task.FromResult(expired.Count);
     }
 
     public Task<(Registration? Registration, string? Error)> ValidateCheckInAsync(string code, string tenantId, string requesterUserId, bool requesterIsAdminOrManager)

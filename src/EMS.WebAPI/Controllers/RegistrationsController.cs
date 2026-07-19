@@ -181,10 +181,14 @@ public class RegistrationsController : ControllerBase
 
     private string GetTenantId() => User.FindFirst("tenantId")?.Value ?? string.Empty;
 
-    private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    private string GetUserId() => User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
-    private bool IsAdminOrManager() =>
-        User.IsInRole("admin") || User.IsInRole("manager");
+    private bool IsAdminOrManager() => User.Claims.Any(c => 
+        (c.Type == "role" || c.Type == ClaimTypes.Role) && 
+        (c.Value.Equals("admin", StringComparison.OrdinalIgnoreCase) || 
+         c.Value.Equals("manager", StringComparison.OrdinalIgnoreCase) ||
+         c.Value.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+    );
 
     // The event's organizer, or an admin/manager, may manage its registrations.
     private bool CanManageEvent(Event ev) => ev.OrganizerId == GetUserId() || IsAdminOrManager();
@@ -207,6 +211,12 @@ public class RegistrationsController : ControllerBase
         CheckedInAt = reg.CheckedInAt,
         CheckInCode = reg.CheckInCode,
         CheckInCodeExpiresAt = reg.CheckInCodeExpiresAt,
+        IsPaid = reg.IsPaid,
+        PaymentExpiresAt = reg.PaymentExpiresAt,
+        PaymentTransactionId = reg.PaymentTransactionId,
+        PaymentDate = reg.PaymentDate,
+        PlatformFee = reg.PlatformFee,
+        OrganizerRevenue = reg.OrganizerRevenue,
         CreatedAt = reg.CreatedAt,
         UpdatedAt = reg.UpdatedAt
     };

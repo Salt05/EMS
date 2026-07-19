@@ -85,6 +85,7 @@ public class EventsController : Controller
             {
                 regStatus = reg.Status;
                 ViewBag.RegistrationCheckedIn = reg.CheckedIn;
+                ViewBag.RegistrationId = reg.Id;
             }
         }
         ViewBag.RegistrationStatus = regStatus;
@@ -106,7 +107,11 @@ public class EventsController : Controller
         var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
         try
         {
-            await _registrationService.RegisterForEventAsync(tenantId, eventId, userEmail, displayName);
+            var reg = await _registrationService.RegisterForEventAsync(tenantId, eventId, userEmail, displayName);
+            if (reg != null && reg.Status == RegistrationStatus.PendingPayment)
+            {
+                return RedirectToAction("Pay", "Payment", new { registrationId = reg.Id });
+            }
             TempData["SuccessMessage"] = "Đăng ký tham gia sự kiện thành công!";
         }
         catch (NotFoundException ex)
@@ -236,70 +241,115 @@ public class EventsController : Controller
         return File(bytes, "text/calendar", $"{ev.Id}.ics");
     }
 
-    [HttpGet]
-    public async Task<IActionResult> CheckIn(string id)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CheckInWithCode(string eventId, string code)
     {
         var (displayName, userEmail, _) = GetUserSession();
         if (userEmail == null)
         {
-            TempData["ErrorMessage"] = "Bạn cần đăng nhập để check-in sự kiện.";
+            TempData["ErrorMessage"] = "Bạn cần đăng nhập để check-in.";
             return RedirectToAction("Login", "Auth");
         }
 
-        if (string.IsNullOrEmpty(id))
-            return NotFound();
-
         var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
-        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
+        var (success, message) = await _registrationService.CheckInAsync(tenantId, eventId, userEmail, code?.Trim()?.ToUpperInvariant() ?? "");
 
-        if (ev == null || ev.Status != EventStatus.Approved)
+        if (success)
         {
-            TempData["ErrorMessage"] = "Không tìm thấy sự kiện hoặc sự kiện không hợp lệ.";
-            return RedirectToAction(nameof(Index));
+            TempData["SuccessMessage"] = "Điểm danh thành công! 🎉";
+        }
+        else
+        {
+            TempData["ErrorMessage"] = message ?? "Mã điểm danh không hợp lệ hoặc đã hết hạn.";
         }
 
-        var vm = new CheckInViewModel { Event = ev };
-        return View(vm);
+        return RedirectToAction(nameof(Detail), new { id = eventId });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CheckIn(string id, string checkInCode)
+    public async Task<IActionResult> CheckInWithCodeAjax(string eventId, string checkInCode)
     {
         var (displayName, userEmail, _) = GetUserSession();
         if (userEmail == null)
         {
-            TempData["ErrorMessage"] = "Bạn cần đăng nhập để check-in sự kiện.";
-            return RedirectToAction("Login", "Auth");
+            return Json(new { success = false, error = "Bạn chưa đăng nhập." });
         }
-
-        if (string.IsNullOrEmpty(id))
-            return NotFound();
 
         var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
-        var ev = await _eventService.GetEventByIdAsync(id, tenantId);
-
-        if (ev == null)
-        {
-            TempData["ErrorMessage"] = "Không tìm thấy sự kiện.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        var (success, message) = await _registrationService.CheckInAsync(tenantId, id, userEmail, checkInCode?.Trim()?.ToUpperInvariant() ?? "");
+        var (success, message) = await _registrationService.CheckInAsync(tenantId, eventId, userEmail, checkInCode?.Trim()?.ToUpperInvariant() ?? "");
 
         if (success)
-            _logger.LogInformation($"Student {userEmail} checked in to event {id}");
-        else
-            _logger.LogWarning($"Check-in failed for student {userEmail}, event {id}: {message}");
-
-        var vm = new CheckInViewModel
         {
-            Event = ev,
-            CheckInCode = checkInCode ?? "",
-            CheckInSuccess = success,
-            CheckInMessage = message
-        };
-        return View(vm);
+            var studentRegs = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
+            var reg = studentRegs.FirstOrDefault(r => r.EventId == eventId);
+            return Json(new { 
+                success = true, 
+                checkedInAt = reg?.CheckedInAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")
+            });
+        }
+
+        return Json(new { success = false, error = message ?? "Mã điểm danh không hợp lệ hoặc đã hết hạn." });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateQrCode(string eventId)
+    {
+        var (displayName, userEmail, _) = GetUserSession();
+        if (userEmail == null)
+        {
+            return Json(new { success = false, error = "Bạn cần đăng nhập." });
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var studentRegs = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
+        var existingReg = studentRegs.FirstOrDefault(r => r.EventId == eventId);
+
+        if (existingReg == null)
+        {
+            return Json(new { success = false, error = "Bạn chưa đăng ký tham gia sự kiện này." });
+        }
+
+        var (reg, error) = await _registrationService.GenerateCheckInCodeAsync(eventId, tenantId, existingReg.UserId);
+
+        if (reg != null)
+        {
+            return Json(new
+            {
+                success = true,
+                code = reg.CheckInCode,
+                expiresAt = reg.CheckInCodeExpiresAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+                registrationId = reg.Id
+            });
+        }
+
+        return Json(new { success = false, error = error ?? "Không thể tạo mã QR lúc này." });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CheckInStatus(string eventId)
+    {
+        var (displayName, userEmail, _) = GetUserSession();
+        if (userEmail == null)
+        {
+            return Json(new { checkedIn = false });
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var registrations = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
+        var reg = registrations.FirstOrDefault(r => r.EventId == eventId);
+
+        if (reg != null && reg.CheckedIn)
+        {
+            return Json(new { 
+                checkedIn = true, 
+                checkedInAt = reg.CheckedInAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") 
+            });
+        }
+
+        return Json(new { checkedIn = false });
     }
 
     private (string? displayName, string? userEmail, string? userRole) GetUserSession()

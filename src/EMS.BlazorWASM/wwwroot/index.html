@@ -84,6 +84,68 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <!-- EMS Chart Interop -->
     <script src="js/chartInterop.js"></script>
+    <!-- HTML5 QR Code Scanner CDN -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script>
+        window.qrInterop = {
+            html5Qrcode: null,
+            startScanner: function (elementId, dotNetHelper) {
+                if (this.html5Qrcode) {
+                    this.stopScanner();
+                }
+                try {
+                    this.html5Qrcode = new Html5Qrcode(elementId);
+                    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                    
+                    this.html5Qrcode.start(
+                        { facingMode: "environment" },
+                        config,
+                        (decodedText, decodedResult) => {
+                            dotNetHelper.invokeMethodAsync("OnQrCodeScanned", decodedText);
+                            this.stopScanner(); // Stop scanning automatically on success
+                        },
+                        (errorMessage) => {
+                            // Suppress verbose scanner logs
+                        }
+                    ).catch((err) => {
+                        console.error("Camera access failed:", err);
+                        dotNetHelper.invokeMethodAsync("OnQrCodeError", "Không thể mở camera. Vui lòng cấp quyền truy cập camera.");
+                    });
+                } catch (e) {
+                    console.error("Scanner initialization failed:", e);
+                    dotNetHelper.invokeMethodAsync("OnQrCodeError", "Lỗi khởi tạo camera: " + e.message);
+                }
+            },
+            stopScanner: function () {
+                if (this.html5Qrcode) {
+                    if (this.html5Qrcode.isScanning) {
+                        this.html5Qrcode.stop().then(() => {
+                            this.html5Qrcode = null;
+                        }).catch(err => console.error("Error stopping scanner:", err));
+                    } else {
+                        this.html5Qrcode = null;
+                    }
+                }
+            },
+            scanFile: function (fileInputId, elementId, dotNetHelper) {
+                const fileInput = document.getElementById(fileInputId);
+                if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                    dotNetHelper.invokeMethodAsync("OnQrCodeError", "Vui lòng chọn hình ảnh mã QR.");
+                    return;
+                }
+                const file = fileInput.files[0];
+                const tempScanner = new Html5Qrcode(elementId);
+                tempScanner.scanFile(file, true)
+                    .then(decodedText => {
+                        dotNetHelper.invokeMethodAsync("OnQrCodeScanned", decodedText);
+                    })
+                    .catch(err => {
+                        console.error("File scanning error:", err);
+                        dotNetHelper.invokeMethodAsync("OnQrCodeError", "Không nhận dạng được mã QR trong ảnh. Vui lòng chọn ảnh rõ nét hơn.");
+                    });
+            }
+        };
+    </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 

@@ -9,6 +9,7 @@ public class SuperAdminDashboardStatsDto
     public int TotalEvents { get; set; }
     public List<TenantEventCountDto> TopTenants { get; set; } = new();
     public List<RoleRatioDto> RoleRatios { get; set; } = new();
+    public decimal TotalPlatformFee { get; set; }
 }
 
 public class TenantEventCountDto
@@ -32,6 +33,8 @@ public class TenantAdminDashboardStatsDto
     public double CheckInRate { get; set; }
     public List<OrganizerEventCountDto> TopOrganizers { get; set; } = new();
     public List<MonthlyEventCountDto> MonthlyEvents { get; set; } = new();
+    public decimal TotalRevenue { get; set; }
+    public decimal TotalPlatformFee { get; set; }
 }
 
 public class OrganizerEventCountDto
@@ -53,6 +56,8 @@ public class OrganizerDashboardStatsDto
     public int UpcomingEvents { get; set; }
     public double CheckInRate { get; set; }
     public List<EventRegistrationCountDto> EventRegistrations { get; set; } = new();
+    public decimal TotalRevenue { get; set; }
+    public decimal PlatformFee { get; set; }
 }
 
 public class EventRegistrationCountDto
@@ -74,4 +79,6 @@ public class EventStatsDto
     public int Cancelled { get; set; }
     public int CheckedIn { get; set; }
     public double CheckInRate { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public decimal PlatformFee { get; set; }
 }

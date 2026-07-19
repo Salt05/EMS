@@ -47,6 +47,14 @@ public interface IRegistrationService
     Task<bool> RejectAsync(string registrationId, string tenantId, string processedById, string reason);
 
     /// <summary>
+    /// Marks a registration as paid.
+    /// </summary>
+    Task<bool> MarkAsPaidAsync(string registrationId, string tenantId, string transactionId, decimal amount, decimal platformFeePercentage);
+
+    /// <summary>Expires unpaid registrations whose payment reservation has elapsed.</summary>
+    Task<int> ExpirePendingPaymentsAsync();
+
+    /// <summary>
     /// Generates (or refreshes) a check-in code for the given user's confirmed registration to an event.
     /// </summary>
     Task<(Registration? Registration, string? Error)> GenerateCheckInCodeAsync(string eventId, string tenantId, string userId);

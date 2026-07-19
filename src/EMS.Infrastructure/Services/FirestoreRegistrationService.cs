@@ -22,7 +22,8 @@ public class FirestoreRegistrationService : IRegistrationService
     private static readonly RegistrationStatus[] ActiveStatuses =
     {
         RegistrationStatus.Pending,
-        RegistrationStatus.Confirmed
+        RegistrationStatus.Confirmed,
+        RegistrationStatus.PendingPayment
     };
 
     public FirestoreRegistrationService(
@@ -125,6 +126,7 @@ public class FirestoreRegistrationService : IRegistrationService
                     return (null, "Event is not open for registration");
 
                 var evCapacity = evDict.TryGetValue("capacity", out var cap) && cap is long capLong ? (int)capLong : 0;
+                var evPrice = evDict.TryGetValue("price", out var price) && price != null ? Convert.ToDecimal(price) : 0m;
                 var evEndTime = evDict.TryGetValue("endTime", out var et) && et is Timestamp etTs ? etTs.ToDateTime() : DateTime.MinValue;
                 if (evEndTime != DateTime.MinValue && evEndTime.ToUniversalTime() < DateTime.UtcNow)
                     return (null, "Event has already ended");
@@ -143,6 +145,7 @@ public class FirestoreRegistrationService : IRegistrationService
                 if (existing.Any(r => r.UserId == userId &&
                                       r.Status is RegistrationStatus.Pending
                                                or RegistrationStatus.Confirmed
+                                               or RegistrationStatus.PendingPayment
                                                or RegistrationStatus.Waitlisted))
                 {
                     return (null, "You are already registered for this event");
@@ -158,7 +161,10 @@ public class FirestoreRegistrationService : IRegistrationService
                     EventId = eventId,
                     UserId = userId,
                     Note = note,
-                    Status = isFull ? RegistrationStatus.Waitlisted : RegistrationStatus.Pending
+                    Status = isFull
+                        ? RegistrationStatus.Waitlisted
+                        : evPrice > 0 ? RegistrationStatus.PendingPayment : RegistrationStatus.Confirmed,
+                    PaymentExpiresAt = !isFull && evPrice > 0 ? DateTime.UtcNow.AddMinutes(5) : null
                 };
 
                 var docRef = _firestoreDb.Collection(CollectionName).Document(reg.Id);
@@ -199,9 +205,16 @@ public class FirestoreRegistrationService : IRegistrationService
                 var freedSeat = ActiveStatuses.Contains(reg.Status);
 
                 Registration? promotedWaitlist = null;
+                var promotedStatus = RegistrationStatus.Confirmed;
                 if (freedSeat)
                 {
                     promotedWaitlist = await GetWaitlistPromoteTargetInTransactionAsync(transaction, reg.EventId, tenantId);
+                    var eventSnapshot = await transaction.GetSnapshotAsync(_firestoreDb.Collection("events").Document(reg.EventId));
+                    var eventData = eventSnapshot.Exists ? eventSnapshot.ToDictionary() : null;
+                    var eventPrice = eventData != null && eventData.TryGetValue("price", out var price) && price != null
+                        ? Convert.ToDecimal(price)
+                        : 0m;
+                    promotedStatus = eventPrice > 0 ? RegistrationStatus.PendingPayment : RegistrationStatus.Confirmed;
                 }
 
                 reg.Status = RegistrationStatus.Cancelled;
@@ -212,7 +225,10 @@ public class FirestoreRegistrationService : IRegistrationService
 
                 if (promotedWaitlist != null)
                 {
-                    promotedWaitlist.Status = RegistrationStatus.Pending;
+                    promotedWaitlist.Status = promotedStatus;
+                    promotedWaitlist.PaymentExpiresAt = promotedStatus == RegistrationStatus.PendingPayment
+                        ? DateTime.UtcNow.AddMinutes(5)
+                        : null;
                     promotedWaitlist.UpdatedAt = DateTime.UtcNow;
                     var promoteRef = _firestoreDb.Collection(CollectionName).Document(promotedWaitlist.Id);
                     transaction.Set(promoteRef, promotedWaitlist.ToFirestoreDocument(), SetOptions.MergeAll);
@@ -305,9 +321,16 @@ public class FirestoreRegistrationService : IRegistrationService
                 var freedSeat = ActiveStatuses.Contains(reg.Status);
 
                 Registration? promotedWaitlist = null;
+                var promotedStatus = RegistrationStatus.Confirmed;
                 if (freedSeat)
                 {
                     promotedWaitlist = await GetWaitlistPromoteTargetInTransactionAsync(transaction, reg.EventId, tenantId);
+                    var eventSnapshot = await transaction.GetSnapshotAsync(_firestoreDb.Collection("events").Document(reg.EventId));
+                    var eventData = eventSnapshot.Exists ? eventSnapshot.ToDictionary() : null;
+                    var eventPrice = eventData != null && eventData.TryGetValue("price", out var price) && price != null
+                        ? Convert.ToDecimal(price)
+                        : 0m;
+                    promotedStatus = eventPrice > 0 ? RegistrationStatus.PendingPayment : RegistrationStatus.Confirmed;
                 }
 
                 reg.Status = RegistrationStatus.Rejected;
@@ -320,7 +343,10 @@ public class FirestoreRegistrationService : IRegistrationService
 
                 if (promotedWaitlist != null)
                 {
-                    promotedWaitlist.Status = RegistrationStatus.Pending;
+                    promotedWaitlist.Status = promotedStatus;
+                    promotedWaitlist.PaymentExpiresAt = promotedStatus == RegistrationStatus.PendingPayment
+                        ? DateTime.UtcNow.AddMinutes(5)
+                        : null;
                     promotedWaitlist.UpdatedAt = DateTime.UtcNow;
                     var promoteRef = _firestoreDb.Collection(CollectionName).Document(promotedWaitlist.Id);
                     transaction.Set(promoteRef, promotedWaitlist.ToFirestoreDocument(), SetOptions.MergeAll);
@@ -334,6 +360,72 @@ public class FirestoreRegistrationService : IRegistrationService
         {
             _logger.LogError(ex, $"Error rejecting registration {registrationId}");
             return false;
+        }
+    }
+
+    public async Task<bool> MarkAsPaidAsync(string registrationId, string tenantId, string transactionId, decimal amount, decimal platformFeePercentage)
+    {
+        try
+        {
+            var reg = await GetRegistrationByIdAsync(registrationId, tenantId);
+            if (reg == null) return false;
+
+            if (reg.IsPaid)
+                return reg.PaymentTransactionId == transactionId;
+
+            if (reg.Status != RegistrationStatus.PendingPayment ||
+                (reg.PaymentExpiresAt.HasValue && reg.PaymentExpiresAt.Value < DateTime.UtcNow))
+                return false;
+
+            var ev = await _eventService.GetEventByIdAsync(reg.EventId, tenantId);
+            if (ev == null || ev.Price != amount)
+                return false;
+
+            reg.IsPaid = true;
+            reg.PaymentTransactionId = transactionId;
+            reg.PaymentDate = DateTime.UtcNow;
+            reg.PaymentExpiresAt = null;
+            reg.Status = RegistrationStatus.Approved;
+
+            decimal fee = amount * platformFeePercentage / 100m;
+            reg.PlatformFee = fee;
+            reg.OrganizerRevenue = amount - fee;
+
+            return await SaveAsync(reg);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error marking registration {registrationId} as paid");
+            return false;
+        }
+    }
+
+    public async Task<int> ExpirePendingPaymentsAsync()
+    {
+        try
+        {
+            var snapshot = await _firestoreDb.Collection(CollectionName)
+                .WhereEqualTo("status", (int)RegistrationStatus.PendingPayment)
+                .GetSnapshotAsync();
+
+            var expired = snapshot.Documents
+                .Select(MapToRegistration)
+                .Where(registration => registration.PaymentExpiresAt.HasValue && registration.PaymentExpiresAt.Value <= DateTime.UtcNow)
+                .ToList();
+
+            var expiredCount = 0;
+            foreach (var registration in expired)
+            {
+                if (await CancelAsync(registration.Id, registration.TenantId))
+                    expiredCount++;
+            }
+
+            return expiredCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error expiring pending payments");
+            return 0;
         }
     }
 
@@ -532,7 +624,7 @@ public class FirestoreRegistrationService : IRegistrationService
 
         if (existingReg != null)
         {
-            if (existingReg.Status == RegistrationStatus.Approved || existingReg.Status == RegistrationStatus.Pending)
+            if (existingReg.Status is RegistrationStatus.Approved or RegistrationStatus.Pending or RegistrationStatus.Confirmed)
             {
                 throw new BusinessRuleException("Bạn đã đăng ký tham gia sự kiện này rồi.");
             }
@@ -540,11 +632,8 @@ public class FirestoreRegistrationService : IRegistrationService
 
         // 5. Check Capacity
         var eventRegs = await GetRegistrationsByEventAsync(eventId, tenantId);
-        var approvedCount = eventRegs.Count(r => r.Status == RegistrationStatus.Approved);
-        if (approvedCount >= ev.Capacity)
-        {
-            throw new BusinessRuleException("Sự kiện đã hết chỗ.");
-        }
+        var activeCount = eventRegs.Count(r => ActiveStatuses.Contains(r.Status));
+        var isFull = ev.Capacity > 0 && activeCount >= ev.Capacity;
 
         // 5.5 Find user ID by email
         string userId = string.Empty;
@@ -579,7 +668,22 @@ public class FirestoreRegistrationService : IRegistrationService
             reg.UserId = userId;
         }
 
-        reg.Status = RegistrationStatus.Approved; // Automatically approve registrations for simple flow
+        if (isFull)
+        {
+            reg.Status = RegistrationStatus.Waitlisted;
+            reg.PaymentExpiresAt = null;
+        }
+        else if (!ev.IsFree && ev.Price > 0)
+        {
+            reg.Status = RegistrationStatus.PendingPayment;
+            reg.PaymentExpiresAt = DateTime.UtcNow.AddMinutes(5);
+        }
+        else
+        {
+            reg.Status = RegistrationStatus.Approved; // Automatically approve free registrations
+            reg.PaymentExpiresAt = null;
+        }
+
         reg.UpdatedAt = DateTime.UtcNow;
         if (existingReg == null)
         {
@@ -722,6 +826,12 @@ public class FirestoreRegistrationService : IRegistrationService
             ReminderSentAt = dict.TryGetValue("reminderSentAt", out var rsAt) && rsAt is Timestamp rsAtTs && rsAtTs.ToDateTime() != DateTime.MinValue ? rsAtTs.ToDateTime() : null,
             StudentEmail = dict.TryGetValue("studentEmail", out var email) ? email?.ToString() ?? "" : "",
             StudentName = dict.TryGetValue("studentName", out var name) ? name?.ToString() ?? "" : "",
+            IsPaid = dict.TryGetValue("isPaid", out var paid) && paid is bool paidBool && paidBool,
+            PaymentTransactionId = dict.TryGetValue("paymentTransactionId", out var ptId) ? ptId?.ToString() : null,
+            PaymentDate = dict.TryGetValue("paymentDate", out var pDate) && pDate is Timestamp pDateTs && pDateTs.ToDateTime() != DateTime.MinValue ? pDateTs.ToDateTime() : null,
+            PaymentExpiresAt = dict.TryGetValue("paymentExpiresAt", out var pExpires) && pExpires is Timestamp pExpiresTs && pExpiresTs.ToDateTime() != DateTime.MinValue ? pExpiresTs.ToDateTime() : null,
+            PlatformFee = dict.TryGetValue("platformFee", out var pf) && pf is double pfDouble ? (decimal)pfDouble : 0,
+            OrganizerRevenue = dict.TryGetValue("organizerRevenue", out var or) && or is double orDouble ? (decimal)orDouble : 0,
             CreatedAt = dict.TryGetValue("createdAt", out var created) && created is Timestamp createdTs ? createdTs.ToDateTime() : DateTime.UtcNow,
             UpdatedAt = dict.TryGetValue("updatedAt", out var updated) && updated is Timestamp updatedTs ? updatedTs.ToDateTime() : DateTime.UtcNow
         };

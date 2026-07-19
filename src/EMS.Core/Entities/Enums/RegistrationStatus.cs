@@ -7,5 +7,6 @@ public enum RegistrationStatus
     Approved = 2, // Alias for Confirmed (used in MVC Student Portal)
     Waitlisted = 3,
     Cancelled = 4,
-    Rejected = 5
+    Rejected = 5,
+    PendingPayment = 6
 }

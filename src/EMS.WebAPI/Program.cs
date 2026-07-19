@@ -105,6 +105,7 @@ builder.Services.AddScoped<IAdminUserService, FirestoreAdminUserService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddSingleton<IReportExportService, ReportExportService>();
 builder.Services.AddScoped<EventReminderJob>();
+builder.Services.AddScoped<PaymentExpirationJob>();
 
 // ============ HANGFIRE (background jobs) ============
 // In-memory storage: the project uses Firestore, so there is no relational DB for Hangfire.
@@ -125,6 +126,8 @@ var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOp
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ems";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ems-users";
 
+System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 builder.Services
     .AddAuthentication(options =>
     {
@@ -142,7 +145,9 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = jwtAudience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.Zero,
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+            NameClaimType = "name"
         };
     });
 
@@ -191,6 +196,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+
 // ============ MIDDLEWARE ============
 app.UseMiddleware<TenantMiddleware>();
 
@@ -222,6 +229,11 @@ RecurringJob.AddOrUpdate<EventReminderJob>(
     "event-reminders",
     job => job.SendUpcomingEventRemindersAsync(),
     Cron.Hourly);
+
+RecurringJob.AddOrUpdate<PaymentExpirationJob>(
+    "payment-expirations",
+    job => job.ExpirePendingPaymentsAsync(),
+    Cron.Minutely);
 
 app.Run();
 

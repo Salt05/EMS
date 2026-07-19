@@ -11,6 +11,7 @@ public class Tenant
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
+    public double PlatformFeePercentage { get; set; } = 5.0;
 
     // For Firestore serialization
     public Dictionary<string, object> ToFirestoreDocument()
@@ -25,7 +26,8 @@ public class Tenant
             { "address", Address ?? "" },
             { "createdAt", CreatedAt },
             { "updatedAt", UpdatedAt },
-            { "isActive", IsActive }
+            { "isActive", IsActive },
+            { "platformFeePercentage", PlatformFeePercentage }
         };
     }
 }

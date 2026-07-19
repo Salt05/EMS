@@ -1,10 +1,11 @@
+@using System.Security.Claims
 @model List<EMS.Core.Entities.Event>
 @{
     ViewData["Title"] = "Trang chủ";
     string? userSession = Context.Request.Cookies["user_session"];
-    string? displayName = null;
+    string? displayName = ViewBag.DisplayName as string ?? Context.User.FindFirstValue(ClaimTypes.Name);
     string? tenantLabel = null;
-    bool isGuest = ViewBag.IsGuest ?? true;
+    bool isGuest = ViewBag.IsGuest is bool guestFlag ? guestFlag : !(Context.User.Identity?.IsAuthenticated ?? false);
     if (!string.IsNullOrEmpty(userSession))
     {
         var parts = userSession.Split('|');

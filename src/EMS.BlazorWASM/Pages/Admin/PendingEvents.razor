@@ -23,6 +23,7 @@
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tên sự kiện</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Ban tổ chức (Organizer)</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Địa điểm dự kiến</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Giá vé</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Thời gian tổ chức</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Số lượng dự kiến</th>
             <th class="px-6 py-3 text-right text-xs font-bold text-muted uppercase tracking-wider font-mono">Hành động</th>
@@ -31,6 +32,7 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@evt.Title</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">@GetOrganizerName(evt.OrganizerId)</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">@evt.Location</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-emerald-600 font-bold">@(evt.Price == 0 ? "Miễn phí" : $"{evt.Price:N0}đ")</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@evt.StartTime.ToString("dd/MM/yyyy HH:mm")</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@evt.Capacity người</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">

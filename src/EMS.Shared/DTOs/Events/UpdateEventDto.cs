@@ -26,4 +26,9 @@ public class UpdateEventDto
     public int Capacity { get; set; }
 
     public string? ImageUrl { get; set; }
+
+    [Range(0, double.MaxValue)]
+    public decimal Price { get; set; }
+
+    public int Scope { get; set; }
 }

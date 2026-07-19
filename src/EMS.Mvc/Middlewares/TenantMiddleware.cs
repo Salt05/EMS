@@ -1,5 +1,8 @@
+using EMS.Core.Entities;
 using EMS.Core.Interfaces.Services;
 using EMS.Mvc.Services;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
 
 namespace EMS.Mvc.Middlewares;
 
@@ -21,38 +24,19 @@ public class TenantMiddleware
             var host = context.Request.Host.Host;
             var subdomain = tenantResolver.ResolveTenantFromHost(host);
 
-            if (string.IsNullOrEmpty(subdomain))
-            {
-                subdomain = "default";
-            }
+            Tenant? tenant = null;
 
-            var tenant = await tenantService.GetTenantBySubdomainAsync(subdomain);
-
-            // Fallback: If tenant is not found (common on localhost without custom subdomain),
-            // fetch all tenants and pick the first one, or fallback to tenant-1.
-            if (tenant == null)
+            if (context.User?.Identity?.IsAuthenticated == true)
             {
-                var tenants = await tenantService.GetTenantsAsync();
-                if (tenants.Count > 0)
+                var authenticatedTenantId = context.User.FindFirstValue("tenantId");
+                if (!string.IsNullOrEmpty(authenticatedTenantId))
                 {
-                    tenant = tenants[0];
+                    tenant = await tenantService.GetTenantByIdAsync(authenticatedTenantId);
                 }
             }
 
-            if (tenant != null)
-            {
-                context.Items["TenantId"] = tenant.Id;
-                context.Items["TenantName"] = tenant.Name;
-                _logger.LogInformation($"Tenant resolved: {tenant.Name} ({tenant.Id}) for subdomain: {subdomain}");
-            }
-            else
-            {
-                context.Items["TenantId"] = DevInMemoryTenantService.DefaultTenantId;
-                context.Items["TenantName"] = "EMS Portal";
-                _logger.LogWarning($"Could not resolve tenant for subdomain: {subdomain}. Falling back to default.");
-            }
-
-            // Check for SSO auto-login token in query parameters
+            // Check for SSO auto-login token in query parameters first so we can
+            // prefer the tenant encoded in the JWT over the localhost fallback.
             if (context.Request.Query.TryGetValue("token", out var tokenValues))
             {
                 var token = tokenValues.ToString();
@@ -80,6 +64,8 @@ public class TenantMiddleware
                             string? email = null;
                             string? fullName = null;
                             string? role = null;
+                            string? userId = null;
+                            string? tenantId = null;
                             
                             // Check for both short/long claim names
                             if (root.TryGetProperty("email", out var emailProp)) email = emailProp.GetString();
@@ -87,10 +73,55 @@ public class TenantMiddleware
                             
                             if (root.TryGetProperty("unique_name", out var nameProp)) fullName = nameProp.GetString();
                             else if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", out var nameProp2)) fullName = nameProp2.GetString();
+
+                            if (root.TryGetProperty("sub", out var subProp)) userId = subProp.GetString();
+                            else if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", out var subProp2)) userId = subProp2.GetString();
+
+                            if (root.TryGetProperty("tenantId", out var tenantIdProp))
+                            {
+                                tenantId = tenantIdProp.GetString();
+                            }
+
+                            if (!string.IsNullOrEmpty(tenantId))
+                            {
+                                tenant = await tenantService.GetTenantByIdAsync(tenantId);
+                            }
                             
-                            if (root.TryGetProperty("role", out var roleProp)) role = roleProp.GetString();
-                            else if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role", out var roleProp2)) role = roleProp2.GetString();
-                            
+                            if (root.TryGetProperty("role", out var roleProp))
+                            {
+                                if (roleProp.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                {
+                                    var roles = new List<string>();
+                                    foreach (var r in roleProp.EnumerateArray())
+                                    {
+                                        var val = r.GetString();
+                                        if (val != null) roles.Add(val);
+                                    }
+                                    role = roles.FirstOrDefault(x => x.Equals("admin", StringComparison.OrdinalIgnoreCase) || x.Equals("superadmin", StringComparison.OrdinalIgnoreCase) || x.Equals("manager", StringComparison.OrdinalIgnoreCase)) ?? roles.FirstOrDefault() ?? "Student";
+                                }
+                                else
+                                {
+                                    role = roleProp.GetString();
+                                }
+                            }
+                            else if (root.TryGetProperty("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role", out var roleProp2))
+                            {
+                                if (roleProp2.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                {
+                                    var roles = new List<string>();
+                                    foreach (var r in roleProp2.EnumerateArray())
+                                    {
+                                        var val = r.GetString();
+                                        if (val != null) roles.Add(val);
+                                    }
+                                    role = roles.FirstOrDefault(x => x.Equals("admin", StringComparison.OrdinalIgnoreCase) || x.Equals("superadmin", StringComparison.OrdinalIgnoreCase) || x.Equals("manager", StringComparison.OrdinalIgnoreCase)) ?? roles.FirstOrDefault() ?? "Student";
+                                }
+                                else
+                                {
+                                    role = roleProp2.GetString();
+                                }
+                            }
+
                             if (!string.IsNullOrEmpty(email))
                             {
                                 if (string.IsNullOrEmpty(fullName))
@@ -110,6 +141,35 @@ public class TenantMiddleware
                                     role = "Student";
                                 }
                                 
+                                // Sign in using ASP.NET Core Cookie Authentication
+                                var claims = new List<System.Security.Claims.Claim>
+                                {
+                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, fullName),
+                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, email),
+                                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, role),
+                                    new System.Security.Claims.Claim("role", role),
+                                    new System.Security.Claims.Claim("jwt_token", token)
+                                };
+
+                                if (!string.IsNullOrEmpty(userId))
+                                {
+                                    claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId));
+                                    claims.Add(new System.Security.Claims.Claim("sub", userId));
+                                }
+
+                                if (tenant != null)
+                                {
+                                    claims.Add(new System.Security.Claims.Claim("tenantId", tenant.Id));
+                                }
+
+                                var identity = new System.Security.Claims.ClaimsIdentity(claims, Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+                                var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+                                // Make the authenticated principal visible to the current request immediately.
+                                context.User = principal;
+                                
+                                await context.SignInAsync(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
                                 var cookieOptions = new Microsoft.AspNetCore.Http.CookieOptions
                                 {
                                     HttpOnly = true,
@@ -145,6 +205,40 @@ public class TenantMiddleware
                         _logger.LogError($"SSO Auto-login failed: {ex.Message}");
                     }
                 }
+            }
+
+            if (tenant == null)
+            {
+                if (string.IsNullOrEmpty(subdomain))
+                {
+                    subdomain = "default";
+                }
+
+                tenant = await tenantService.GetTenantBySubdomainAsync(subdomain);
+
+                // Fallback: If tenant is not found (common on localhost without custom subdomain),
+                // fetch all tenants and pick the first one, or fallback to tenant-1.
+                if (tenant == null)
+                {
+                    var tenants = await tenantService.GetTenantsAsync();
+                    if (tenants.Count > 0)
+                    {
+                        tenant = tenants[0];
+                    }
+                }
+            }
+
+            if (tenant != null)
+            {
+                context.Items["TenantId"] = tenant.Id;
+                context.Items["TenantName"] = tenant.Name;
+                _logger.LogInformation($"Tenant resolved: {tenant.Name} ({tenant.Id}) for subdomain: {subdomain}");
+            }
+            else
+            {
+                context.Items["TenantId"] = DevInMemoryTenantService.DefaultTenantId;
+                context.Items["TenantName"] = "EMS Portal";
+                _logger.LogWarning($"Could not resolve tenant for subdomain: {subdomain}. Falling back to default.");
             }
         }
         catch (Exception ex)

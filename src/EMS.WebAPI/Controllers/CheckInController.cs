@@ -113,10 +113,14 @@ public class CheckInController : ControllerBase
 
     private string GetTenantId() => User.FindFirst("tenantId")?.Value ?? string.Empty;
 
-    private string GetUserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    private string GetUserId() => User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
 
-    private bool IsAdminOrManager() =>
-        User.IsInRole("admin") || User.IsInRole("manager");
+    private bool IsAdminOrManager() => User.Claims.Any(c => 
+        (c.Type == "role" || c.Type == ClaimTypes.Role) && 
+        (c.Value.Equals("admin", StringComparison.OrdinalIgnoreCase) || 
+         c.Value.Equals("manager", StringComparison.OrdinalIgnoreCase) ||
+         c.Value.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+    );
 
     private bool CanManageEvent(Event ev) => ev.OrganizerId == GetUserId() || IsAdminOrManager();
 

@@ -2,7 +2,7 @@
 @attribute [Authorize(Roles = "admin")]
 @inject ITenantAdminServiceClient TenantAdminService
 @inject ToastService ToastService
-@using EMS.BlazorWASM.MockData
+@using EMS.Shared.DTOs.Admin
 
 <PageTitle>Quản lý Email Templates — EMS</PageTitle>
 
@@ -16,7 +16,7 @@
     </div>
 
     <!-- Data Table -->
-    <DataTable TItem="MockEmailTemplateDto" Items="templates" TotalCount="templates.Count" 
+    <DataTable TItem="EmailTemplateDto" Items="templates" TotalCount="templates.Count" 
                Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading">
         <TableHeader>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tên Template</th>
@@ -90,7 +90,7 @@
 </FormModal>
 
 @code {
-    private List<MockEmailTemplateDto> templates = new();
+    private List<EmailTemplateDto> templates = new();
     private bool isLoading = true;
 
     private int page = 1;
@@ -98,10 +98,10 @@
 
     // Modals
     private bool isEditOpen;
-    private MockEmailTemplateDto? editingTemplate;
+    private EmailTemplateDto? editingTemplate;
 
     private bool isPreviewOpen;
-    private MockEmailTemplateDto? previewTemplate;
+    private EmailTemplateDto? previewTemplate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -128,9 +128,9 @@
 
     private void OnPageChanged(int newPage) => page = newPage;
 
-    private void OpenEditModal(MockEmailTemplateDto temp)
+    private void OpenEditModal(EmailTemplateDto temp)
     {
-        editingTemplate = new MockEmailTemplateDto
+        editingTemplate = new EmailTemplateDto
         {
             Id = temp.Id,
             TenantId = temp.TenantId,
@@ -164,20 +164,19 @@
         isLoading = false;
     }
 
-    private void OpenPreviewModal(MockEmailTemplateDto temp)
+    private void OpenPreviewModal(EmailTemplateDto temp)
     {
         previewTemplate = temp;
         isPreviewOpen = true;
     }
 
-    private async Task ResetToDefault(MockEmailTemplateDto temp)
+    private async Task ResetToDefault(EmailTemplateDto temp)
     {
         isLoading = true;
-        // Simulate reset to default
-        var defaultTemplate = EmailTemplatesMock.Templates.Find(t => t.Id == temp.Id);
+        var defaultTemplate = (await TenantAdminService.GetDefaultEmailTemplatesAsync()).Find(t => t.Id == temp.Id);
         if (defaultTemplate != null)
         {
-            var update = new MockEmailTemplateDto
+            var update = new EmailTemplateDto
             {
                 Id = temp.Id,
                 TenantId = temp.TenantId,

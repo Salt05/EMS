@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication;
 using EMS.Shared.DTOs.Auth;
 using EMS.Mvc.Services;
 
@@ -95,9 +96,10 @@ public class AuthController : Controller
 
     [HttpPost]
     [HttpGet]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
         _userContext.ClearSession();
+        await HttpContext.SignOutAsync(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
         TempData["SuccessMessage"] = "Đã đăng xuất thành công.";
         return RedirectToAction("Index", "Home");
     }

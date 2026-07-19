@@ -1,0 +1,32 @@
+@model string
+@{
+    ViewData["Title"] = "Thanh toán thành công";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="card border-0 shadow-sm rounded-4 p-5">
+                <div class="mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10" style="width: 80px; height: 80px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" class="text-success" viewBox="0 0 16 16">
+                            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                        </svg>
+                    </div>
+                </div>
+                <h2 class="fw-bold mb-3" style="color: #1a1a2e;">Thanh toán thành công!</h2>
+                <p class="text-muted mb-4">
+                    Vé tham gia sự kiện của bạn đã được kích hoạt. Bạn có thể xem vé và mã QR check-in trong phần "Sự kiện của tôi".
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a asp-controller="Events" asp-action="MyEvents" class="btn btn-dark rounded-pill px-4">
+                        <i class="bi bi-ticket-perforated me-1"></i> Xem vé của tôi
+                    </a>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary rounded-pill px-4">
+                        Về trang chủ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -13,6 +13,7 @@ public class EventResponseDto
     public int Capacity { get; set; }
     public string? ImageUrl { get; set; }
     public string OrganizerId { get; set; } = string.Empty;
+    public string OrganizerEmail { get; set; } = string.Empty;
     public int Status { get; set; }
     public string StatusName { get; set; } = string.Empty;
     public string? ApprovedById { get; set; }
@@ -20,6 +21,9 @@ public class EventResponseDto
     public string? RejectionReason { get; set; }
     public string? CheckInCode { get; set; }
     public DateTime? CheckInCodeExpiresAt { get; set; }
+    public decimal Price { get; set; }
+    public int Scope { get; set; }
+    public string ScopeName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

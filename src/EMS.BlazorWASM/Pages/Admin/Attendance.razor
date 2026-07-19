@@ -5,6 +5,8 @@
 @inject IJSRuntime JSRuntime
 @inject HttpClient Http
 @inject ILocalStorageService LocalStorage
+@inject ICheckInServiceClient CheckInService
+@implements IDisposable
 @using EMS.Shared.DTOs.Events
 @using EMS.Shared.DTOs.Registrations
 @using System.Text
@@ -75,6 +77,75 @@
 
     @if (!string.IsNullOrEmpty(selectedEventId))
     {
+        <!-- Student Check-in Actions Card -->
+        <div class="bg-white border border-border rounded-xl p-6 shadow-bento mb-8">
+            <h3 class="text-sm font-bold text-charcoal uppercase tracking-wider mb-4 flex items-center gap-2">
+                <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Điểm danh cho sinh viên
+            </h3>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Method 1: Manual Code Entry -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-bold text-muted uppercase tracking-wider">Cách 1: Nhập mã điểm danh của sinh viên</label>
+                    <div class="flex gap-2">
+                        <input type="text" @bind="studentCodeInput" @bind:event="oninput" 
+                               placeholder="Nhập mã điểm danh (ví dụ: 00FD452B)" 
+                               class="block w-full py-2 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal uppercase font-mono tracking-wider" 
+                               @onkeydown="@(e => { if (e.Key == "Enter") _ = ValidateCheckInCode(studentCodeInput); })" />
+                        <button @onclick="() => ValidateCheckInCode(studentCodeInput)" 
+                                class="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md shadow-sm hover:bg-indigo-700 transition-colors active:scale-[0.98]">
+                            Xác nhận
+                        </button>
+                    </div>
+                    <p class="text-xs text-muted">Nhập mã điểm danh cá nhân (QR code value) do sinh viên cung cấp.</p>
+                </div>
+
+                <!-- Method 2: QR Scanner / Upload -->
+                <div class="space-y-3">
+                    <label class="block text-xs font-bold text-muted uppercase tracking-wider">Cách 2: Quét mã QR điểm danh</label>
+                    <div class="flex flex-wrap gap-3">
+                        <button @onclick="ToggleQrScanner" 
+                                class="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-md shadow-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 active:scale-[0.98]">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h.01M16 20h2M6 12H4m0 0v8a2 2 0 002 2h2m0-18H6a2 2 0 00-2 2v2m16 4V6a2 2 0 00-2-2h-2" />
+                            </svg>
+                            @(showQrScanner ? "Tắt Camera" : "Bật Camera Quét")
+                        </button>
+                        
+                        <label for="qr-file-input" 
+                               class="cursor-pointer px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors flex items-center gap-2 active:scale-[0.98]">
+                            <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a1 1 0 011.414 0L16 16m-2-2l1.586-1.586a1 1 0 011.414 0L21 14m-7-2a2 2 0 11-4 0 2 2 0 014 0zM4 17v4a2 2 0 002 2h12a2 2 0 002-2v-4M4 17a2 2 0 012-2h12a2 2 0 012 2" />
+                            </svg>
+                            Tải lên ảnh QR
+                        </label>
+                        <input type="file" id="qr-file-input" accept="image/*" class="hidden" @onchange="OnQrFileSelectedJS" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(qrErrorText))
+                    {
+                        <p class="text-xs text-rose-600 font-semibold mt-1">@qrErrorText</p>
+                    }
+                </div>
+            </div>
+
+            <!-- QR Scanner Camera stream container -->
+            <div class="mt-6 flex flex-col items-center @(showQrScanner ? "" : "hidden")">
+                <div class="relative border-4 border-emerald-500 rounded-xl overflow-hidden shadow-lg bg-black" style="width: 320px; height: 320px;">
+                    <div id="qr-reader-element" style="width: 100%; height: 100%;"></div>
+                    <!-- Overlay target line -->
+                    <div class="absolute inset-x-0 top-1/2 h-0.5 bg-rose-500 shadow-md animate-pulse z-10"></div>
+                </div>
+                <p class="text-xs text-muted mt-2">Đưa mã QR của sinh viên vào trước camera để quét.</p>
+            </div>
+            
+            <!-- Hidden container for temp scanner file upload usage -->
+            <div id="qr-reader-element-temp" class="hidden"></div>
+        </div>
+
         <!-- Attendee List -->
         <div class="mb-4 flex items-center justify-between">
             <h2 class="text-lg font-bold text-charcoal flex items-center gap-2">
@@ -206,6 +277,12 @@
     // Duration modal states
     private bool showDurationModal = false;
     private int selectedDurationMinutes = 30;
+
+    // Student Check-in
+    private string studentCodeInput = "";
+    private bool showQrScanner = false;
+    private string qrErrorText = "";
+    private DotNetObjectReference<Attendance>? objRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -425,5 +502,85 @@
 
         await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "text/csv;charset=utf-8", base64);
         ToastService.ShowSuccess("Đã tải về danh sách điểm danh thành công.");
+    }
+
+    private async Task ValidateCheckInCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            ToastService.ShowError("Vui lòng nhập mã điểm danh.");
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var result = await CheckInService.ValidateCheckInCodeAsync(code.Trim().ToUpperInvariant());
+            if (result != null)
+            {
+                ToastService.ShowSuccess($"Điểm danh thành công cho sinh viên! 🎉");
+                studentCodeInput = "";
+                await LoadAttendees();
+            }
+            else
+            {
+                ToastService.ShowError("Mã điểm danh không hợp lệ, đã hết hạn, hoặc sinh viên chưa đăng ký sự kiện.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Đã xảy ra lỗi khi kết nối tới máy chủ.");
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ToggleQrScanner()
+    {
+        showQrScanner = !showQrScanner;
+        qrErrorText = "";
+        if (showQrScanner)
+        {
+            objRef ??= DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("qrInterop.startScanner", "qr-reader-element", objRef);
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("qrInterop.stopScanner");
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnQrCodeScanned(string decodedText)
+    {
+        showQrScanner = false;
+        qrErrorText = "";
+        await InvokeAsync(StateHasChanged);
+        
+        ToastService.ShowSuccess($"Đã phát hiện mã: {decodedText}");
+        await ValidateCheckInCode(decodedText);
+    }
+
+    [JSInvokable]
+    public void OnQrCodeError(string errorMessage)
+    {
+        qrErrorText = errorMessage;
+        StateHasChanged();
+    }
+
+    private async Task OnQrFileSelectedJS(ChangeEventArgs e)
+    {
+        qrErrorText = "";
+        objRef ??= DotNetObjectReference.Create(this);
+        await JSRuntime.InvokeVoidAsync("qrInterop.scanFile", "qr-file-input", "qr-reader-element", objRef);
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
+        _ = JSRuntime.InvokeVoidAsync("qrInterop.stopScanner");
     }
 }

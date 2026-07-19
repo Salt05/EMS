@@ -1,7 +1,6 @@
 using EMS.Shared.DTOs;
 using EMS.Shared.DTOs.Events;
 using EMS.Shared.DTOs.Registrations;
-using EMS.BlazorWASM.MockData;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -67,12 +66,12 @@ public class OrganizerServiceClient : IOrganizerServiceClient
         try
         {
             var res = await _httpClient.GetFromJsonAsync<OrganizerDashboardStatsDto>("api/organizer/dashboard/stats");
-            _statsCache = res ?? DashboardStatsMock.OrganizerStats;
+            _statsCache = res ?? new OrganizerDashboardStatsDto();
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("[DEMO] API /api/organizer/dashboard/stats chưa có, đang dùng mock data.");
-            _statsCache = DashboardStatsMock.OrganizerStats;
+            _logger.LogError(ex, "Lỗi khi gọi API /api/organizer/dashboard/stats.");
+            _statsCache = new OrganizerDashboardStatsDto();
         }
         return _statsCache;
     }
@@ -105,10 +104,10 @@ public class OrganizerServiceClient : IOrganizerServiceClient
                 _eventsCache = new List<EventResponseDto>();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("[DEMO] API /api/events chưa có, đang dùng mock data.");
-            _eventsCache = EventsMock.Events.Where(e => e.OrganizerId == "user2").ToList();
+            _logger.LogError(ex, "Lỗi khi gọi API /api/events.");
+            _eventsCache = new List<EventResponseDto>();
         }
         return _eventsCache;
     }
@@ -123,14 +122,13 @@ public class OrganizerServiceClient : IOrganizerServiceClient
         try
         {
             var res = await _httpClient.GetFromJsonAsync<List<RegistrationResponseDto>>($"api/registrations/event/{eventId}");
-            var list = res ?? RegistrationsMock.Registrations.Where(r => r.EventId == eventId).ToList();
+            var list = res ?? new List<RegistrationResponseDto>();
             _registrationsCache[eventId] = list;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API /api/registrations/event/{eventId} chưa có, đang dùng mock data.");
-            var list = RegistrationsMock.Registrations.Where(r => r.EventId == eventId).ToList();
-            _registrationsCache[eventId] = list;
+            _logger.LogError(ex, $"Lỗi khi gọi API /api/registrations/event/{eventId}.");
+            _registrationsCache[eventId] = new List<RegistrationResponseDto>();
         }
         return _registrationsCache[eventId];
     }
@@ -143,17 +141,9 @@ public class OrganizerServiceClient : IOrganizerServiceClient
             var res = await _httpClient.PostAsync($"api/registrations/{regId}/approve", null);
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API POST /api/registrations/{regId}/approve chưa có, đang duyệt trên mock data.");
-        }
-
-        var reg = RegistrationsMock.Registrations.Find(r => r.Id == regId);
-        if (reg != null)
-        {
-            reg.Status = 2; // Confirmed
-            reg.StatusName = "Confirmed";
-            return true;
+            _logger.LogError(ex, $"Lỗi khi gọi API POST /api/registrations/{regId}/approve.");
         }
         return false;
     }
@@ -166,18 +156,9 @@ public class OrganizerServiceClient : IOrganizerServiceClient
             var res = await _httpClient.PostAsJsonAsync($"api/registrations/{regId}/reject", new RejectRegistrationDto { Reason = reason });
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API POST /api/registrations/{regId}/reject chưa có, đang từ chối trên mock data.");
-        }
-
-        var reg = RegistrationsMock.Registrations.Find(r => r.Id == regId);
-        if (reg != null)
-        {
-            reg.Status = 5; // Rejected (matches RegistrationStatus enum value 5)
-            reg.StatusName = "Rejected";
-            reg.RejectionReason = reason;
-            return true;
+            _logger.LogError(ex, $"Lỗi khi gọi API POST /api/registrations/{regId}/reject.");
         }
         return false;
     }
@@ -194,15 +175,7 @@ public class OrganizerServiceClient : IOrganizerServiceClient
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, $"[DEMO] API POST /api/events/{eventId}/generate-code lỗi hoặc chưa có, đang sinh mã trên mock data.");
-        }
-
-        var ev = EventsMock.Events.Find(e => e.Id == eventId);
-        if (ev != null)
-        {
-            ev.CheckInCode = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
-            ev.CheckInCodeExpiresAt = DateTime.UtcNow.AddMinutes(durationMinutes);
-            return ev.CheckInCode;
+            _logger.LogError(ex, $"Lỗi khi gọi API POST /api/events/{eventId}/generate-code.");
         }
         return string.Empty;
     }
@@ -217,14 +190,13 @@ public class OrganizerServiceClient : IOrganizerServiceClient
         try
         {
             var res = await _httpClient.GetFromJsonAsync<List<RegistrationResponseDto>>($"api/checkin/event/{eventId}/attendees");
-            var list = res ?? RegistrationsMock.Registrations.Where(r => r.EventId == eventId && r.CheckedIn).ToList();
+            var list = res ?? new List<RegistrationResponseDto>();
             _attendeesCache[eventId] = list;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API /api/checkin/event/{eventId}/attendees chưa có, đang dùng mock data.");
-            var list = RegistrationsMock.Registrations.Where(r => r.EventId == eventId && r.CheckedIn).ToList();
-            _attendeesCache[eventId] = list;
+            _logger.LogError(ex, $"Lỗi khi gọi API /api/checkin/event/{eventId}/attendees.");
+            _attendeesCache[eventId] = new List<RegistrationResponseDto>();
         }
         return _attendeesCache[eventId];
     }
@@ -237,30 +209,12 @@ public class OrganizerServiceClient : IOrganizerServiceClient
             var res = await _httpClient.PostAsJsonAsync("api/events", request);
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("[DEMO] API POST /api/events chưa có, đang thêm vào mock data.");
+            _logger.LogError(ex, "Lỗi khi gọi API POST /api/events.");
         }
 
-        var ev = new EventResponseDto
-        {
-            Id = Guid.NewGuid().ToString().Substring(0, 8),
-            TenantId = "huflit",
-            Title = request.Title,
-            Description = request.Description,
-            Location = request.Location,
-            VenueId = request.VenueId,
-            StartTime = request.StartTime,
-            EndTime = request.EndTime,
-            Capacity = request.Capacity,
-            ImageUrl = request.ImageUrl,
-            OrganizerId = "user2",
-            Status = 1, // Pending
-            StatusName = "Pending",
-            CreatedAt = DateTime.UtcNow
-        };
-        EventsMock.Events.Add(ev);
-        return true;
+        return false;
     }
 
     public async Task<bool> UpdateEventAsync(string id, UpdateEventDto request)
@@ -271,23 +225,9 @@ public class OrganizerServiceClient : IOrganizerServiceClient
             var res = await _httpClient.PutAsJsonAsync($"api/events/{id}", request);
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API PUT /api/events/{id} chưa có, đang cập nhật mock data.");
-        }
-
-        var ev = EventsMock.Events.Find(e => e.Id == id);
-        if (ev != null)
-        {
-            ev.Title = request.Title;
-            ev.Description = request.Description;
-            ev.Location = request.Location;
-            ev.VenueId = request.VenueId;
-            ev.StartTime = request.StartTime;
-            ev.EndTime = request.EndTime;
-            ev.Capacity = request.Capacity;
-            ev.ImageUrl = request.ImageUrl;
-            return true;
+            _logger.LogError(ex, $"Lỗi khi gọi API PUT /api/events/{id}.");
         }
         return false;
     }
@@ -300,16 +240,9 @@ public class OrganizerServiceClient : IOrganizerServiceClient
             var res = await _httpClient.DeleteAsync($"api/events/{id}");
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API DELETE /api/events/{id} chưa có, đang xóa trên mock data.");
-        }
-
-        var ev = EventsMock.Events.Find(e => e.Id == id);
-        if (ev != null)
-        {
-            EventsMock.Events.Remove(ev);
-            return true;
+            _logger.LogError(ex, $"Lỗi khi gọi API DELETE /api/events/{id}.");
         }
         return false;
     }

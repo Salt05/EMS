@@ -206,13 +206,13 @@
                 {
                     Navigation.NavigateTo("/Organizer/Dashboard", forceLoad: false);
                 }
-                else if (user.IsInRole("employee"))
+                else if (user.IsInRole("employee") || user.IsInRole("student") || user.IsInRole("Student"))
                 {
-                    // Redirect to MVC Student Portal (with returnUrl or default)
+                    // Redirect students back to the MVC student portal instead of the Blazor dashboard shell.
                     var currentUri = new Uri(Navigation.Uri);
                     string studentPortalUrl = !string.IsNullOrEmpty(_returnUrl)
                         ? _returnUrl
-                        : $"{currentUri.Scheme}://{currentUri.Host}" + (currentUri.Port != 80 && currentUri.Port != 443 ? $":{currentUri.Port}" : "");
+                        : $"{currentUri.Scheme}://{currentUri.Host}" + (currentUri.Port != 80 && currentUri.Port != 443 ? $":{currentUri.Port}" : "") + "/Home/Index";
 
                     if (studentPortalUrl.Contains("?"))
                         studentPortalUrl += $"&token={Uri.EscapeDataString(result.Response.AccessToken)}";
@@ -235,7 +235,7 @@
                     }
                     else
                     {
-                        Navigation.NavigateTo("/", forceLoad: false);
+                        Navigation.NavigateTo("/Home/Index", forceLoad: true);
                     }
                 }
             }

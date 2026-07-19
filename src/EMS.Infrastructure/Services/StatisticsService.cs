@@ -72,6 +72,18 @@ public class StatisticsService : IStatisticsService
             })
             .ToList();
 
+        // Compute total platform fee across all tenants
+        decimal totalPlatformFee = 0;
+        foreach (var tenant in tenants)
+        {
+            var events = await _eventService.GetEventsByTenantAsync(tenant.Id);
+            foreach (var ev in events)
+            {
+                var regs = await _registrationService.GetRegistrationsByEventAsync(ev.Id, tenant.Id);
+                totalPlatformFee += regs.Where(r => r.IsPaid).Sum(r => r.PlatformFee);
+            }
+        }
+
         return new SuperAdminDashboardStatsDto
         {
             TotalTenants = tenants.Count,
@@ -81,7 +93,8 @@ public class StatisticsService : IStatisticsService
                 .OrderByDescending(t => t.EventCount)
                 .Take(5)
                 .ToList(),
-            RoleRatios = roleRatios
+            RoleRatios = roleRatios,
+            TotalPlatformFee = totalPlatformFee
         };
     }
 
@@ -116,6 +129,17 @@ public class StatisticsService : IStatisticsService
             .Take(5)
             .ToList();
 
+        // Revenue
+        decimal totalRevenue = 0;
+        decimal totalPlatformFee = 0;
+        foreach (var ev in events)
+        {
+            var regs = await _registrationService.GetRegistrationsByEventAsync(ev.Id, tenantId);
+            var paidRegs = regs.Where(r => r.IsPaid).ToList();
+            totalRevenue += paidRegs.Sum(r => r.OrganizerRevenue);
+            totalPlatformFee += paidRegs.Sum(r => r.PlatformFee);
+        }
+
         return new TenantAdminDashboardStatsDto
         {
             TotalUsers = users.Count,
@@ -125,7 +149,9 @@ public class StatisticsService : IStatisticsService
                 ? Math.Round(totalCheckedIn * 100.0 / totalRegistrations, 1)
                 : 0,
             TopOrganizers = topOrganizers,
-            MonthlyEvents = BuildMonthlySeries(events, 6)
+            MonthlyEvents = BuildMonthlySeries(events, 6),
+            TotalRevenue = totalRevenue,
+            TotalPlatformFee = totalPlatformFee
         };
     }
 
@@ -153,6 +179,17 @@ public class StatisticsService : IStatisticsService
             });
         }
 
+        // Revenue
+        decimal totalRevenue = 0;
+        decimal totalPlatformFee = 0;
+        foreach (var ev in events)
+        {
+            var regs = await _registrationService.GetRegistrationsByEventAsync(ev.Id, tenantId);
+            var paidRegs = regs.Where(r => r.IsPaid).ToList();
+            totalRevenue += paidRegs.Sum(r => r.OrganizerRevenue);
+            totalPlatformFee += paidRegs.Sum(r => r.PlatformFee);
+        }
+
         return new OrganizerDashboardStatsDto
         {
             TotalEvents = events.Count,
@@ -164,7 +201,9 @@ public class StatisticsService : IStatisticsService
             EventRegistrations = eventRegistrations
                 .OrderByDescending(e => e.RegistrationCount)
                 .Take(10)
-                .ToList()
+                .ToList(),
+            TotalRevenue = totalRevenue,
+            PlatformFee = totalPlatformFee
         };
     }
 
@@ -190,7 +229,9 @@ public class StatisticsService : IStatisticsService
             CheckedIn = regs.Count(r => r.CheckedIn),
             CheckInRate = regs.Count(IsActive) > 0
                 ? Math.Round(regs.Count(r => r.CheckedIn) * 100.0 / regs.Count(IsActive), 1)
-                : 0
+                : 0,
+            TotalRevenue = regs.Where(r => r.IsPaid).Sum(r => r.OrganizerRevenue + r.PlatformFee),
+            PlatformFee = regs.Where(r => r.IsPaid).Sum(r => r.PlatformFee)
         };
     }
 

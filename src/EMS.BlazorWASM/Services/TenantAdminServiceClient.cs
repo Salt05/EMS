@@ -1,7 +1,7 @@
 using EMS.Shared.DTOs;
 using EMS.Shared.DTOs.Events;
+using EMS.Shared.DTOs.Admin;
 using EMS.Shared.DTOs.Registrations;
-using EMS.BlazorWASM.MockData;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -23,8 +23,9 @@ public interface ITenantAdminServiceClient
     Task<bool> CreateEventAsync(CreateEventDto request);
     Task<bool> UpdateEventAsync(string id, UpdateEventDto request);
     Task<bool> DeleteEventAsync(string id);
-    Task<List<MockEmailTemplateDto>> GetEmailTemplatesAsync();
-    Task<bool> UpdateEmailTemplateAsync(string id, MockEmailTemplateDto template);
+    Task<List<EmailTemplateDto>> GetEmailTemplatesAsync();
+    Task<List<EmailTemplateDto>> GetDefaultEmailTemplatesAsync();
+    Task<bool> UpdateEmailTemplateAsync(string id, EmailTemplateDto template);
     Task<byte[]> ExportReportAsync(string? eventId, string format);
     Task<byte[]> ExportSummaryAsync(string format);
 }
@@ -45,12 +46,12 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
         try
         {
             var res = await _httpClient.GetFromJsonAsync<TenantAdminDashboardStatsDto>("api/admin/dashboard/stats");
-            return res ?? DashboardStatsMock.TenantAdminStats;
+            return res ?? new TenantAdminDashboardStatsDto();
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("[DEMO] API /api/admin/dashboard/stats chưa có, đang dùng mock data.");
-            return DashboardStatsMock.TenantAdminStats;
+            _logger.LogError(ex, "Lỗi khi gọi API /api/admin/dashboard/stats.");
+            return new TenantAdminDashboardStatsDto();
         }
     }
 
@@ -63,8 +64,8 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi khi gọi API GetEventsAsync, dùng mock data.");
-            return EventsMock.Events.Where(e => e.TenantId == "huflit").ToList();
+            _logger.LogError(ex, "Lỗi khi gọi API GetEventsAsync.");
+            return new List<EventResponseDto>();
         }
     }
 
@@ -168,38 +169,46 @@ public class TenantAdminServiceClient : ITenantAdminServiceClient
         return false;
     }
 
-    public async Task<List<MockEmailTemplateDto>> GetEmailTemplatesAsync()
+    public async Task<List<EmailTemplateDto>> GetEmailTemplatesAsync()
     {
         try
         {
-            var res = await _httpClient.GetFromJsonAsync<List<MockEmailTemplateDto>>("api/admin/email-templates");
-            return res ?? EmailTemplatesMock.Templates;
+            var res = await _httpClient.GetFromJsonAsync<List<EmailTemplateDto>>("api/admin/email-templates");
+            return res ?? new List<EmailTemplateDto>();
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("[DEMO] API /api/admin/email-templates chưa có, đang dùng mock data.");
-            return EmailTemplatesMock.Templates;
+            _logger.LogError(ex, "Lỗi khi gọi API /api/admin/email-templates.");
+            return new List<EmailTemplateDto>();
         }
     }
 
-    public async Task<bool> UpdateEmailTemplateAsync(string id, MockEmailTemplateDto template)
+    public async Task<List<EmailTemplateDto>> GetDefaultEmailTemplatesAsync()
+    {
+        try
+        {
+            var res = await _httpClient.GetFromJsonAsync<List<EmailTemplateDto>>("api/admin/email-templates/defaults");
+            return res ?? new List<EmailTemplateDto>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi gọi API /api/admin/email-templates/defaults.");
+            return new List<EmailTemplateDto>();
+        }
+    }
+
+    public async Task<bool> UpdateEmailTemplateAsync(string id, EmailTemplateDto template)
     {
         try
         {
             var res = await _httpClient.PutAsJsonAsync($"api/admin/email-templates/{id}", template);
             if (res.IsSuccessStatusCode) return true;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning($"[DEMO] API PUT /api/admin/email-templates/{id} chưa có, đang cập nhật mock data.");
+            _logger.LogError(ex, $"Lỗi khi gọi API PUT /api/admin/email-templates/{id}.");
         }
 
-        var idx = EmailTemplatesMock.Templates.FindIndex(t => t.Id == id);
-        if (idx >= 0)
-        {
-            EmailTemplatesMock.Templates[idx] = template;
-            return true;
-        }
         return false;
     }
 

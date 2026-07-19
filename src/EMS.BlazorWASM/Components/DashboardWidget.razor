@@ -2,12 +2,6 @@
     <div class="flex items-center justify-between">
         <span class="text-sm font-medium text-muted">@Title</span>
         <div class="flex items-center gap-2">
-            @if (IsDemo)
-            {
-                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800" title="Dữ liệu mô phỏng - API chưa sẵn sàng">
-                    ⏳ DEMO
-                </span>
-            }
             <div class="text-charcoal p-2 bg-canvas rounded-lg">
                 @Icon
             </div>
@@ -43,5 +37,4 @@
     [Parameter] public RenderFragment? Icon { get; set; }
     [Parameter] public string? Trend { get; set; }
     [Parameter] public string TrendDirection { get; set; } = "none";
-    [Parameter] public bool IsDemo { get; set; } = false;
 }

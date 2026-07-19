@@ -52,14 +52,18 @@
         <TableHeader>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tên sự kiện</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tenant</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Người tạo</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Địa điểm</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Giá vé</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Trạng thái</th>
             <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Thời gian bắt đầu</th>
         </TableHeader>
         <RowTemplate Context="evt">
             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@evt.Title</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">@GetTenantName(evt.TenantId)</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@(string.IsNullOrEmpty(evt.OrganizerEmail) ? "Không rõ" : evt.OrganizerEmail)</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted">@evt.Location</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-emerald-600 font-bold">@(evt.Price == 0 ? "Miễn phí" : $"{evt.Price:N0}đ")</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm">
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold @GetStatusBadgeClass(evt.Status)">
                     @evt.StatusName
@@ -90,12 +94,20 @@
                 <span class="col-span-2 text-charcoal">@GetTenantName(selectedEvent.TenantId)</span>
             </div>
             <div class="grid grid-cols-3 gap-2">
+                <span class="font-bold text-muted text-xs uppercase">Người tạo:</span>
+                <span class="col-span-2 text-charcoal font-mono">@(string.IsNullOrEmpty(selectedEvent.OrganizerEmail) ? "Không rõ" : selectedEvent.OrganizerEmail)</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
                 <span class="font-bold text-muted text-xs uppercase">Mô tả:</span>
                 <span class="col-span-2 text-muted leading-relaxed">@selectedEvent.Description</span>
             </div>
             <div class="grid grid-cols-3 gap-2">
                 <span class="font-bold text-muted text-xs uppercase">Địa điểm:</span>
                 <span class="col-span-2 text-charcoal">@selectedEvent.Location</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <span class="font-bold text-muted text-xs uppercase">Giá vé:</span>
+                <span class="col-span-2 text-emerald-600 font-bold">@(selectedEvent.Price == 0 ? "Miễn phí" : $"{selectedEvent.Price:N0} VNĐ")</span>
             </div>
             <div class="grid grid-cols-3 gap-2">
                 <span class="font-bold text-muted text-xs uppercase">Thời gian:</span>
@@ -121,15 +133,18 @@
                 </div>
             }
 
-            @if (selectedEvent.Status != 5 && selectedEvent.Status != 4)
-            {
-                <div class="pt-4 border-t border-border flex justify-end">
+            <div class="pt-4 border-t border-border flex items-center justify-between">
+                <a href="/SuperAdmin/Events/edit/@selectedEvent.Id" class="px-4 py-2 text-sm font-semibold text-charcoal bg-white border border-border rounded-md hover:bg-canvas transition-colors">
+                    Chỉnh sửa sự kiện
+                </a>
+                @if (selectedEvent.Status != 5 && selectedEvent.Status != 4)
+                {
                     <button class="px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-md shadow-sm hover:bg-rose-700 transition-all active:scale-[0.98]"
                             @onclick="TriggerCancelFromDetails">
                         Hủy sự kiện
                     </button>
-                </div>
-            }
+                }
+            </div>
         </div>
     }
 </FormModal>
