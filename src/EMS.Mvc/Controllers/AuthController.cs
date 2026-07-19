@@ -1,15 +1,23 @@
 using Microsoft.AspNetCore.Mvc;
 using EMS.Shared.DTOs.Auth;
+using EMS.Mvc.Services;
 
 namespace EMS.Mvc.Controllers;
 
 public class AuthController : Controller
 {
+    private readonly IUserContext _userContext;
+
+    public AuthController(IUserContext userContext)
+    {
+        _userContext = userContext;
+    }
+
     [HttpGet]
     public IActionResult Login()
     {
         // Nếu đã đăng nhập, chuyển hướng về Home
-        if (Request.Cookies.ContainsKey("user_session"))
+        if (_userContext.IsLoggedIn)
         {
             return RedirectToAction("Index", "Home");
         }
@@ -38,17 +46,11 @@ public class AuthController : Controller
             return View(request);
         }
 
-        // Giả lập lưu session bằng Cookie
+        // Giả lập lưu session bằng Cookie thông qua UserContext
         string fullName = request.Email.Split('@')[0];
         fullName = char.ToUpper(fullName[0]) + fullName.Substring(1); // Viết hoa chữ cái đầu
         
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Expires = DateTime.UtcNow.AddHours(1)
-        };
-        
-        Response.Cookies.Append("user_session", $"{fullName}|{request.Email}|Student", cookieOptions);
+        _userContext.SetSession(fullName, request.Email, "Student");
         TempData["SuccessMessage"] = "Đăng nhập thành công! Chào mừng bạn quay trở lại.";
 
         return RedirectToAction("Index", "Home");
@@ -57,7 +59,7 @@ public class AuthController : Controller
     [HttpGet]
     public IActionResult Register()
     {
-        if (Request.Cookies.ContainsKey("user_session"))
+        if (_userContext.IsLoggedIn)
         {
             return RedirectToAction("Index", "Home");
         }
@@ -84,14 +86,8 @@ public class AuthController : Controller
             return View(request);
         }
 
-        // Đăng ký thành công giả lập
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Expires = DateTime.UtcNow.AddHours(1)
-        };
-        
-        Response.Cookies.Append("user_session", $"{request.FullName}|{request.Email}|Student", cookieOptions);
+        // Đăng ký thành công giả lập thông qua UserContext
+        _userContext.SetSession(request.FullName, request.Email, "Student");
         TempData["SuccessMessage"] = "Đăng ký tài khoản thành công!";
 
         return RedirectToAction("Index", "Home");
@@ -101,7 +97,7 @@ public class AuthController : Controller
     [HttpGet]
     public IActionResult Logout()
     {
-        Response.Cookies.Delete("user_session");
+        _userContext.ClearSession();
         TempData["SuccessMessage"] = "Đã đăng xuất thành công.";
         return RedirectToAction("Index", "Home");
     }
