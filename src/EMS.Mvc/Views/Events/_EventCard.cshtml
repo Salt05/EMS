@@ -1,40 +1,4 @@
 @model EMS.Core.Entities.Event
-@functions {
-    string GetEventStatusClass(EMS.Core.Entities.Event ev)
-    {
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
-            return "status-badge-cancelled";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
-            return "status-badge-rejected";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
-            return "status-badge-pending";
-
-        var now = DateTime.UtcNow;
-        if (now < ev.StartTime)
-            return "status-badge-upcoming";
-        if (now >= ev.StartTime && now <= ev.EndTime)
-            return "status-badge-ongoing";
-        return "status-badge-ended";
-    }
-
-    string GetEventStatusName(EMS.Core.Entities.Event ev)
-    {
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
-            return "Đã hủy";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
-            return "Đã từ chối";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
-            return "Chờ phê duyệt";
-
-        var now = DateTime.UtcNow;
-        if (now < ev.StartTime)
-            return "Chưa diễn ra";
-        if (now >= ev.StartTime && now <= ev.EndTime)
-            return "Đang diễn ra";
-        return "Đã kết thúc";
-    }
-}
-
 <div class="col-lg-4 col-md-6">
     <div class="event-glass-card">
         <!-- Double-bezel image -->
@@ -43,7 +7,7 @@
                 <img src="@(string.IsNullOrEmpty(Model.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : Model.ImageUrl)"
                      alt="@Model.Title"
                      onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
-                <span class="event-badge @GetEventStatusClass(Model)">@GetEventStatusName(Model)</span>
+                <event-status-badge event="@Model"></event-status-badge>
             </div>
         </div>
 

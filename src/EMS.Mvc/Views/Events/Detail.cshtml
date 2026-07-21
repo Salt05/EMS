@@ -9,41 +9,7 @@
     }
 }
 
-@functions {
-    string GetEventStatusClass(EMS.Core.Entities.Event ev)
-    {
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
-            return "status-badge-cancelled";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
-            return "status-badge-rejected";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
-            return "status-badge-pending";
 
-        var now = DateTime.UtcNow;
-        if (now < ev.StartTime)
-            return "status-badge-upcoming";
-        if (now >= ev.StartTime && now <= ev.EndTime)
-            return "status-badge-ongoing";
-        return "status-badge-ended";
-    }
-
-    string GetEventStatusName(EMS.Core.Entities.Event ev)
-    {
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Cancelled)
-            return "Đã hủy";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Rejected)
-            return "Đã từ chối";
-        if (ev.Status == EMS.Core.Entities.Enums.EventStatus.Pending)
-            return "Chờ phê duyệt";
-
-        var now = DateTime.UtcNow;
-        if (now < ev.StartTime)
-            return "Chưa diễn ra";
-        if (now >= ev.StartTime && now <= ev.EndTime)
-            return "Đang diễn ra";
-        return "Đã kết thúc";
-    }
-}
 
 <div class="container my-5">
     <!-- Back Navigation -->
@@ -76,9 +42,7 @@
                 </div>
 
                 <div class="p-4 p-md-5">
-                    <span class="event-badge @GetEventStatusClass(Model)" style="position:static; display:inline-block; margin-bottom:1rem;">
-                        @GetEventStatusName(Model)
-                    </span>
+                    <event-status-badge event="@Model" style="position:static; display:inline-block; margin-bottom:1rem;"></event-status-badge>
                     <h1 class="heading-gradient heading-gradient-md mb-4">@Model.Title</h1>
 
                     <span class="eyebrow-tag" style="margin-bottom:0.75rem;">Giới thiệu sự kiện</span>
@@ -140,14 +104,7 @@
                     </div>
                     <div>
                         <div class="form-glass-label" style="margin-bottom:0.25rem;">Lệ phí</div>
-                        @if (Model.IsFree)
-                        {
-                            <div style="color:var(--success); font-weight:700; font-size:0.88rem;">MIỄN PHÍ</div>
-                        }
-                        else
-                        {
-                            <div style="color:var(--danger); font-weight:700; font-size:0.88rem;">@Model.Price.ToString("N0") VNĐ</div>
-                        }
+                        <price-format price="@Model.Price" is-free="@Model.IsFree" style="display: block; font-weight:700; font-size:0.88rem;"></price-format>
                     </div>
                 </div>
 
@@ -317,7 +274,7 @@
                                         }
                                         else
                                         {
-                                            <span>Mua vé ngay (@Model.Price.ToString("N0") VNĐ)</span>
+                                            <span>Mua vé ngay (<price-format price="@Model.Price" style="color: inherit;"></price-format>)</span>
                                             <span class="btn-icon-circle"><i class="ri-shopping-cart-2-line"></i></span>
                                         }
                                     </button>
