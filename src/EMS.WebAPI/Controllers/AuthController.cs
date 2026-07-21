@@ -43,26 +43,24 @@ public class AuthController : ControllerBase
                 return BadRequest("Email and password are required");
             }
 
-            // Get tenant from subdomain
+            // Get tenant from header or context
+            var tenantId = _tenantResolver.ResolveTenantIdFromContext();
             var subdomain = HttpContext.Items["Subdomain"]?.ToString();
-            if (string.IsNullOrEmpty(subdomain))
-            {
-                return BadRequest("Invalid tenant context");
-            }
 
             Tenant? tenant = null;
 
-            if (subdomain == "default")
+            if (!string.IsNullOrEmpty(tenantId))
             {
-                if (string.IsNullOrEmpty(request.TenantId))
-                {
-                    return BadRequest("Vui lòng chọn trường đại học/tổ chức.");
-                }
-                tenant = await _tenantService.GetTenantByIdAsync(request.TenantId);
+                tenant = await _tenantService.GetTenantByIdAsync(tenantId);
             }
-            else
+            else if (!string.IsNullOrEmpty(subdomain))
             {
                 tenant = await _tenantService.GetTenantBySubdomainAsync(subdomain);
+            }
+            // If both are null/empty, we can still use request.TenantId (fallback from old logic)
+            else if (!string.IsNullOrEmpty(request.TenantId))
+            {
+                tenant = await _tenantService.GetTenantByIdAsync(request.TenantId);
             }
 
             if (tenant == null)
@@ -125,17 +123,19 @@ public class AuthController : ControllerBase
                 return BadRequest("Email and password are required");
             }
 
-            // Get tenant from subdomain
+            // Get tenant from header or context
+            var tenantId = _tenantResolver.ResolveTenantIdFromContext();
             var subdomain = HttpContext.Items["Subdomain"]?.ToString();
-            if (string.IsNullOrEmpty(subdomain))
-            {
-                return BadRequest("Invalid tenant");
-            }
+            
+            Tenant? tenant = null;
 
-            var tenant = await _tenantService.GetTenantBySubdomainAsync(subdomain);
-            if (tenant == null)
+            if (!string.IsNullOrEmpty(tenantId))
             {
-                return NotFound("Tenant not found");
+                tenant = await _tenantService.GetTenantByIdAsync(tenantId);
+            }
+            else if (!string.IsNullOrEmpty(subdomain))
+            {
+                tenant = await _tenantService.GetTenantBySubdomainAsync(subdomain);
             }
 
             // Login with Firebase
@@ -148,8 +148,9 @@ public class AuthController : ControllerBase
 
             // Get user from Firestore
             User? user = null;
-            if (subdomain == "default")
+            if (tenant == null)
             {
+                // Global login: no specific tenant context
                 user = await _userService.GetUserByEmailGlobalAsync(request.Email);
                 if (user != null)
                 {
@@ -158,6 +159,7 @@ public class AuthController : ControllerBase
             }
             else
             {
+                // Tenant-specific login
                 user = await _userService.GetUserByEmailAsync(request.Email, tenant.Id);
             }
 
@@ -213,6 +215,27 @@ public class AuthController : ControllerBase
             if (string.IsNullOrEmpty(request.Email))
             {
                 return BadRequest("Email is required");
+            }
+
+            // Get tenant from header or context
+            var tenantId = _tenantResolver.ResolveTenantIdFromContext();
+            var subdomain = HttpContext.Items["Subdomain"]?.ToString();
+
+            Tenant? tenant = null;
+
+            if (!string.IsNullOrEmpty(tenantId))
+            {
+                tenant = await _tenantService.GetTenantByIdAsync(tenantId);
+            }
+            else if (!string.IsNullOrEmpty(subdomain))
+            {
+                tenant = await _tenantService.GetTenantBySubdomainAsync(subdomain);
+            }
+            // Fallback for UI if tenantId is provided in body is removed since PasswordResetRequest doesn't have TenantId.
+
+            if (tenant == null)
+            {
+                return BadRequest("Invalid tenant");
             }
 
             var result = await _authService.ResetPasswordAsync(request.Email);
