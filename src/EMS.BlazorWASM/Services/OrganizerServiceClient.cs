@@ -171,7 +171,15 @@ public class OrganizerServiceClient : IOrganizerServiceClient
             var res = await _httpClient.PostAsync($"api/events/{eventId}/generate-code?durationMinutes={durationMinutes}", null);
             res.EnsureSuccessStatusCode();
             var content = await res.Content.ReadAsStringAsync();
-            return content;
+            try
+            {
+                var json = System.Text.Json.JsonDocument.Parse(content);
+                return json.RootElement.GetProperty("checkInCode").GetString() ?? content;
+            }
+            catch
+            {
+                return content;
+            }
         }
         catch (Exception ex)
         {

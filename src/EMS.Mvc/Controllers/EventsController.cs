@@ -18,19 +18,22 @@ public class EventsController : Controller
     private readonly IAgendaService _agendaService;
     private readonly ICalendarService _calendarService;
     private readonly ILogger<EventsController> _logger;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
     public EventsController(
         IEventService eventService, 
         IRegistrationService registrationService, 
         IAgendaService agendaService,
         ICalendarService calendarService,
-        ILogger<EventsController> logger)
+        ILogger<EventsController> logger,
+        Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _eventService = eventService;
         _registrationService = registrationService;
         _agendaService = agendaService;
         _calendarService = calendarService;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -41,6 +44,20 @@ public class EventsController : Controller
 
         // Fetch only approved events for students
         var events = await _eventService.GetEventsByTenantAsync(tenantId, EventStatus.Approved);
+
+        var (_, userEmail, _) = GetUserSession();
+        bool isLoggedIn = !string.IsNullOrEmpty(userEmail);
+
+        // Filter events based on Scope
+        events = events.Where(e => e.Scope != EventScope.Hidden).ToList();
+        
+        bool isGlobalPlatform = tenantId == "all";
+        
+        if (!isLoggedIn || isGlobalPlatform)
+        {
+            // If not logged in OR on the global platform, only show Public (0) and PublicViewTenantRegister (2)
+            events = events.Where(e => e.Scope == EventScope.Public || e.Scope == EventScope.PublicViewTenantRegister).ToList();
+        }
 
         if (!string.IsNullOrWhiteSpace(searchString))
         {
@@ -67,17 +84,31 @@ public class EventsController : Controller
         var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
         var ev = await _eventService.GetEventByIdAsync(id, tenantId);
 
-        if (ev == null || ev.Status != EventStatus.Approved)
+        if (ev == null || ev.Status != EventStatus.Approved || ev.Scope == EventScope.Hidden)
         {
-            _logger.LogWarning($"Event {id} not found or not approved for tenant {tenantId}");
+            _logger.LogWarning($"Event {id} not found, not approved, or hidden for tenant {tenantId}");
             TempData["ErrorMessage"] = "Không tìm thấy sự kiện hoặc sự kiện chưa được phê duyệt.";
             return RedirectToAction(nameof(Index));
         }
 
-        // Get registration status if student is logged in
         var (displayName, userEmail, _) = GetUserSession();
+        bool isLoggedIn = !string.IsNullOrEmpty(userEmail);
+        bool isGlobalPlatform = tenantId == "all";
+
+        if ((!isLoggedIn || isGlobalPlatform) && (ev.Scope == EventScope.Internal || ev.Scope == EventScope.TenantViewOnly))
+        {
+            if (isGlobalPlatform)
+            {
+                TempData["ErrorMessage"] = "Sự kiện này yêu cầu truy cập thông qua cổng thông tin của trường.";
+                return RedirectToAction(nameof(Index));
+            }
+            TempData["ErrorMessage"] = "Bạn cần đăng nhập để xem thông tin sự kiện nội bộ này.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        // Get registration status if student is logged in
         RegistrationStatus? regStatus = null;
-        if (userEmail != null)
+        if (isLoggedIn)
         {
             var studentRegs = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
             var reg = studentRegs.FirstOrDefault(r => r.EventId == id);
@@ -105,6 +136,27 @@ public class EventsController : Controller
         }
 
         var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        
+        var ev = await _eventService.GetEventByIdAsync(eventId, tenantId);
+        if (ev == null || ev.Scope == EventScope.Hidden)
+        {
+            TempData["ErrorMessage"] = "Sự kiện không tồn tại hoặc đã bị ẩn.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (ev.Scope == EventScope.TenantViewOnly)
+        {
+            TempData["ErrorMessage"] = "Sự kiện này chỉ dành cho xem nội bộ, không cho phép đăng ký.";
+            return RedirectToAction(nameof(Detail), new { id = eventId });
+        }
+
+        bool isGlobalPlatform = tenantId == "all";
+        if (isGlobalPlatform && (ev.Scope == EventScope.Internal || ev.Scope == EventScope.PublicViewTenantRegister))
+        {
+            TempData["ErrorMessage"] = "Sự kiện này yêu cầu tài khoản nội bộ. Vui lòng truy cập cổng thông tin của trường để đăng ký.";
+            return RedirectToAction(nameof(Detail), new { id = eventId });
+        }
+
         try
         {
             var reg = await _registrationService.RegisterForEventAsync(tenantId, eventId, userEmail, displayName);
@@ -113,6 +165,28 @@ public class EventsController : Controller
                 return RedirectToAction("Pay", "Payment", new { registrationId = reg.Id });
             }
             TempData["SuccessMessage"] = "Đăng ký tham gia sự kiện thành công!";
+
+            // Trigger SignalR Notification on WebAPI
+            _ = Task.Run(async () => 
+            {
+                try
+                {
+                    var webApiUrl = _configuration["WebApiBaseUrl"] ?? "https://localhost:7296";
+                    var handler = new System.Net.Http.HttpClientHandler
+                    {
+                        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                    };
+                    using var client = new System.Net.Http.HttpClient(handler);
+                    client.DefaultRequestHeaders.Add("X-API-KEY", "Secret_EMS_Api_Key_2026");
+                    var response = await client.PostAsync($"{webApiUrl}/api/notifications/trigger-registration?eventId={eventId}&tenantId={tenantId}&registrationId={reg.Id}", null);
+                    _logger.LogInformation($"SignalR Trigger Response: {response.StatusCode}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to trigger SignalR notification.");
+                }
+            });
+
         }
         catch (NotFoundException ex)
         {
@@ -258,6 +332,7 @@ public class EventsController : Controller
         if (success)
         {
             TempData["SuccessMessage"] = "Điểm danh thành công! 🎉";
+            TriggerCheckInNotification(eventId, tenantId);
         }
         else
         {
@@ -282,6 +357,7 @@ public class EventsController : Controller
 
         if (success)
         {
+            TriggerCheckInNotification(eventId, tenantId);
             var studentRegs = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
             var reg = studentRegs.FirstOrDefault(r => r.EventId == eventId);
             return Json(new { 
@@ -291,6 +367,29 @@ public class EventsController : Controller
         }
 
         return Json(new { success = false, error = message ?? "Mã điểm danh không hợp lệ hoặc đã hết hạn." });
+    }
+
+    private void TriggerCheckInNotification(string eventId, string tenantId)
+    {
+        _ = Task.Run(async () => 
+        {
+            try
+            {
+                var webApiUrl = _configuration["WebApiBaseUrl"] ?? "https://localhost:7296";
+                var handler = new System.Net.Http.HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new System.Net.Http.HttpClient(handler);
+                client.DefaultRequestHeaders.Add("X-API-KEY", "Secret_EMS_Api_Key_2026");
+                var response = await client.PostAsync($"{webApiUrl}/api/notifications/trigger-checkin?eventId={eventId}&tenantId={tenantId}", null);
+                _logger.LogInformation($"SignalR Trigger CheckIn Response: {response.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to trigger SignalR check-in notification.");
+            }
+        });
     }
 
     [HttpPost]

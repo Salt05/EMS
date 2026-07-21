@@ -5,6 +5,8 @@ using EMS.Core.Interfaces.Services;
 using EMS.Shared.DTOs.Registrations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using EMS.WebAPI.Hubs;
 
 namespace EMS.WebAPI.Controllers;
 
@@ -17,17 +19,20 @@ public class RegistrationsController : ControllerBase
     private readonly IEventService _eventService;
     private readonly IUserService _userService;
     private readonly ILogger<RegistrationsController> _logger;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public RegistrationsController(
         IRegistrationService registrationService,
         IEventService eventService,
         IUserService userService,
-        ILogger<RegistrationsController> logger)
+        ILogger<RegistrationsController> logger,
+        IHubContext<NotificationHub> hubContext)
     {
         _registrationService = registrationService;
         _eventService = eventService;
         _userService = userService;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     // GET /api/registrations/me — current user's registrations
@@ -111,6 +116,23 @@ public class RegistrationsController : ControllerBase
 
         var (reg, error) = await _registrationService.RegisterAsync(dto.EventId, tenantId, GetUserId(), dto.Note);
         if (reg == null) return BadRequest(error ?? "Failed to register");
+
+        // Phát tín hiệu Real-time báo có người đăng ký
+        var ev = await _eventService.GetEventByIdAsync(dto.EventId, tenantId);
+        if (ev != null)
+        {
+            var regs = await _registrationService.GetRegistrationsByEventAsync(dto.EventId, tenantId);
+            var activeCount = regs.Count(r => r.Status == RegistrationStatus.Pending || r.Status == RegistrationStatus.Confirmed || r.Status == RegistrationStatus.PendingPayment);
+            var remainingSlots = ev.Capacity > 0 ? Math.Max(0, ev.Capacity - activeCount) : -1;
+            
+            await _hubContext.Clients.Group("student").SendAsync("ReceiveEventCapacityUpdate", ev.Id, remainingSlots);
+            await _hubContext.Clients.Group("admin").SendAsync("ReceiveNewRegistrationInfo", ev.Title, 1);
+            await _hubContext.Clients.Group("manager").SendAsync("ReceiveNewRegistrationInfo", ev.Title, 1);
+            if (!string.IsNullOrEmpty(ev.OrganizerId))
+            {
+                await _hubContext.Clients.User(ev.OrganizerId).SendAsync("ReceiveNewRegistrationInfo", ev.Title, 1);
+            }
+        }
 
         return CreatedAtAction(nameof(GetRegistration), new { id = reg.Id }, MapToResponse(reg));
     }

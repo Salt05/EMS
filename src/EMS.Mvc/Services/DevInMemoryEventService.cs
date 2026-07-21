@@ -143,7 +143,7 @@ public class DevInMemoryEventService : IEventService
 
     public Task<Event?> GetEventByIdAsync(string eventId, string tenantId)
     {
-        var ev = _events.FirstOrDefault(e => e.Id == eventId && e.TenantId == tenantId);
+        var ev = _events.FirstOrDefault(e => e.Id == eventId && (tenantId == "all" || e.TenantId == tenantId));
         return Task.FromResult(ev);
     }
 

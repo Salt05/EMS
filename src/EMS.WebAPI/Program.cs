@@ -1,4 +1,6 @@
 using System.Text;
+using EMS.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -12,6 +14,7 @@ using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
 using Serilog;
+using EMS.WebAPI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,20 +105,33 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IAdminUserService, FirestoreAdminUserService>();
+builder.Services.AddScoped<ISuperAdminManagementService, SuperAdminManagementService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddSingleton<IReportExportService, ReportExportService>();
 builder.Services.AddScoped<EventReminderJob>();
 builder.Services.AddScoped<PaymentExpirationJob>();
 
+// ============ DATABASE (SQLITE / EF CORE) ============
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=ems.db";
+builder.Services.AddDbContext<EmsDbContext>(options =>
+    options.UseSqlite(connectionString, b => b.MigrationsAssembly("EMS.Infrastructure")));
+
 // ============ HANGFIRE (background jobs) ============
 // In-memory storage: the project uses Firestore, so there is no relational DB for Hangfire.
 // Jobs are not persisted across restarts, which is fine for the recurring reminder schedule.
-builder.Services.AddHangfire(config => config
+builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
     .UseMemoryStorage());
-builder.Services.AddHangfireServer();
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = 1;
+});
+
+// ============ SIGNALR ============
+builder.Services.AddSignalR();
 
 // ============ HTTP CONTEXT & CACHING ============
 builder.Services.AddHttpContextAccessor();
@@ -148,6 +164,19 @@ builder.Services
             ClockSkew = TimeSpan.Zero,
             RoleClaimType = System.Security.Claims.ClaimTypes.Role,
             NameClaimType = "name"
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationHub"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -188,17 +217,39 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", policyBuilder =>
     {
         policyBuilder
-            .AllowAnyOrigin()
+            .SetIsOriginAllowed(_ => true)
             .AllowAnyMethod()
-            .AllowAnyHeader();
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
+// ============ AUTO MIGRATE EF CORE ============
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<EmsDbContext>();
+        await context.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+}
+
+// ============ CORS (Must be before custom middlewares) ============
+app.UseCors("AllowAll");
+
+app.UseMiddleware<PerformanceLoggingMiddleware>();
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 // ============ MIDDLEWARE ============
+app.UseMiddleware<ApiKeyValidationMiddleware>();
 app.UseMiddleware<TenantMiddleware>();
 
 // ============ SWAGGER ============
@@ -209,12 +260,12 @@ if (app.Environment.IsDevelopment())
 }
 
 // ============ ROUTING & AUTH ============
-app.UseCors("AllowAll");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<UserStatusMiddleware>();  // Block inactive users even with valid JWT
 app.MapControllers();
+app.MapHub<NotificationHub>("/notificationHub");
 
 // Hangfire Dashboard — restrict access in non-Development environments.
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
@@ -236,4 +287,3 @@ RecurringJob.AddOrUpdate<PaymentExpirationJob>(
     Cron.Minutely);
 
 app.Run();
-

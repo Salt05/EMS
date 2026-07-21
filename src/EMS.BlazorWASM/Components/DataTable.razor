@@ -55,7 +55,7 @@
                 {
                     @foreach (var item in DisplayedItems)
                     {
-                        <tr class="hover:bg-canvas transition-colors @(OnRowClick.HasDelegate ? "cursor-pointer" : "")" 
+                        <tr class="hover:bg-canvas transition-colors @(OnRowClick.HasDelegate ? "cursor-pointer" : "") @(RowClassSelector?.Invoke(item))" 
                             @onclick="() => HandleRowClick(item)">
                             @RowTemplate(item)
                         </tr>
@@ -101,6 +101,7 @@
     [Parameter] public EventCallback<int> PageChanged { get; set; }
     [Parameter] public EventCallback<string> SearchChanged { get; set; }
     [Parameter] public EventCallback<TItem> OnRowClick { get; set; }
+    [Parameter] public Func<TItem, string>? RowClassSelector { get; set; }
 
     private string SearchQuery { get; set; } = string.Empty;
     private int MaxPage => (int)Math.Ceiling((double)TotalCount / PageSize);

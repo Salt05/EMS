@@ -59,7 +59,14 @@ namespace EMS.Mvc.Services
             var context = _httpContextAccessor.HttpContext;
             if (context == null) return;
 
-            context.Response.Cookies.Delete(CookieName);
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Secure = true
+            };
+
+            context.Response.Cookies.Delete(CookieName, cookieOptions);
         }
     }
 }

@@ -12,19 +12,22 @@ public class PaymentController : Controller
     private readonly IVnPayService _vnPayService;
     private readonly IUserContext _userContext;
     private readonly ILogger<PaymentController> _logger;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
     public PaymentController(
         IRegistrationService registrationService,
         IEventService eventService,
         IVnPayService vnPayService,
         IUserContext userContext,
-        ILogger<PaymentController> logger)
+        ILogger<PaymentController> logger,
+        Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _registrationService = registrationService;
         _eventService = eventService;
         _vnPayService = vnPayService;
         _userContext = userContext;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -129,6 +132,9 @@ public class PaymentController : Controller
             {
                 _logger.LogInformation($"VNPAY payment success for Registration: {registrationId}. Approved.");
                 TempData["SuccessMessage"] = "Thanh toán thành công! Vé tham gia sự kiện của bạn đã được kích hoạt.";
+                
+                // Trigger SignalR Notification
+                TriggerNotification(reg.EventId, tenantId, registrationId);
             }
             else
             {
@@ -193,6 +199,10 @@ public class PaymentController : Controller
             if (success)
             {
                 _logger.LogInformation($"VNPAY IPN processed success for Registration: {registrationId}.");
+                
+                // Trigger SignalR Notification
+                TriggerNotification(reg.EventId, tenantId, registrationId);
+                
                 return Json(new { RspCode = "00", Message = "Confirm success" });
             }
             return Json(new { RspCode = "99", Message = "Update fail" });
@@ -200,5 +210,28 @@ public class PaymentController : Controller
 
         await _registrationService.CancelAsync(registrationId, tenantId);
         return Json(new { RspCode = "00", Message = "Confirm success" });
+    }
+
+    private void TriggerNotification(string eventId, string tenantId, string registrationId)
+    {
+        _ = Task.Run(async () => 
+        {
+            try
+            {
+                var webApiUrl = _configuration["WebApiBaseUrl"] ?? "https://localhost:7296";
+                var handler = new System.Net.Http.HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; }
+                };
+                using var client = new System.Net.Http.HttpClient(handler);
+                client.DefaultRequestHeaders.Add("X-API-KEY", "Secret_EMS_Api_Key_2026");
+                var response = await client.PostAsync($"{webApiUrl}/api/notifications/trigger-registration?eventId={eventId}&tenantId={tenantId}&registrationId={registrationId}", null);
+                _logger.LogInformation($"SignalR Trigger Response (Payment): {response.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to trigger SignalR notification after payment.");
+            }
+        });
     }
 }

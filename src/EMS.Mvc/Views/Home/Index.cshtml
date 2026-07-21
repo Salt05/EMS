@@ -71,7 +71,7 @@
 <section class="hero-section">
     <span class="eyebrow-tag">Hệ Thống Quản Lý Sự Kiện</span>
 
-    @if (displayName != null)
+    @if (!isGuest && displayName != null)
     {
         <h1 class="heading-gradient heading-gradient-lg mb-3">
             Chào mừng trở lại,<br/>@displayName!
@@ -141,136 +141,147 @@
 
 <!-- ═══ Event Slider Section ═══ -->
 <section class="my-5" id="events">
-    @if (isGuest)
-    {
-        <!-- Banner mời đăng nhập (guest) -->
-        <div class="guest-events-banner">
-            <div class="guest-banner-icon">
-                <i class="ri-lock-password-line"></i>
-            </div>
-            <h3 class="guest-banner-title">Khám phá sự kiện tại trường của bạn</h3>
-            <p class="guest-banner-desc">
-                Đăng nhập bằng <strong>email sinh viên chính thức</strong> do trường đại học của bạn cung cấp để xem đầy đủ danh sách và chi tiết các sự kiện đang diễn ra.
-            </p>
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <span class="eyebrow-tag">@(isGuest ? "Sự kiện trường bạn" : "Đang Diễn Ra")</span>
+            <h2 class="section-heading">
+                <i class="ri-fire-line text-danger-custom me-2"></i>@(isGuest ? "Khám phá sự kiện" : "Sự kiện nổi bật")
+            </h2>
+            <p class="text-muted-custom mb-0">@(isGuest ? "Đăng nhập để xem đầy đủ danh sách sự kiện." : "Danh sách sự kiện đang mở đăng ký tham gia")</p>
+        </div>
+        <a asp-controller="Events" asp-action="Index"
+           class="btn-cta-outline btn-cta-sm d-none d-sm-inline-flex">
+            <span>Xem tất cả</span>
+            <span class="btn-icon-circle"><i class="ri-arrow-right-line"></i></span>
+        </a>
+    </div>
 
-            <div class="guest-banner-actions">
-                <a asp-controller="Auth" asp-action="Login" class="btn-cta">
-                    <span>Đăng nhập ngay</span>
-                    <span class="btn-icon-circle"><i class="ri-login-box-line"></i></span>
-                </a>
-                <a asp-controller="Auth" asp-action="Register" class="btn-cta-outline">
-                    <i class="ri-user-add-line"></i>
-                    <span>Đăng ký tài khoản</span>
-                </a>
-            </div>
+    @if (!allEvents.Any())
+    {
+        <div class="text-center py-5">
+            <div class="mb-3" style="font-size:3rem; color:var(--text-muted);"><i class="ri-calendar-close-line"></i></div>
+            <h5 style="color:var(--text-secondary);">Hiện tại chưa có sự kiện nào.</h5>
         </div>
     }
     else
     {
-        <div class="d-flex justify-content-between align-items-end mb-4">
-            <div>
-                <span class="eyebrow-tag">Đang Diễn Ra</span>
-                <h2 class="section-heading">
-                    <i class="ri-fire-line text-danger-custom me-2"></i>Sự kiện nổi bật
-                </h2>
-                <p class="text-muted-custom mb-0">Danh sách sự kiện đang mở đăng ký tham gia</p>
-            </div>
-            <a asp-controller="Events" asp-action="Index"
-               class="btn-cta-outline btn-cta-sm d-none d-sm-inline-flex">
-                <span>Xem tất cả</span>
-                <span class="btn-icon-circle"><i class="ri-arrow-right-line"></i></span>
-            </a>
-        </div>
-
-
-
-        @if (!allEvents.Any())
-        {
-            <div class="text-center py-5">
-                <div class="mb-3" style="font-size:3rem; color:var(--text-muted);"><i class="ri-calendar-close-line"></i></div>
-                <h5 style="color:var(--text-secondary);">Hiện tại chưa có sự kiện nào.</h5>
-            </div>
-        }
-        else
-        {
-            <!-- Slider outer -->
-            <div class="slider-outer">
-                <!-- Viewport -->
-                <div class="slider-viewport">
-                    <div id="evtTrack"
-                         style="display:flex; width:@(pageCount * 100)%; transition:transform 0.6s cubic-bezier(0.4,0,0.2,1); will-change:transform;">
-                        @for (int p = 0; p < pageCount; p++)
-                        {
-                            var pageEvts = allEvents.Skip(p * pageSize).Take(pageSize).ToList();
-                            <div style="flex-shrink:0; width:@(Math.Round(100.0/pageCount,6))%; box-sizing:border-box; padding:4px 0;">
-                                <div class="row g-4">
-                                    @foreach (var ev in pageEvts)
-                                    {
-                                        <div class="col-lg-4 col-md-6 col-12">
-                                            <div class="event-glass-card">
-                                                <!-- Double-bezel image -->
-                                                <div class="event-image-wrap">
-                                                    <div class="event-image-shell">
-                                                        <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)"
-                                                             alt="@ev.Title"
-                                                             onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
-                                                        <span class="event-badge @GetEventStatusClass(ev)">@GetEventStatusName(ev)</span>
-                                                    </div>
-                                                </div>
-                                                <!-- Content -->
-                                                <div class="event-card-body">
-                                                    <h5 class="event-card-title">@ev.Title</h5>
-                                                    <div class="event-card-meta">
-                                                        <div><i class="ri-time-line"></i> @ev.StartTime.ToString("dd/MM/yyyy HH:mm") – @ev.EndTime.ToString("HH:mm")</div>
-                                                        <div><i class="ri-map-pin-2-line"></i> @ev.Location</div>
-                                                    </div>
-                                                    @{
-                                                        var dsc = (ev.Description?.Length > 110)
-                                                            ? ev.Description.Substring(0, 107) + "..."
-                                                            : (ev.Description ?? "");
-                                                    }
-                                                    <p class="event-card-desc">@dsc</p>
-                                                </div>
-                                                <!-- Footer -->
-                                                <div class="event-card-footer">
-                                                    <span><i class="ri-group-line me-1"></i> Sức chứa: @ev.Capacity</span>
-                                                    <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id"
-                                                       class="btn-cta btn-cta-sm">
-                                                        <span>Chi tiết</span>
-                                                        <span class="btn-icon-circle"><i class="ri-arrow-right-up-line"></i></span>
-                                                    </a>
+        <!-- Slider outer -->
+        <div class="slider-outer">
+            <!-- Viewport -->
+            <div class="slider-viewport">
+                <div id="evtTrack"
+                     style="display:flex; width:@(pageCount * 100)%; transition:transform 0.6s cubic-bezier(0.4,0,0.2,1); will-change:transform;">
+                    @for (int p = 0; p < pageCount; p++)
+                    {
+                        var pageEvts = allEvents.Skip(p * pageSize).Take(pageSize).ToList();
+                        <div style="flex-shrink:0; width:@(Math.Round(100.0/pageCount,6))%; box-sizing:border-box; padding:4px 0;">
+                            <div class="row g-4">
+                                @foreach (var ev in pageEvts)
+                                {
+                                    <div class="col-lg-4 col-md-6 col-12">
+                                        <div class="event-glass-card">
+                                            <!-- Double-bezel image -->
+                                            <div class="event-image-wrap">
+                                                <div class="event-image-shell">
+                                                    <img src="@(string.IsNullOrEmpty(ev.ImageUrl) ? "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=60" : ev.ImageUrl)"
+                                                         alt="@ev.Title"
+                                                         onerror="this.onerror=null;this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event';">
+                                                    <span class="event-badge @GetEventStatusClass(ev)">@GetEventStatusName(ev)</span>
                                                 </div>
                                             </div>
+                                            <!-- Content -->
+                                            <div class="event-card-body">
+                                                <h5 class="event-card-title">@ev.Title</h5>
+                                                <div class="event-card-meta">
+                                                    <div><i class="ri-time-line"></i> <datetime-format date="@ev.StartTime" format="dd/MM/yyyy HH:mm"></datetime-format> – <datetime-format date="@ev.EndTime" format="HH:mm"></datetime-format></div>
+                                                    <div><i class="ri-map-pin-2-line"></i> @ev.Location</div>
+                                                </div>
+                                                @{
+                                                    var dsc = (ev.Description?.Length > 110)
+                                                        ? ev.Description.Substring(0, 107) + "..."
+                                                        : (ev.Description ?? "");
+                                                }
+                                                <p class="event-card-desc">@dsc</p>
+                                            </div>
+                                            <!-- Footer -->
+                                            @{
+                                                var remainingSlotsDict = ViewBag.RemainingSlots as Dictionary<string, int>;
+                                                int remaining = -1;
+                                                if (remainingSlotsDict != null && remainingSlotsDict.TryGetValue(ev.Id, out var r))
+                                                {
+                                                    remaining = r;
+                                                }
+                                                string remainingText = remaining >= 0 ? remaining.ToString() : "Không giới hạn";
+                                            }
+                                            <div class="event-card-footer">
+                                                <span id="event-remaining-@ev.Id"><i class="ri-group-line me-1"></i> Số lượng còn lại: <span class="remaining-value">@remainingText</span></span>
+                                                <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id"
+                                                   class="btn-cta btn-cta-sm">
+                                                    <span>Chi tiết</span>
+                                                    <span class="btn-icon-circle"><i class="ri-arrow-right-up-line"></i></span>
+                                                </a>
+                                            </div>
                                         </div>
-                                    }
-                                </div>
+                                    </div>
+                                }
                             </div>
-                        }
-                    </div>
+                        </div>
+                    }
                 </div>
-
-                <!-- Arrow buttons -->
-                <button class="slider-arrow slider-arrow-prev" id="evtPrev" aria-label="Trước">
-                    <i class="ri-arrow-left-s-line"></i>
-                </button>
-                <button class="slider-arrow slider-arrow-next" id="evtNext" aria-label="Tiếp">
-                    <i class="ri-arrow-right-s-line"></i>
-                </button>
             </div>
 
-            <!-- Dots -->
-            <div class="slider-dots" id="evtDots">
-                @for (int p = 0; p < pageCount; p++)
-                {
-                    <button class="slider-dot @(p == 0 ? "active" : "")"
-                            data-page="@p" aria-label="Trang @(p+1)"></button>
-                }
-            </div>
-        }
+            <!-- Arrow buttons -->
+            <button class="slider-arrow slider-arrow-prev" id="evtPrev" aria-label="Trước">
+                <i class="ri-arrow-left-s-line"></i>
+            </button>
+            <button class="slider-arrow slider-arrow-next" id="evtNext" aria-label="Tiếp">
+                <i class="ri-arrow-right-s-line"></i>
+            </button>
+        </div>
+
+        <!-- Dots -->
+        <div class="slider-dots" id="evtDots">
+            @for (int p = 0; p < pageCount; p++)
+            {
+                <button class="slider-dot @(p == 0 ? "active" : "")"
+                        data-page="@p" aria-label="Trang @(p+1)"></button>
+            }
+        </div>
     }
 </section>
 
+<!-- ═══ View Component Section ═══ -->
+<section class="my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            @await Component.InvokeAsync("UpcomingEvents")
+        </div>
+    </div>
+</section>
+
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.12/signalr.min.js"></script>
+    <script>
+        const hubConnection = new signalR.HubConnectionBuilder()
+            .withUrl("https://localhost:7296/notificationHub")
+            .withAutomaticReconnect()
+            .build();
+
+        hubConnection.on("ReceiveEventCapacityUpdate", (eventId, remainingSlots) => {
+            const el = document.getElementById("event-remaining-" + eventId);
+            if (el) {
+                const valEl = el.querySelector(".remaining-value");
+                if (valEl) {
+                    valEl.innerText = remainingSlots >= 0 ? remainingSlots : "Không giới hạn";
+                }
+                el.style.transition = "color 0.5s";
+                el.style.color = "var(--primary-color, #6366f1)";
+                setTimeout(() => { el.style.color = ""; }, 1000);
+            }
+        });
+
+        hubConnection.start().catch(err => console.error(err.toString()));
+    </script>
     @if (!isGuest)
     {
         <script>

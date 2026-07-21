@@ -45,169 +45,25 @@
     else
     {
         <!-- Form -->
-        <EditForm Model="@eventDto" OnValidSubmit="HandleValidSubmit">
-            <DataAnnotationsValidator />
+        <EMS.BlazorWASM.Components.EventForm 
+            EventModel="@eventDto" 
+            IsSubmitting="@isSubmitting" 
+            ErrorMessage="@errorMessage" 
+            SubmitButtonText="Lưu thay đổi" 
+            IsPriceDisabled="@(eventStatus != 1)"
+            OnValidSubmit="HandleValidSubmit">
             
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <!-- Cột trái: Thông tin chính -->
-                <div class="lg:col-span-2 space-y-6">
-                    <!-- Card 1: Thông tin cơ bản -->
-                    <div class="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-6 py-4 border-b border-border bg-canvas/30">
-                            <h2 class="text-sm font-semibold text-charcoal">Thông tin cơ bản</h2>
-                        </div>
-                        <div class="p-6 space-y-5">
-                            
-                            <!-- Title -->
-                            <div>
-                                <label for="title" class="block text-sm font-medium text-charcoal mb-1">Tên sự kiện <span class="text-red-500">*</span></label>
-                                <InputText id="title" @bind-Value="eventDto.Title" class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all" placeholder="Nhập tên sự kiện" />
-                                <ValidationMessage For="@(() => eventDto.Title)" class="mt-1 text-xs text-red-500 font-medium" />
-                            </div>
-
-                            <!-- Description -->
-                            <div>
-                                <label for="description" class="block text-sm font-medium text-charcoal mb-1">Mô tả chi tiết</label>
-                                <InputTextArea id="description" @bind-Value="eventDto.Description" rows="5" class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all resize-y" placeholder="Mô tả nội dung, quy định, và thông tin dành cho người tham gia..." />
-                                <ValidationMessage For="@(() => eventDto.Description)" class="mt-1 text-xs text-red-500 font-medium" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Card 2: Thời gian -->
-                    <div class="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-6 py-4 border-b border-border bg-canvas/30">
-                            <h2 class="text-sm font-semibold text-charcoal">Thời gian diễn ra</h2>
-                        </div>
-                        <div class="p-6">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                <!-- StartTime -->
-                                <div>
-                                    <label for="startTime" class="block text-sm font-medium text-charcoal mb-1">Thời gian bắt đầu <span class="text-red-500">*</span></label>
-                                    <InputDate id="startTime" Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.StartTime" class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all" />
-                                    <ValidationMessage For="@(() => eventDto.StartTime)" class="mt-1 text-xs text-red-500 font-medium" />
-                                </div>
-
-                                <!-- EndTime -->
-                                <div>
-                                    <label for="endTime" class="block text-sm font-medium text-charcoal mb-1">Thời gian kết thúc <span class="text-red-500">*</span></label>
-                                    <InputDate id="endTime" Type="InputDateType.DateTimeLocal" @bind-Value="eventDto.EndTime" class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all" />
-                                    <ValidationMessage For="@(() => eventDto.EndTime)" class="mt-1 text-xs text-red-500 font-medium" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <AdditionalButtons>
+                <div class="flex items-center gap-3 mt-3">
+                    <button type="button" class="flex-1 py-2 px-4 border border-border rounded-md text-sm font-semibold text-charcoal bg-white hover:bg-canvas transition-colors text-center" @onclick="Cancel">
+                        Huỷ bỏ
+                    </button>
+                    <button type="button" class="flex-1 py-2 px-4 border border-rose-200 rounded-md text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors text-center" @onclick="AskDeleteEvent">
+                        Xóa sự kiện
+                    </button>
                 </div>
-
-                <!-- Cột phải: Cấu hình và Media -->
-                <div class="space-y-6">
-                    
-                    <!-- Card 3: Media -->
-                    <div class="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-6 py-4 border-b border-border bg-canvas/30">
-                            <h2 class="text-sm font-semibold text-charcoal">Hình ảnh</h2>
-                        </div>
-                        <div class="p-6">
-                            <div>
-                                <label for="imageUrl" class="block text-sm font-medium text-charcoal mb-1">URL Ảnh Bìa</label>
-                                <InputText id="imageUrl" @bind-Value="eventDto.ImageUrl" class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all mb-3" placeholder="https://..." />
-                                
-                                <!-- Image Preview -->
-                                @if (!string.IsNullOrWhiteSpace(eventDto.ImageUrl))
-                                {
-                                    <div class="w-full aspect-video rounded-md border border-border overflow-hidden bg-canvas relative group">
-                                        <img src="@eventDto.ImageUrl" alt="Preview" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/600x400/F7F9FC/1A1F36?text=Lỗi+Ảnh'; this.onerror=null;" />
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="w-full aspect-video rounded-md border border-dashed border-border bg-canvas flex flex-col items-center justify-center text-muted p-4 text-center">
-                                        <svg class="h-8 w-8 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        <span class="text-xs">Dán đường dẫn ảnh (Link URL) để xem trước</span>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Card 4: Địa điểm & Quy mô -->
-                    <div class="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                        <div class="px-6 py-4 border-b border-border bg-canvas/30">
-                            <h2 class="text-sm font-semibold text-charcoal">Quy mô sự kiện</h2>
-                        </div>
-                        <div class="p-6 space-y-5">
-                            
-                            <!-- Location -->
-                            <div>
-                                <label for="location" class="block text-sm font-medium text-charcoal mb-1">Địa điểm</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                    </div>
-                                    <InputText id="location" @bind-Value="eventDto.Location" class="w-full pl-9 pr-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all" placeholder="Tên toà nhà, địa chỉ..." />
-                                </div>
-                                <ValidationMessage For="@(() => eventDto.Location)" class="mt-1 text-xs text-red-500 font-medium" />
-                            </div>
-
-                            <!-- Capacity -->
-                            <div>
-                                <label for="capacity" class="block text-sm font-medium text-charcoal mb-1">Sức chứa (Người)</label>
-                                <InputNumber id="capacity" @bind-Value="eventDto.Capacity" min="0" class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all" />
-                                <p class="text-[10px] text-muted mt-1">Để số 0 nếu không giới hạn.</p>
-                                <ValidationMessage For="@(() => eventDto.Capacity)" class="mt-1 text-xs text-red-500 font-medium" />
-                            </div>
-
-                            <div>
-                                <label for="price" class="block text-sm font-medium text-charcoal mb-1">Phí tham gia (VND)</label>
-                                <InputNumber id="price" @bind-Value="eventDto.Price" min="0" step="1000" disabled="@(eventStatus != 1)" class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm text-charcoal shadow-sm focus:outline-none focus:ring-2 focus:ring-charcoal focus:border-transparent transition-all disabled:bg-slate-100 disabled:text-muted" />
-                                <p class="text-[10px] text-muted mt-1">Phí được khóa sau khi sự kiện được phê duyệt.</p>
-                                <ValidationMessage For="@(() => eventDto.Price)" class="mt-1 text-xs text-red-500 font-medium" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit Button Area -->
-                    <div class="pt-2 space-y-3">
-                        @if (!string.IsNullOrEmpty(errorMessage))
-                        {
-                            <div class="mb-4 p-3 bg-paleRed-bg border border-paleRed-text/20 rounded-md">
-                                <p class="text-sm font-medium text-paleRed-text">@errorMessage</p>
-                            </div>
-                        }
-
-                        <button type="submit" disabled="@isSubmitting" class="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-charcoal hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-charcoal transition-all disabled:opacity-70 disabled:cursor-not-allowed">
-                            @if (isSubmitting)
-                            {
-                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span>Đang lưu...</span>
-                            }
-                            else
-                            {
-                                <span>Lưu thay đổi</span>
-                            }
-                        </button>
-
-                        <div class="flex items-center gap-3">
-                            <button type="button" class="flex-1 py-2 px-4 border border-border rounded-md text-sm font-semibold text-charcoal bg-white hover:bg-canvas transition-colors text-center" @onclick="Cancel">
-                                Huỷ bỏ
-                            </button>
-                            <button type="button" class="flex-1 py-2 px-4 border border-rose-200 rounded-md text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors text-center" @onclick="AskDeleteEvent">
-                                Xóa sự kiện
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </EditForm>
+            </AdditionalButtons>
+        </EMS.BlazorWASM.Components.EventForm>
     }
 </div>
 
@@ -224,7 +80,7 @@
 @code {
     [Parameter] public string Id { get; set; } = string.Empty;
 
-    private UpdateEventDto? eventDto;
+    private CreateEventDto? eventDto;
     private bool isLoading = true;
     private bool isSubmitting = false;
     private string? errorMessage;
@@ -236,7 +92,7 @@
         var ev = await EventService.GetEventByIdAsync(Id);
         if (ev != null)
         {
-            eventDto = new UpdateEventDto
+            eventDto = new CreateEventDto
             {
                 Title = ev.Title, Description = ev.Description,
                 Location = ev.Location, VenueId = ev.VenueId,
@@ -258,7 +114,22 @@
         }
 
         isSubmitting = true;
-        var success = await EventService.UpdateEventAsync(Id, eventDto);
+        
+        var updateDto = new UpdateEventDto
+        {
+            Title = eventDto.Title,
+            Description = eventDto.Description,
+            Location = eventDto.Location,
+            VenueId = eventDto.VenueId,
+            StartTime = eventDto.StartTime,
+            EndTime = eventDto.EndTime,
+            Capacity = eventDto.Capacity,
+            ImageUrl = eventDto.ImageUrl,
+            Price = eventDto.Price,
+            Scope = eventDto.Scope
+        };
+
+        var success = await EventService.UpdateEventAsync(Id, updateDto);
         if (success)
         {
             OrganizerService.InvalidateCache();

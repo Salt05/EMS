@@ -13,7 +13,7 @@
             userRole = parts[2];
         }
     }
-    string tenantName = Context.Items["TenantName"]?.ToString() ?? "EMS";
+    string tenantName = (displayName != null) ? (Context.Items["TenantName"]?.ToString() ?? "EMS") : "EMS";
 }
 
 <!DOCTYPE html>

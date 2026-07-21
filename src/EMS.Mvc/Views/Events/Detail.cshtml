@@ -297,22 +297,32 @@
                         }
                         else
                         {
-                            <form asp-action="Register" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="eventId" value="@Model.Id" />
-                                <button type="submit" class="btn-cta w-100 justify-content-center py-3">
-                                    @if (Model.IsFree)
-                                    {
-                                        <span>Đăng ký vé miễn phí</span>
-                                        <span class="btn-icon-circle"><i class="ri-flashlight-line"></i></span>
-                                    }
-                                    else
-                                    {
-                                        <span>Mua vé ngay (@Model.Price.ToString("N0") VNĐ)</span>
-                                        <span class="btn-icon-circle"><i class="ri-shopping-cart-2-line"></i></span>
-                                    }
-                                </button>
-                            </form>
+                            if (Model.Scope == EMS.Core.Entities.Enums.EventScope.TenantViewOnly)
+                            {
+                                <div class="alert-glass alert-glass-info mb-3" style="justify-content:center;">
+                                    <i class="ri-information-line"></i>
+                                    <span style="font-size:0.85rem;">Sự kiện này chỉ dành cho xem thông tin (Không mở đăng ký).</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <form asp-action="Register" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="eventId" value="@Model.Id" />
+                                    <button type="submit" class="btn-cta w-100 justify-content-center py-3">
+                                        @if (Model.IsFree)
+                                        {
+                                            <span>Đăng ký vé miễn phí</span>
+                                            <span class="btn-icon-circle"><i class="ri-flashlight-line"></i></span>
+                                        }
+                                        else
+                                        {
+                                            <span>Mua vé ngay (@Model.Price.ToString("N0") VNĐ)</span>
+                                            <span class="btn-icon-circle"><i class="ri-shopping-cart-2-line"></i></span>
+                                        }
+                                    </button>
+                                </form>
+                            }
                         }
                     }
                     else

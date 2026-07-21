@@ -164,7 +164,8 @@
         </div>
 
         <DataTable TItem="RegistrationResponseDto" Items="attendees" TotalCount="attendees.Count" 
-                   Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading">
+                   Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading"
+                   RowClassSelector="@(reg => reg.CheckedInAt.HasValue && DateTime.UtcNow - reg.CheckedInAt.Value.ToUniversalTime() < TimeSpan.FromSeconds(5) ? "animate-slide-down-fade" : "")">
             <TableHeader>
                 <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">STT</th>
                 <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">MSSV</th>
@@ -297,6 +298,20 @@
             selectedEventId = savedEventId;
             await LoadEventDetailsForSelected();
         }
+        
+        ToastService.OnCheckInReceived += HandleCheckInReceived;
+    }
+
+    private void HandleCheckInReceived(string eventId)
+    {
+        if (selectedEventId == eventId)
+        {
+            InvokeAsync(async () =>
+            {
+                await LoadAttendees(isBackground: true);
+                StateHasChanged();
+            });
+        }
     }
 
     private async Task OnEventSelected(ChangeEventArgs e)
@@ -343,9 +358,9 @@
         }
     }
 
-    private async Task LoadAttendees()
+    private async Task LoadAttendees(bool isBackground = false)
     {
-        isLoading = true;
+        if (!isBackground) isLoading = true;
         try
         {
             attendees = await OrganizerService.GetAttendeesAsync(selectedEventId);
@@ -357,7 +372,7 @@
         }
         finally
         {
-            isLoading = false;
+            if (!isBackground) isLoading = false;
         }
     }
 
@@ -580,6 +595,7 @@
 
     public void Dispose()
     {
+        ToastService.OnCheckInReceived -= HandleCheckInReceived;
         objRef?.Dispose();
         _ = JSRuntime.InvokeVoidAsync("qrInterop.stopScanner");
     }

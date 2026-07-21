@@ -397,3 +397,20 @@ h3 { font-size: 1.125rem; }
         padding: var(--space-lg);
     }
 }
+
+@keyframes slideDownFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-100%) scale(0.95);
+        background-color: rgba(16, 185, 129, 0.2); /* emerald-500 light */
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        background-color: transparent;
+    }
+}
+
+.animate-slide-down-fade {
+    animation: slideDownFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -26,6 +26,7 @@ public class SuperAdminController : ControllerBase
     private readonly IEventService _eventService;
     private readonly IMemoryCache _cache;
     private readonly ILogger<SuperAdminController> _logger;
+    private readonly ISuperAdminManagementService _superAdminManagementService;
 
     public SuperAdminController(
         ITenantService tenantService,
@@ -34,7 +35,8 @@ public class SuperAdminController : ControllerBase
         IAuthService authService,
         IEventService eventService,
         IMemoryCache cache,
-        ILogger<SuperAdminController> logger)
+        ILogger<SuperAdminController> logger,
+        ISuperAdminManagementService superAdminManagementService)
     {
         _tenantService = tenantService;
         _adminUserService = adminUserService;
@@ -43,6 +45,7 @@ public class SuperAdminController : ControllerBase
         _eventService = eventService;
         _cache = cache;
         _logger = logger;
+        _superAdminManagementService = superAdminManagementService;
     }
 
     // ==========================================
@@ -59,30 +62,8 @@ public class SuperAdminController : ControllerBase
                 return Ok(cachedList);
             }
 
-            var tenants = await _tenantService.GetTenantsAsync();
-            var dtos = new List<TenantDTO>();
-
-            foreach (var t in tenants)
-            {
-                var (users, totalUsers) = await _adminUserService.GetUsersAsync(t.Id, null, null, null, 1, 1);
-                var events = await _eventService.GetEventsByTenantAsync(t.Id);
-
-                dtos.Add(new TenantDTO
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Subdomain = t.Subdomain,
-                    Email = t.Email,
-                    PhoneNumber = t.PhoneNumber,
-                    Address = t.Address,
-                    IsActive = t.IsActive,
-                    CreatedAt = t.CreatedAt,
-                    UserCount = totalUsers,
-                    EventCount = events.Count
-                });
-            }
-
-            var orderedDtos = dtos.OrderBy(d => d.Name).ToList();
+            var orderedDtos = await _superAdminManagementService.GetTenantsWithStatsAsync();
+            
             _cache.Set("superadmin_tenants_dtos", orderedDtos, TimeSpan.FromSeconds(30));
             return Ok(orderedDtos);
         }

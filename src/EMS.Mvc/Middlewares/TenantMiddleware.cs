@@ -209,23 +209,12 @@ public class TenantMiddleware
 
             if (tenant == null)
             {
-                if (string.IsNullOrEmpty(subdomain))
+                if (!string.IsNullOrEmpty(subdomain))
                 {
-                    subdomain = "default";
+                    tenant = await tenantService.GetTenantBySubdomainAsync(subdomain);
                 }
 
-                tenant = await tenantService.GetTenantBySubdomainAsync(subdomain);
-
-                // Fallback: If tenant is not found (common on localhost without custom subdomain),
-                // fetch all tenants and pick the first one, or fallback to tenant-1.
-                if (tenant == null)
-                {
-                    var tenants = await tenantService.GetTenantsAsync();
-                    if (tenants.Count > 0)
-                    {
-                        tenant = tenants[0];
-                    }
-                }
+                // DO NOT fallback to the first tenant. Let it be the generic EMS platform.
             }
 
             if (tenant != null)
@@ -236,9 +225,9 @@ public class TenantMiddleware
             }
             else
             {
-                context.Items["TenantId"] = DevInMemoryTenantService.DefaultTenantId;
-                context.Items["TenantName"] = "EMS Portal";
-                _logger.LogWarning($"Could not resolve tenant for subdomain: {subdomain}. Falling back to default.");
+                context.Items["TenantId"] = "all";
+                context.Items["TenantName"] = "EMS";
+                _logger.LogWarning($"Could not resolve tenant for subdomain: {subdomain}. Falling back to global platform.");
             }
         }
         catch (Exception ex)

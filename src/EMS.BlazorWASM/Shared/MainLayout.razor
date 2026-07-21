@@ -1,5 +1,10 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Navigation
+@inject EMS.BlazorWASM.Services.ToastService ToastService
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@using Microsoft.AspNetCore.SignalR.Client
+@implements IAsyncDisposable
 
 <div class="h-full flex overflow-hidden bg-canvas">
     <!-- Sidebar -->
@@ -63,6 +68,44 @@
 
 @code {
     private bool sidebarOpen = false;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var webApiUrl = Configuration["WebApiBaseUrl"] ?? "https://localhost:7296";
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl($"{webApiUrl}/notificationHub", options => 
+            {
+                options.AccessTokenProvider = async () =>
+                {
+                    var token = await LocalStorage.GetItemAsStringAsync("authToken");
+                    return token?.Trim('"');
+                };
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<string, int, string>("ReceiveNewRegistrationInfo", (eventTitle, count, regId) =>
+        {
+            ToastService.ReceiveRegistrationNotification(eventTitle, count, regId);
+        });
+
+        hubConnection.On<string>("ReceiveNewCheckInInfo", (eventId) =>
+        {
+            ToastService.ReceiveCheckInNotification(eventId);
+        });
+
+        try
+        {
+            await hubConnection.StartAsync();
+            Console.WriteLine("SignalR Connected Successfully!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting SignalR Hub: {ex.Message}");
+            ToastService.ShowError($"SignalR Error: {ex.Message}");
+        }
+    }
 
     private void ToggleSidebar()
     {
@@ -77,5 +120,13 @@
     private void HandleLogout()
     {
         Navigation.NavigateTo("/logout");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }

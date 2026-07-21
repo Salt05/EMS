@@ -606,10 +606,15 @@ public class FirestoreRegistrationService : IRegistrationService
             throw new NotFoundException("Không tìm thấy sự kiện.");
         }
 
-        // 2. Validate Event Status
+        // 2. Validate Event Status and Scope
         if (ev.Status != EventStatus.Approved)
         {
             throw new BusinessRuleException("Sự kiện chưa được phê duyệt nên không thể đăng ký.");
+        }
+
+        if (ev.Scope == EventScope.TenantViewOnly || ev.Scope == EventScope.Hidden)
+        {
+            throw new BusinessRuleException("Sự kiện này không mở đăng ký.");
         }
 
         // 3. Validate Event Time
