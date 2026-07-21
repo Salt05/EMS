@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  ems-webapi:
+    image: ems-webapi:latest
+    build:
+      context: .
+      dockerfile: src/EMS.WebAPI/Dockerfile
+    ports:
+      - "7296:7296"
+    volumes:
+      - ./src/EMS.WebAPI/firebase-key.json:/app/firebase-key.json
+      - ./src/EMS.WebAPI/appsettings.json:/app/appsettings.json
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  ems-mvc:
+    image: ems-mvc:latest
+    build:
+      context: .
+      dockerfile: src/EMS.Mvc/Dockerfile
+    ports:
+      - "7115:7115"
+    volumes:
+      - ./src/EMS.Mvc/firebase-key.json:/app/firebase-key.json
+      - ./src/EMS.Mvc/appsettings.json:/app/appsettings.json
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - ems-webapi
