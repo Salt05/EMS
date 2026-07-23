@@ -57,6 +57,15 @@
                 }
             </select>
 
+            <!-- Status Filter -->
+            <select class="px-3 py-2 text-sm border border-border rounded-md bg-canvas focus:bg-white focus:ring-1 focus:ring-charcoal focus:border-charcoal outline-none transition-all min-w-[140px]"
+                    @bind="selectedStatusFilter" @bind:after="ApplyFilters">
+                <option value="">Tất cả Trạng thái</option>
+                <option value="1">Hoạt động (Active)</option>
+                <option value="2">Đã khóa (Inactive)</option>
+                <option value="4">Chờ duyệt (Pending)</option>
+            </select>
+
             <!-- Tenant Filter (SuperAdmin only) -->
             @if (isSuperAdmin)
             {
@@ -320,6 +329,7 @@
     private string searchQuery = string.Empty;
     private string selectedRoleFilter = string.Empty;
     private string selectedTenantFilter = string.Empty;
+    private int? selectedStatusFilter;
     private int currentPage = 1;
     private int pageSize = 10;
 
@@ -375,6 +385,7 @@
                 Search = searchQuery,
                 RoleId = selectedRoleFilter,
                 TenantId = isSuperAdmin ? selectedTenantFilter : null,
+                Status = selectedStatusFilter,
                 Page = currentPage,
                 PageSize = pageSize
             };

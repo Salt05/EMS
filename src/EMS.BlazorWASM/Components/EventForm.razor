@@ -53,7 +53,199 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Card 3: Lịch trình sự kiện (Agenda) -->
+            <div class="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-border bg-canvas/30 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-charcoal">Lịch trình sự kiện (Agenda)</h2>
+                        <p class="text-xs text-muted">Thêm các mốc thời gian và nội dung tiết mục (tùy chọn)</p>
+                    </div>
+                    <button type="button" @onclick="OpenDraftModal" class="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1">
+                        + Thêm mốc giai đoạn
+                    </button>
+                </div>
+                <div class="p-6">
+                    @if (HasOutOfBoundsAgendaItems())
+                    {
+                        <div class="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium mb-4 flex items-center gap-2 animate-fadeIn">
+                            <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Bắt buộc: Phát hiện mốc lịch trình (tô đỏ) nằm ngoài thời gian sự kiện. Vui lòng sửa lại mốc hoặc chỉnh thời gian sự kiện.</span>
+                        </div>
+                    }
+
+                    @if (!EventModel.AgendaItems.Any())
+                    {
+                        <div class="py-6 text-center bg-canvas/50 rounded-lg border border-dashed border-border">
+                            <p class="text-xs text-muted">Chưa có mốc lịch trình nào. Bấm nút <strong>+ Thêm mốc giai đoạn</strong> để bổ sung.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="divide-y divide-border border border-border rounded-xl overflow-hidden bg-white">
+                            @for (int i = 0; i < EventModel.AgendaItems.Count; i++)
+                            {
+                                var item = EventModel.AgendaItems[i];
+                                var idx = i + 1;
+                                var isOutOfBounds = item.StartTime < EventModel.StartTime || item.EndTime > EventModel.EndTime;
+
+                                <div class="px-4 py-3 flex items-center justify-between transition-colors text-xs @(isOutOfBounds ? "bg-rose-50/90 border-l-4 border-l-rose-600" : "hover:bg-canvas/30")">
+                                    <div class="flex items-center gap-3 flex-wrap">
+                                        <span class="w-5 h-5 rounded-full @(isOutOfBounds ? "bg-rose-200 text-rose-800" : "bg-indigo-100 text-indigo-700") text-[10px] font-bold flex items-center justify-center">@idx</span>
+                                        
+                                        <span class="font-mono font-bold @(isOutOfBounds ? "text-rose-800 bg-rose-100 border-rose-200" : "text-indigo-700 bg-indigo-50 border-indigo-100") px-2 py-0.5 rounded border">
+                                            @item.StartTime.ToString("HH:mm") - @item.EndTime.ToString("HH:mm")
+                                        </span>
+
+                                        <span class="px-2 py-0.5 text-[11px] font-semibold @(isOutOfBounds ? "text-rose-800 bg-rose-100 border-rose-200" : "text-emerald-700 bg-emerald-50 border-emerald-200") rounded border">
+                                            ⏱ @FormatDuration(item.StartTime, item.EndTime)
+                                        </span>
+
+                                        @if (isOutOfBounds)
+                                        {
+                                            <span class="px-2 py-0.5 text-[11px] font-bold text-rose-700 bg-rose-100 border border-rose-300 rounded flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                ⚠️ Vượt ngoài thời gian sự kiện
+                                            </span>
+                                        }
+
+                                        <span class="font-medium @(isOutOfBounds ? "text-rose-900 font-semibold" : "text-charcoal") ms-1">@item.Title</span>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <button type="button" @onclick="() => EditDraftItem(item)" class="px-2.5 py-1 text-xs font-semibold @(isOutOfBounds ? "text-rose-800 bg-rose-100 border-rose-300 hover:bg-rose-200" : "text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-100") rounded border transition-colors">
+                                            Sửa
+                                        </button>
+                                        <button type="button" @onclick="() => EventModel.AgendaItems.Remove(item)" class="p-1 text-muted hover:text-rose-600 transition-colors" title="Xóa mốc">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
+
+        <!-- Modal Popup cho Draft Agenda Item trong EventForm -->
+        @if (showDraftModal)
+        {
+            <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/60 backdrop-blur-sm animate-fadeIn">
+                <div class="bg-white border border-border rounded-2xl shadow-2xl max-w-xl w-full p-6 relative">
+                    <button type="button" @onclick="CloseDraftModal" class="absolute top-4 right-4 text-muted hover:text-charcoal p-1 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+
+                    <div class="mb-5 pb-3 border-b border-border">
+                        <h3 class="text-base font-bold text-charcoal">
+                            @(editingDraftItem == null ? "Thêm mốc giai đoạn mới" : "Chỉnh sửa mốc giai đoạn")
+                        </h3>
+                        <p class="text-xs text-muted mt-0.5">
+                            Giới hạn: Tối thiểu @FormatTime(calculatedMinTime) đến tối đa @FormatTime(calculatedMaxTime)
+                        </p>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-xs font-semibold text-charcoal mb-1.5">
+                            Nội dung tiết mục / Hoạt động giai đoạn <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="text" placeholder="Ví dụ: Đón khách & Check-in vé QR" 
+                               class="w-full px-3.5 py-2.5 text-xs border border-border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-canvas/30" 
+                               @bind="draftTitle" />
+                    </div>
+
+                    <!-- Range Slider Box -->
+                    <div class="mb-5 p-4 bg-indigo-50/40 border border-indigo-100 rounded-xl space-y-3">
+                        <div class="flex items-center justify-between text-xs font-semibold text-indigo-900">
+                            <span>Điều chỉnh mốc thời gian bằng Range Slider:</span>
+                            <span class="px-2.5 py-1 text-xs font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-200 rounded-md">
+                                ⏱ Duy trì: @FormatDuration(draftStart, draftEnd)
+                            </span>
+                        </div>
+
+                        <div class="space-y-2 py-2">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-muted font-mono w-16">Bắt đầu:</span>
+                                <input type="range" 
+                                       min="0" 
+                                       max="@sliderMaxSpanMinutes" 
+                                       step="1" 
+                                       value="@sliderStartMinutes" 
+                                       @oninput="OnDraftStartSliderInput"
+                                       class="w-full accent-indigo-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
+                                <span class="text-xs font-bold font-mono text-indigo-700 w-16 text-right">
+                                    @FormatTime(draftStart)
+                                </span>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-muted font-mono w-16">Kết thúc:</span>
+                                <input type="range" 
+                                       min="0" 
+                                       max="@sliderMaxSpanMinutes" 
+                                       step="1" 
+                                       value="@sliderEndMinutes" 
+                                       @oninput="OnDraftEndSliderInput"
+                                       class="w-full accent-indigo-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
+                                <span class="text-xs font-bold font-mono text-indigo-700 w-16 text-right">
+                                    @FormatTime(draftEnd)
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between text-[11px] text-muted border-t border-indigo-100 pt-2 font-mono">
+                            <span>Min: @FormatTime(calculatedMinTime)</span>
+                            <span>Max: @FormatTime(calculatedMaxTime)</span>
+                        </div>
+                    </div>
+
+                    <!-- Manual DateTime Inputs -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                        <div>
+                            <label class="block text-xs font-medium text-charcoal mb-1">Thời gian bắt đầu (Thủ công)</label>
+                            <input type="datetime-local" 
+                                   class="w-full px-3 py-2 text-xs border border-border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white" 
+                                   value="@draftStart.ToString("yyyy-MM-ddTHH:mm")" 
+                                   @onchange="OnDraftManualStartChange" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-charcoal mb-1">Thời gian kết thúc (Thủ công)</label>
+                            <input type="datetime-local" 
+                                   class="w-full px-3 py-2 text-xs border border-border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white" 
+                                   value="@draftEnd.ToString("yyyy-MM-ddTHH:mm")" 
+                                   @onchange="OnDraftManualEndChange" />
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(draftError))
+                    {
+                        <div class="text-xs text-rose-600 bg-rose-50 p-3 rounded-xl mb-4 border border-rose-200 flex items-start gap-2">
+                            <svg class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>@draftError</span>
+                        </div>
+                    }
+
+                    <div class="flex items-center justify-end gap-3 border-t border-border pt-4">
+                        <button type="button" @onclick="CloseDraftModal" class="px-4 py-2 text-xs font-semibold text-charcoal bg-white border border-border hover:bg-canvas rounded-xl transition-colors">
+                            Hủy bỏ
+                        </button>
+                        <button type="button" @onclick="SaveDraftModalItem" class="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm">
+                            Lưu giai đoạn
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
 
         <!-- Cột phải: Cấu hình và Media -->
         <div class="space-y-6">
@@ -197,4 +389,207 @@
 
     [Parameter]
     public RenderFragment? AdditionalButtons { get; set; }
+
+    private bool showDraftModal = false;
+    private EMS.Shared.DTOs.CreateAgendaDto? editingDraftItem = null;
+
+    private DateTime draftStart;
+    private DateTime draftEnd;
+    private string draftTitle = string.Empty;
+    private string? draftError;
+
+    private DateTime calculatedMinTime;
+    private DateTime calculatedMaxTime;
+    private int sliderMaxSpanMinutes = 100;
+    private int sliderStartMinutes = 0;
+    private int sliderEndMinutes = 30;
+
+    private void OpenDraftModal()
+    {
+        editingDraftItem = null;
+        draftTitle = string.Empty;
+        draftError = null;
+
+        calculatedMaxTime = EventModel.EndTime > EventModel.StartTime ? EventModel.EndTime : EventModel.StartTime.AddHours(8);
+
+        if (EventModel.AgendaItems.Any())
+        {
+            var last = EventModel.AgendaItems.OrderBy(x => x.StartTime).Last();
+            calculatedMinTime = last.EndTime;
+        }
+        else
+        {
+            calculatedMinTime = EventModel.StartTime > DateTime.MinValue ? EventModel.StartTime : DateTime.Now;
+        }
+
+        if (calculatedMinTime >= calculatedMaxTime)
+        {
+            calculatedMinTime = EventModel.StartTime;
+        }
+
+        draftStart = calculatedMinTime;
+        draftEnd = draftStart.AddMinutes(30) <= calculatedMaxTime ? draftStart.AddMinutes(30) : calculatedMaxTime;
+
+        InitDraftSliderValues();
+        showDraftModal = true;
+    }
+
+    private void EditDraftItem(EMS.Shared.DTOs.CreateAgendaDto item)
+    {
+        editingDraftItem = item;
+        draftTitle = item.Title;
+        draftStart = item.StartTime;
+        draftEnd = item.EndTime;
+        draftError = null;
+
+        var sorted = EventModel.AgendaItems.OrderBy(x => x.StartTime).ToList();
+        var index = sorted.IndexOf(item);
+
+        calculatedMaxTime = EventModel.EndTime > EventModel.StartTime ? EventModel.EndTime : EventModel.StartTime.AddHours(8);
+
+        if (index > 0)
+        {
+            calculatedMinTime = sorted[index - 1].EndTime;
+        }
+        else
+        {
+            calculatedMinTime = EventModel.StartTime > DateTime.MinValue ? EventModel.StartTime : DateTime.Now;
+        }
+
+        InitDraftSliderValues();
+        showDraftModal = true;
+    }
+
+    private void CloseDraftModal()
+    {
+        showDraftModal = false;
+        editingDraftItem = null;
+        draftError = null;
+    }
+
+    private void InitDraftSliderValues()
+    {
+        var totalMinutes = (int)(calculatedMaxTime - calculatedMinTime).TotalMinutes;
+        sliderMaxSpanMinutes = Math.Max(1, totalMinutes);
+        sliderStartMinutes = Math.Clamp((int)(draftStart - calculatedMinTime).TotalMinutes, 0, sliderMaxSpanMinutes);
+        sliderEndMinutes = Math.Clamp((int)(draftEnd - calculatedMinTime).TotalMinutes, sliderStartMinutes, sliderMaxSpanMinutes);
+    }
+
+    private void OnDraftStartSliderInput(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int val))
+        {
+            sliderStartMinutes = Math.Clamp(val, 0, sliderEndMinutes);
+            draftStart = calculatedMinTime.AddMinutes(sliderStartMinutes);
+            if (draftStart > calculatedMaxTime) draftStart = calculatedMaxTime;
+            ValidateDraftTimes();
+        }
+    }
+
+    private void OnDraftEndSliderInput(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int val))
+        {
+            sliderEndMinutes = Math.Max(val, sliderStartMinutes + 5);
+            draftEnd = calculatedMinTime.AddMinutes(sliderEndMinutes);
+            ValidateDraftTimes();
+        }
+    }
+
+    private void OnDraftManualStartChange(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            draftStart = dt;
+            sliderStartMinutes = (int)(draftStart - calculatedMinTime).TotalMinutes;
+            ValidateDraftTimes();
+        }
+    }
+
+    private void OnDraftManualEndChange(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var dt))
+        {
+            draftEnd = dt;
+            sliderEndMinutes = (int)(draftEnd - calculatedMinTime).TotalMinutes;
+            ValidateDraftTimes();
+        }
+    }
+
+    private bool ValidateDraftTimes()
+    {
+        draftError = null;
+
+        if (draftStart < calculatedMinTime)
+        {
+            draftError = $"Thời gian bắt đầu không được nhỏ hơn mốc tối thiểu ({FormatTime(calculatedMinTime)}). Vui lòng nhập lại.";
+            return false;
+        }
+
+        if (draftEnd > calculatedMaxTime)
+        {
+            draftError = $"Thời gian kết thúc không được vượt quá mốc kết thúc sự kiện ({FormatTime(calculatedMaxTime)}). Vui lòng nhập lại.";
+            return false;
+        }
+
+        if (draftEnd <= draftStart)
+        {
+            draftError = "Thời gian kết thúc phải lớn hơn thời gian bắt đầu. Vui lòng nhập lại.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SaveDraftModalItem()
+    {
+        if (string.IsNullOrWhiteSpace(draftTitle))
+        {
+            draftError = "Vui lòng nhập nội dung tiết mục / giai đoạn.";
+            return;
+        }
+
+        if (!ValidateDraftTimes()) return;
+
+        if (editingDraftItem == null)
+        {
+            EventModel.AgendaItems.Add(new EMS.Shared.DTOs.CreateAgendaDto
+            {
+                Title = draftTitle.Trim(),
+                StartTime = draftStart,
+                EndTime = draftEnd
+            });
+        }
+        else
+        {
+            editingDraftItem.Title = draftTitle.Trim();
+            editingDraftItem.StartTime = draftStart;
+            editingDraftItem.EndTime = draftEnd;
+        }
+
+        showDraftModal = false;
+        editingDraftItem = null;
+        draftError = null;
+    }
+
+    private string FormatTime(DateTime dt) => dt.ToString("dd/MM/yyyy HH:mm");
+
+    private string FormatDuration(DateTime start, DateTime end)
+    {
+        var diff = end - start;
+        if (diff.TotalMinutes <= 0) return "0 phút";
+
+        int hours = (int)diff.TotalHours;
+        int mins = diff.Minutes;
+
+        if (hours > 0 && mins > 0) return $"{hours} giờ {mins} phút";
+        if (hours > 0) return $"{hours} giờ";
+        return $"{mins} phút";
+    }
+
+    private bool HasOutOfBoundsAgendaItems()
+    {
+        if (EventModel == null || EventModel.AgendaItems == null) return false;
+        return EventModel.AgendaItems.Any(x => x.StartTime < EventModel.StartTime || x.EndTime > EventModel.EndTime);
+    }
 }

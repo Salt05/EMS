@@ -33,6 +33,12 @@ public class AuthorizationMessageHandler : DelegatingHandler
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             }
 
+            // Attach ApiKey header
+            if (!request.Headers.Contains("X-API-KEY"))
+            {
+                request.Headers.Add("X-API-KEY", "Secret_EMS_Api_Key_2026");
+            }
+
             // Attach Tenant ID
             var tenantId = await _localStorage.GetItemAsStringAsync("currentTenantId");
             if (!string.IsNullOrWhiteSpace(tenantId))

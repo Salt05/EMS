@@ -164,7 +164,7 @@
             }
             else
             {
-                <div class="row g-4">
+                <div class="row g-4 justify-content-center">
                     @foreach (var ev in ongoingEvents)
                     {
                         @await Html.PartialAsync("_EventCard", ev)
@@ -184,7 +184,7 @@
             }
             else
             {
-                <div class="row g-4">
+                <div class="row g-4 justify-content-center">
                     @foreach (var ev in upcomingEvents)
                     {
                         @await Html.PartialAsync("_EventCard", ev)
@@ -204,7 +204,7 @@
             }
             else
             {
-                <div class="row g-4">
+                <div class="row g-4 justify-content-center">
                     @foreach (var ev in endedEvents)
                     {
                         @await Html.PartialAsync("_EventCard", ev)

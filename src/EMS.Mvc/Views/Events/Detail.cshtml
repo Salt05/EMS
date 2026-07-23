@@ -138,13 +138,13 @@
                                 </div>
 
                                 <!-- ═══════ CHECK-IN SECTION ═══════ -->
-                                <div class="checkin-section mb-3">
-                                    <div class="checkin-tabs flex mb-3 bg-canvas p-1 rounded-3 border">
-                                        <button type="button" class="checkin-tab btn btn-sm w-50 active" data-tab="tab-code">
-                                            <i class="bi bi-key me-1"></i>Nhập mã
+                                <div class="checkin-section mb-4">
+                                    <div class="checkin-tabs-wrapper mb-4">
+                                        <button type="button" class="checkin-tab pill-tab-btn active" data-tab="tab-code">
+                                            <i class="ri-key-2-line"></i><span>Nhập mã</span>
                                         </button>
-                                        <button type="button" class="checkin-tab btn btn-sm w-50" data-tab="tab-qr">
-                                            <i class="bi bi-qr-code me-1"></i>Mã QR
+                                        <button type="button" class="checkin-tab pill-tab-btn" data-tab="tab-qr">
+                                            <i class="ri-qr-code-line"></i><span>Mã QR</span>
                                         </button>
                                     </div>
 
@@ -153,45 +153,35 @@
                                         <form asp-action="CheckInWithCode" method="post">
                                             @Html.AntiForgeryToken()
                                             <input type="hidden" name="eventId" value="@Model.Id" />
-                                            <div class="mb-2">
-                                                <input type="text" name="code" class="form-control text-center font-mono text-uppercase fw-bold py-2" 
-                                                       placeholder="Nhập mã điểm danh" maxlength="10" required autocomplete="off" />
+                                            <div class="mb-4">
+                                                <input type="text" name="code" class="form-control text-center font-mono text-uppercase fw-bold glass-input-code py-3" 
+                                                       placeholder="NHẬP MÃ ĐIỂM DANH" maxlength="10" required autocomplete="off" />
                                             </div>
-                                            <button type="submit" class="btn btn-success w-100 py-2 rounded-3">
-                                                <i class="bi bi-check-circle me-1"></i>Xác nhận điểm danh
+                                            <button type="submit" class="btn-cta w-100 justify-content-center py-2.5 rounded-pill shadow-sm">
+                                                <span>Xác nhận điểm danh</span>
+                                                <span class="btn-icon-circle"><i class="ri-checkbox-circle-line"></i></span>
                                             </button>
                                         </form>
                                     </div>
 
-                                    <!-- Tab 2: Show QR Code -->
-                                    <div class="checkin-tab-content" id="tab-qr" style="display:none;">
-                                        <button type="button" class="btn btn-primary w-100 py-2 rounded-3" id="btnGenerateQr" data-event-id="@Model.Id">
-                                            <i class="bi bi-qr-code-scan me-1"></i>Hiển thị mã QR điểm danh
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- QR Modal -->
-                                <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered modal-sm">
-                                        <div class="modal-content text-center p-3 rounded-4 shadow">
-                                            <div class="modal-header border-0 pb-0">
-                                                <h5 class="modal-title fw-bold fs-6 mx-auto">Mã QR điểm danh</h5>
-                                                <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <!-- Tab 2: Show QR Code Inline (No Modal, Zero Backdrop) -->
+                                    <div class="checkin-tab-content text-center" id="tab-qr" style="display:none;" data-event-id="@Model.Id">
+                                        <div class="p-3.5 rounded-4 glass-card border shadow-sm">
+                                            <div class="text-xs fw-bold text-uppercase banner-text-sub mb-2.5">
+                                                <i class="ri-qr-code-line text-warning me-1"></i> Mã QR điểm danh của bạn
                                             </div>
-                                            <div class="modal-body py-3">
-                                                <div id="qrCodeContainer" class="qr-code-box mx-auto my-2 p-2 bg-light border rounded-3 flex items-center justify-center" style="width: 192px; height: 192px;">
-                                                    <div class="spinner-border text-primary" role="status">
-                                                        <span class="visually-hidden">Đang tải...</span>
-                                                    </div>
-                                                </div>
-                                                <p id="qrCodeText" class="fw-bold font-mono text-primary fs-5 mb-1 tracking-wider"></p>
-                                                <p id="qrExpiryText" class="text-muted small mb-0"></p>
-                                                <div id="qrErrorAlert" class="alert alert-danger py-1 px-2 small mt-2 mb-0" style="display:none;"></div>
+                                            
+                                            <div id="inlineQrContainer" class="d-flex align-items-center justify-content-center my-2 p-2 bg-white rounded-3 mx-auto shadow-sm" style="width: 176px; height: 176px;">
+                                                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tạo QR...</span></div>
                                             </div>
-                                            <div class="modal-footer border-0 pt-0 justify-content-center">
-                                                <small class="text-muted">Đưa mã QR này cho ban tổ chức để quét điểm danh</small>
-                                            </div>
+                                            
+                                            <div id="inlineQrText" class="font-mono fw-bold fs-5 text-indigo mt-2 tracking-wider"></div>
+                                            <div id="inlineQrExpiryText" class="banner-text-sub small mt-1"></div>
+                                            <div id="inlineQrErrorAlert" class="alert alert-danger p-2 small mt-2 mb-0" style="display:none;"></div>
+                                            
+                                            <button type="button" class="btn-cta-outline btn-cta-sm w-100 justify-content-center mt-3" id="btnRefreshQr">
+                                                <i class="ri-refresh-line me-1"></i> Làm mới mã QR
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -325,89 +315,94 @@
             });
         });
 
-        // QR Code generation handler
-        var btnGenerateQr = document.getElementById('btnGenerateQr');
-        if (btnGenerateQr) {
-            btnGenerateQr.addEventListener('click', function () {
-                var eventId = this.getAttribute('data-event-id');
-                var modalEl = document.getElementById('qrCodeModal');
-                var container = document.getElementById('qrCodeContainer');
-                var textEl = document.getElementById('qrCodeText');
-                var expiryEl = document.getElementById('qrExpiryText');
-                var errorEl = document.getElementById('qrErrorAlert');
+        // Inline QR Code generation handler
+        var isQrLoaded = false;
+        function generateInlineQrCode() {
+            var tabQrEl = document.getElementById('tab-qr');
+            if (!tabQrEl) return;
 
-                container.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tải...</span></div>';
-                textEl.textContent = '';
-                expiryEl.textContent = '';
-                errorEl.style.display = 'none';
+            var eventId = tabQrEl.getAttribute('data-event-id');
+            var container = document.getElementById('inlineQrContainer');
+            var textEl = document.getElementById('inlineQrText');
+            var expiryEl = document.getElementById('inlineQrExpiryText');
+            var errorEl = document.getElementById('inlineQrErrorAlert');
 
-                var modal = new bootstrap.Modal(modalEl);
-                modal.show();
+            if (!container) return;
 
-                var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+            container.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Đang tạo...</span></div>';
+            if (textEl) textEl.textContent = '';
+            if (expiryEl) expiryEl.textContent = '';
+            if (errorEl) errorEl.style.display = 'none';
 
-                console.log("Generating QR Code for event:", eventId, "with token:", token);
-                fetch('/Events/GenerateQrCode', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'RequestVerificationToken': token
-                    },
-                    body: 'eventId=' + encodeURIComponent(eventId) + '&__RequestVerificationToken=' + encodeURIComponent(token)
-                })
-                .then(function (r) {
-                    console.log("HTTP response status:", r.status);
-                    if (!r.ok) {
-                        return r.text().then(function (text) {
-                            throw new Error("HTTP " + r.status + ": " + text);
-                        });
-                    }
-                    return r.json();
-                })
-                .then(function (data) {
-                    console.log("Received QR response data:", data);
-                    if (data.success) {
-                        container.innerHTML = '';
-                        
-                        var img = document.createElement('img');
-                        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=176x176&data=' + encodeURIComponent(data.code);
-                        img.alt = 'QR Code';
-                        img.className = 'img-fluid mx-auto';
-                        img.style.width = '176px';
-                        img.style.height = '176px';
-                        
-                        img.onerror = function () {
-                            console.warn("Primary QR API failed, falling back to Google Charts API...");
-                            this.src = 'https://chart.googleapis.com/chart?cht=qr&chs=176x176&chl=' + encodeURIComponent(data.code);
-                            
-                            this.onerror = function () {
-                                console.warn("Google Charts API failed, falling back to QuickChart API...");
-                                this.src = 'https://quickchart.io/qr?text=' + encodeURIComponent(data.code) + '&size=176';
-                                
-                                this.onerror = function () {
-                                    console.error("All QR generation APIs failed.");
-                                    container.innerHTML = '<span class="text-danger small">Lỗi tải QR</span>';
-                                };
-                            };
+            var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+            console.log("Generating Inline QR Code for event:", eventId);
+            fetch('/Events/GenerateQrCode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: 'eventId=' + encodeURIComponent(eventId) + '&__RequestVerificationToken=' + encodeURIComponent(token)
+            })
+            .then(function (r) {
+                if (!r.ok) return r.text().then(function (text) { throw new Error("HTTP " + r.status + ": " + text); });
+                return r.json();
+            })
+            .then(function (data) {
+                if (data.success) {
+                    container.innerHTML = '';
+                    var img = document.createElement('img');
+                    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.code);
+                    img.alt = 'QR Code';
+                    img.className = 'img-fluid mx-auto';
+                    img.style.width = '160px';
+                    img.style.height = '160px';
+
+                    img.onerror = function () {
+                        this.src = 'https://chart.googleapis.com/chart?cht=qr&chs=160x160&chl=' + encodeURIComponent(data.code);
+                        this.onerror = function () {
+                            this.src = 'https://quickchart.io/qr?text=' + encodeURIComponent(data.code) + '&size=160';
                         };
-                        
-                        container.appendChild(img);
-                        textEl.textContent = data.code;
-                        if (data.expiresAt) {
-                            expiryEl.innerHTML = '<i class="bi bi-clock me-1"></i>Hết hạn: ' + data.expiresAt;
-                        }
-                    } else {
-                        container.innerHTML = '<i class="bi bi-exclamation-triangle text-warning fs-1"></i>';
-                        errorEl.textContent = data.error;
+                    };
+
+                    container.appendChild(img);
+                    if (textEl) textEl.textContent = data.code;
+                    if (expiryEl && data.expiresAt) {
+                        expiryEl.innerHTML = '<i class="ri-time-line me-1 text-warning"></i>Hết hạn: ' + data.expiresAt;
+                    }
+                    isQrLoaded = true;
+                } else {
+                    container.innerHTML = '<i class="ri-error-warning-line text-warning fs-1"></i>';
+                    if (errorEl) {
+                        errorEl.textContent = data.error || 'Không thể tạo mã QR';
                         errorEl.style.display = 'block';
                     }
-                })
-                .catch(function (err) {
-                    console.error("AJAX request failed:", err);
-                    container.innerHTML = '<i class="bi bi-wifi-off text-danger fs-1"></i>';
+                }
+            })
+            .catch(function (err) {
+                container.innerHTML = '<i class="ri-wifi-off-line text-danger fs-1"></i>';
+                if (errorEl) {
                     errorEl.textContent = 'Lỗi kết nối: ' + err.message;
                     errorEl.style.display = 'block';
-                });
+                }
+            });
+        }
+
+        // Auto load QR on tab switch or button click
+        var qrTabTrigger = document.querySelector('[data-tab="tab-qr"]');
+        if (qrTabTrigger) {
+            qrTabTrigger.addEventListener('click', function () {
+                if (!isQrLoaded) {
+                    generateInlineQrCode();
+                }
+            });
+        }
+
+        var btnRefreshQr = document.getElementById('btnRefreshQr');
+        if (btnRefreshQr) {
+            btnRefreshQr.addEventListener('click', function () {
+                generateInlineQrCode();
             });
         }
     });

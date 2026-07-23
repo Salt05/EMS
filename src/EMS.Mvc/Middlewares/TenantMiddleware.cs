@@ -173,7 +173,10 @@ public class TenantMiddleware
                                 var cookieOptions = new Microsoft.AspNetCore.Http.CookieOptions
                                 {
                                     HttpOnly = true,
-                                    Expires = DateTime.UtcNow.AddHours(1)
+                                    Expires = DateTime.UtcNow.AddHours(1),
+                                    SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax,
+                                    Secure = context.Request.IsHttps,
+                                    Path = "/"
                                 };
                                 
                                 context.Response.Cookies.Append("user_session", $"{fullName}|{email}|{role}", cookieOptions);

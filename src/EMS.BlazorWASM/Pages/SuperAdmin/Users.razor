@@ -65,6 +65,12 @@
                     <option value="manager">Organizer</option>
                     <option value="employee">Student</option>
                 </select>
+                <select class="block py-1.5 px-3 border border-border rounded-md text-sm bg-white focus:outline-none focus:ring-1 focus:ring-charcoal" @onchange="OnStatusFilterChanged">
+                    <option value="all">Tất cả Trạng thái</option>
+                    <option value="1">Hoạt động (Active)</option>
+                    <option value="2">Đã khóa (Inactive)</option>
+                    <option value="4">Chờ duyệt (Pending)</option>
+                </select>
             </div>
         </CustomFilter>
         <TableHeader>
@@ -259,6 +265,7 @@
     private string searchQuery = "";
     private string tenantFilter = "all";
     private string roleFilter = "all";
+    private string statusSelectFilter = "all";
     private string activeTab = "active";
 
     // Create Modal
@@ -324,7 +331,16 @@
 
         if (roleFilter != "all")
         {
-            temp = temp.Where(u => u.RoleIds.Contains(roleFilter)).ToList();
+            temp = temp.Where(u => u.RoleIds.Any(r => 
+                r.Equals(roleFilter, StringComparison.OrdinalIgnoreCase) ||
+                (roleFilter.Equals("employee", StringComparison.OrdinalIgnoreCase) && r.Equals("student", StringComparison.OrdinalIgnoreCase)) ||
+                (roleFilter.Equals("student", StringComparison.OrdinalIgnoreCase) && r.Equals("employee", StringComparison.OrdinalIgnoreCase))
+            )).ToList();
+        }
+
+        if (statusSelectFilter != "all" && int.TryParse(statusSelectFilter, out int sVal))
+        {
+            temp = temp.Where(u => u.Status == sVal).ToList();
         }
 
         if (activeTab == "active")
@@ -358,6 +374,13 @@
     private void OnRoleFilterChanged(ChangeEventArgs e)
     {
         roleFilter = e.Value?.ToString() ?? "all";
+        page = 1;
+        ApplyFilter();
+    }
+
+    private void OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        statusSelectFilter = e.Value?.ToString() ?? "all";
         page = 1;
         ApplyFilter();
     }

@@ -31,4 +31,6 @@ public class CreateEventDto
     public decimal Price { get; set; }
 
     public int Scope { get; set; }
+
+    public List<CreateAgendaDto> AgendaItems { get; set; } = new();
 }

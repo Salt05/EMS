@@ -1,42 +1,43 @@
 @model List<EMS.Core.Entities.Event>
 
-<div class="card border-0 rounded-4 shadow-lg mb-5 overflow-hidden" style="background: linear-gradient(145deg, #ffffff, #f8f9fa);">
-    <div class="card-header bg-transparent border-bottom-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold" style="color: var(--primary-color, #4f46e5); font-family: 'Plus Jakarta Sans', sans-serif;">
-            <i class="ri-calendar-event-fill me-2 fs-4 align-middle"></i>Sự kiện sắp tới
+<div class="glass-card-strong banner-glass-card p-4 rounded-4 shadow-lg mb-5 overflow-hidden">
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom border-glass-hairline">
+        <h5 class="mb-0 fw-bold banner-title d-flex align-items-center gap-2">
+            <i class="ri-calendar-event-fill text-warning fs-4"></i>
+            <span>Sự kiện sắp tới</span>
         </h5>
-        <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary px-3 py-2 fw-semibold">@Model?.Count Event(s)</span>
+        <span class="badge ticket-status-pill px-3 py-1.5 text-xs">@Model?.Count Event(s)</span>
     </div>
     <div class="card-body p-0">
         @if (Model != null && Model.Any())
         {
-            <div class="list-group list-group-flush px-2 pb-2">
+            <div class="list-group list-group-flush border-0">
                 @foreach (var ev in Model)
                 {
                     <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id" 
-                       class="list-group-item list-group-item-action border-0 rounded-3 my-1 px-4 py-3 d-flex align-items-center justify-content-between text-decoration-none"
-                       style="transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;"
-                       onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.05)'; this.style.background='#fcfcfd';"
-                       onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.background='transparent';">
+                       class="agenda-item-row agenda-item-normal border-0 rounded-3 my-1.5 px-3.5 py-3 d-flex align-items-center justify-content-between text-decoration-none transition-all">
                         
                         <div class="d-flex align-items-center gap-3">
-                            <div class="date-badge bg-primary bg-opacity-10 text-primary rounded-3 text-center p-2" style="min-width: 65px;">
+                            <div class="active-item-badge rounded-3 text-center p-2 d-flex flex-column align-items-center justify-content-center" style="min-width: 62px; height: 62px;">
                                 <div class="fs-4 fw-bold" style="line-height: 1;">@ev.StartTime.ToString("dd")</div>
-                                <div class="small fw-semibold text-uppercase" style="font-size: 0.75rem;">Thg @ev.StartTime.ToString("MM")</div>
+                                <div class="small fw-semibold text-uppercase mt-0.5" style="font-size: 0.7rem;">Thg @ev.StartTime.ToString("MM")</div>
                             </div>
                             
                             <div>
-                                <h6 class="mb-1 fw-bold text-dark fs-5" style="letter-spacing: -0.01em;">@ev.Title</h6>
-                                <p class="mb-0 text-secondary small d-flex align-items-center">
-                                    <i class="ri-map-pin-line me-1"></i>
-                                    <span class="text-truncate" style="max-width: 200px;">@ev.Location</span>
+                                <h6 class="mb-1 fw-bold banner-title fs-5">@ev.Title</h6>
+                                <p class="mb-0 banner-text-sub small d-flex align-items-center gap-1">
+                                    <i class="ri-map-pin-line text-info"></i>
+                                    <span class="text-truncate" style="max-width: 260px;">@ev.Location</span>
                                 </p>
                             </div>
                         </div>
 
                         <div class="text-end d-none d-md-block">
-                            <div class="text-muted small fw-medium mb-1"><i class="ri-time-line me-1"></i><datetime-format date="@ev.StartTime" format="HH:mm"></datetime-format></div>
-                            <span class="btn btn-sm btn-light rounded-pill px-3 text-primary fw-semibold" style="font-size: 0.8rem;">Xem chi tiết</span>
+                            <div class="banner-text-sub small fw-medium mb-1"><i class="ri-time-line text-warning me-1"></i><datetime-format date="@ev.StartTime" format="HH:mm"></datetime-format></div>
+                            <span class="btn-cta-outline btn-cta-sm py-1 px-3" style="font-size: 0.78rem;">
+                                <span>Chi tiết</span>
+                                <i class="ri-arrow-right-line"></i>
+                            </span>
                         </div>
                     </a>
                 }
@@ -45,12 +46,13 @@
         else
         {
             <div class="text-center py-5">
-                <div class="d-inline-block bg-light rounded-circle p-4 mb-3">
-                    <i class="ri-inbox-archive-line text-muted" style="font-size: 2.5rem;"></i>
+                <div class="d-inline-block ticket-status-pill rounded-circle p-4 mb-3">
+                    <i class="ri-inbox-archive-line text-warning" style="font-size: 2.2rem;"></i>
                 </div>
-                <h6 class="text-secondary fw-semibold">Chưa có sự kiện nào sắp diễn ra.</h6>
-                <p class="text-muted small mb-0">Hãy quay lại sau nhé!</p>
+                <h6 class="banner-title fw-semibold">Chưa có sự kiện nào sắp diễn ra.</h6>
+                <p class="banner-text-sub small mb-0">Hãy quay lại sau nhé!</p>
             </div>
         }
     </div>
 </div>
+

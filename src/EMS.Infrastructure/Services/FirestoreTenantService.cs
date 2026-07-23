@@ -20,6 +20,18 @@ public class FirestoreTenantService : ITenantService
         _logger = logger;
     }
 
+    private static readonly Tenant PublicTenantSeed = new()
+    {
+        Id = "tenant-public",
+        Name = "Thành viên tự do / Khách ngoài",
+        Subdomain = "community",
+        Email = "guest@ems.local",
+        Address = "Tài khoản công khai / Khách ngoài",
+        IsActive = true,
+        CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        UpdatedAt = DateTime.UtcNow
+    };
+
     public async Task<Tenant?> GetTenantByIdAsync(string tenantId)
     {
         try
@@ -31,12 +43,16 @@ public class FirestoreTenantService : ITenantService
             {
                 return MapToTenant(snapshot);
             }
+            if (tenantId == PublicTenantSeed.Id)
+            {
+                return PublicTenantSeed;
+            }
             return null;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error getting tenant by id {tenantId}");
-            return null;
+            return tenantId == PublicTenantSeed.Id ? PublicTenantSeed : null;
         }
     }
 
@@ -51,12 +67,16 @@ public class FirestoreTenantService : ITenantService
             {
                 return MapToTenant(snapshot.Documents[0]);
             }
+            if (subdomain.Equals("community", StringComparison.OrdinalIgnoreCase) || subdomain.Equals("public", StringComparison.OrdinalIgnoreCase))
+            {
+                return PublicTenantSeed;
+            }
             return null;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error getting tenant by subdomain {subdomain}");
-            return null;
+            return (subdomain.Equals("community", StringComparison.OrdinalIgnoreCase) || subdomain.Equals("public", StringComparison.OrdinalIgnoreCase)) ? PublicTenantSeed : null;
         }
     }
 
@@ -112,16 +132,37 @@ public class FirestoreTenantService : ITenantService
         {
             var snapshot = await _firestoreDb.Collection(CollectionName).GetSnapshotAsync();
             var tenants = new List<Tenant>();
+            bool hasPublicTenant = false;
+
             foreach (var doc in snapshot.Documents)
             {
-                tenants.Add(MapToTenant(doc));
+                var t = MapToTenant(doc);
+                if (t.Id == PublicTenantSeed.Id || t.Subdomain.Equals(PublicTenantSeed.Subdomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPublicTenant = true;
+                }
+                tenants.Add(t);
             }
+
+            if (!hasPublicTenant)
+            {
+                try
+                {
+                    await CreateTenantAsync(PublicTenantSeed);
+                }
+                catch
+                {
+                    // Ignore if permission issue
+                }
+                tenants.Add(PublicTenantSeed);
+            }
+
             return tenants;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all tenants");
-            return new List<Tenant>();
+            return new List<Tenant> { PublicTenantSeed };
         }
     }
 

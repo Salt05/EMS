@@ -24,9 +24,12 @@
     <meta name="description" content="@tenantName — Hệ thống quản lý sự kiện sinh viên. Khám phá, đăng ký và tham gia các sự kiện học đường." />
     <title>@ViewData["Title"] - @tenantName</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <!-- Remix Icon (Line) — per UI/UX Guideline -->
+    <!-- Remix Icon (Line) — per Aplot Style Guide -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/aplot-student-theme.css" asp-append-version="true" />
+    <!-- Lenis Smooth Scroll CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/lenis@1.1.18/dist/lenis.css" />
     <link rel="stylesheet" href="~/EMS.Mvc.styles.css" asp-append-version="true" />
 
     <!-- Dark Mode Flash Prevention: apply theme from localStorage BEFORE first paint -->
@@ -40,40 +43,57 @@
     </script>
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-md glass-nav py-3">
-            <div class="container">
-                <a class="navbar-brand-gradient d-flex align-items-center gap-2" asp-controller="Home" asp-action="Index">
-                    <i class="ri-calendar-event-fill" style="font-size:1.3rem;"></i>
-                    <span>@tenantName</span>
+    <!-- Aurora Background Blobs (Ambient Floating Mesh) -->
+    <div class="aurora-bg">
+        <div class="aurora-blob aurora-blob-1"></div>
+        <div class="aurora-blob aurora-blob-2"></div>
+        <div class="aurora-blob aurora-blob-3"></div>
+        <div class="aurora-blob aurora-blob-4"></div>
+    </div>
+
+    <!-- Floating Glass Header -->
+    <header class="floating-header-wrap">
+        <nav class="navbar navbar-expand-md glass-nav py-2">
+            <div class="container-fluid px-2">
+                <a class="navbar-brand-gradient navbar-brand-aplot d-flex align-items-center gap-2" asp-controller="Home" asp-action="Index">
+                    <div class="brand-icon-pill">
+                        <i class="ri-sparkles-line"></i>
+                    </div>
+                    <span class="brand-title-text">@tenantName</span>
                 </a>
                 <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
                         aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
                     <i class="ri-menu-3-line" style="font-size:1.4rem; color:var(--text-main);"></i>
                 </button>
-                <div class="collapse navbar-collapse" id="navbarCollapse">
-                    <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                <div class="collapse navbar-collapse mt-2 mt-md-0" id="navbarCollapse">
+                    <ul class="navbar-nav me-auto mb-2 mb-md-0 gap-1 ms-md-3">
                         <li class="nav-item">
-                            <a class="nav-link nav-link-glass @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")"
-                               asp-controller="Home" asp-action="Index">Trang chủ</a>
+                            <a class="nav-link nav-link-glass nav-link-aplot @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")"
+                               asp-controller="Home" asp-action="Index">
+                                <i class="ri-compass-3-line"></i> Trang chủ
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link nav-link-glass @(ViewContext.RouteData.Values["controller"]?.ToString() == "Events" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")"
-                               asp-controller="Events" asp-action="Index">Trạng thái sự kiện</a>
+                            <a class="nav-link nav-link-glass nav-link-aplot @(ViewContext.RouteData.Values["controller"]?.ToString() == "Events" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")"
+                               asp-controller="Events" asp-action="Index">
+                                <i class="ri-calendar-event-line"></i> Sự kiện
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link nav-link-glass @(ViewContext.RouteData.Values["action"]?.ToString() == "Privacy" ? "active" : "")"
-                               asp-controller="Home" asp-action="Privacy">Bảo mật</a>
+                            <a class="nav-link nav-link-glass nav-link-aplot @(ViewContext.RouteData.Values["action"]?.ToString() == "Privacy" ? "active" : "")"
+                               asp-controller="Home" asp-action="Privacy">
+                                <i class="ri-shield-user-line"></i> Bảo mật
+                            </a>
                         </li>
                     </ul>
 
                     <ul class="navbar-nav align-items-md-center gap-2">
-                        <!-- Dark Mode Toggle Button -->
+                        <!-- Dark / Light Theme Toggle Button -->
                         <li class="nav-item mb-2 mb-md-0">
                             <button id="themeToggleBtn"
-                                    class="btn-theme-toggle"
-                                    aria-label="Chuyển sang chế độ tối"
-                                    title="Chuyển sang chế độ tối">
+                                    class="btn-theme-toggle btn-theme-toggle-aplot"
+                                    aria-label="Chuyển chế độ Dark/Light"
+                                    title="Chuyển giao diện sáng/tối">
                                 <i id="themeToggleIcon" class="ri-moon-line"></i>
                                 <span id="themeToggleLabel">Tối</span>
                             </button>
@@ -82,32 +102,32 @@
                         @if (displayName != null)
                         {
                             <li class="nav-item me-md-1 mb-2 mb-md-0">
-                                <a class="nav-link nav-link-glass @(ViewContext.RouteData.Values["controller"]?.ToString() == "Events" && ViewContext.RouteData.Values["action"]?.ToString() == "MyEvents" ? "active" : "")"
+                                <a class="nav-link nav-link-glass nav-link-aplot @(ViewContext.RouteData.Values["controller"]?.ToString() == "Events" && ViewContext.RouteData.Values["action"]?.ToString() == "MyEvents" ? "active" : "")"
                                    asp-controller="Events" asp-action="MyEvents">
-                                    <i class="ri-ticket-2-line me-1"></i>Sự kiện của tôi
+                                    <i class="ri-ticket-2-line"></i> Vé của tôi
                                 </a>
                             </li>
                             <li class="nav-item dropdown me-md-1 mb-2 mb-md-0">
-                                <a class="user-dropdown-trigger dropdown-toggle" href="#"
+                                <a class="user-dropdown-trigger dropdown-toggle nav-link nav-link-glass nav-link-aplot" href="#"
                                    id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="ri-user-3-line" style="color:var(--primary);"></i>
+                                    <i class="ri-user-3-line" style="color:var(--primary-indigo);"></i>
                                     <span>Chào, <strong>@displayName</strong></span>
                                 </a>
-                                <ul class="dropdown-menu dropdown-menu-end dropdown-glass border-0 mt-2" aria-labelledby="userDropdown">
+                                <ul class="dropdown-menu dropdown-menu-end dropdown-glass glass-panel border-0 mt-2 p-2 shadow-lg" aria-labelledby="userDropdown">
                                     <li>
-                                        <a class="dropdown-item" href="#">
+                                        <a class="dropdown-item nav-link-aplot py-2" href="#">
                                             <i class="ri-user-settings-line me-2"></i>Thông tin cá nhân
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="#">
+                                        <a class="dropdown-item nav-link-aplot py-2" href="#">
                                             <i class="ri-settings-3-line me-2"></i>Cài đặt
                                         </a>
                                     </li>
                                 </ul>
                             </li>
                             <li class="nav-item mb-2 mb-md-0">
-                                <a class="btn-danger-outline" asp-controller="Auth" asp-action="Logout">
+                                <a class="btn-cta-outline btn-cta-sm text-danger" asp-controller="Auth" asp-action="Logout">
                                     <i class="ri-logout-box-r-line"></i> Đăng xuất
                                 </a>
                             </li>
@@ -115,8 +135,8 @@
                         else
                         {
                             <li class="nav-item me-md-1 mb-2 mb-md-0">
-                                <a class="nav-link nav-link-glass" asp-controller="Auth" asp-action="Login">
-                                    <i class="ri-login-box-line me-1"></i> Đăng nhập
+                                <a class="nav-link nav-link-glass nav-link-aplot" asp-controller="Auth" asp-action="Login">
+                                    <i class="ri-login-box-line"></i> Đăng nhập
                                 </a>
                             </li>
                             <li class="nav-item mb-2 mb-md-0">
@@ -132,7 +152,7 @@
         </nav>
     </header>
 
-    <div class="container main-content">
+    <div class="container main-content py-4">
         <main role="main">
             @RenderBody()
         </main>
@@ -141,13 +161,13 @@
     <!-- Success Toast Notification -->
     @if (TempData["SuccessMessage"] != null)
     {
-        <div class="toast-glass p-3 d-flex align-items-center" id="successToast" role="status" aria-live="polite">
-            <div class="me-3" style="color:var(--success); font-size:1.3rem;">
+        <div class="glass-panel p-3 d-flex align-items-center position-fixed bottom-0 end-0 m-4 shadow-lg" id="successToast" style="z-index: 1050; max-width: 380px; border-radius: var(--radius-md);" role="status" aria-live="polite">
+            <div class="me-3" style="color:var(--accent-emerald); font-size:1.4rem;">
                 <i class="ri-checkbox-circle-fill"></i>
             </div>
             <div class="flex-grow-1">
                 <div class="fw-bold" style="font-size:0.9rem;">Thành công</div>
-                <div class="text-muted-custom" style="font-size:0.82rem;">@TempData["SuccessMessage"]</div>
+                <div class="text-secondary" style="font-size:0.82rem;">@TempData["SuccessMessage"]</div>
             </div>
             <button type="button" class="btn-close ms-auto p-1" onclick="document.getElementById('successToast').style.display='none'" aria-label="Close"></button>
         </div>
@@ -165,16 +185,16 @@
         </script>
     }
 
-    <footer class="footer-section glass-footer mt-auto">
+    <footer class="footer-section glass-panel mt-auto py-3 mx-3 my-3">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-6 text-md-start text-center mb-2 mb-md-0">
-                    <span class="fw-bold" style="color:var(--primary);">EMS</span>
-                    <span class="text-muted-custom"> — Event Management System &copy; 2026</span>
+                    <span class="fw-bold" style="color:var(--primary-indigo);">@tenantName</span>
+                    <span class="text-muted" style="font-size: 0.9rem;"> — Event Management System &copy; 2026</span>
                 </div>
                 <div class="col-md-6 text-md-end text-center">
-                    <a asp-controller="Home" asp-action="Privacy" class="text-decoration-none text-muted-custom me-3">Chính sách bảo mật</a>
-                    <a href="#" class="text-decoration-none text-muted-custom">Điều khoản sử dụng</a>
+                    <a asp-controller="Home" asp-action="Privacy" class="text-decoration-none text-secondary me-3" style="font-size: 0.88rem;">Chính sách bảo mật</a>
+                    <a href="#" class="text-decoration-none text-secondary" style="font-size: 0.88rem;">Điều khoản sử dụng</a>
                 </div>
             </div>
         </div>
@@ -182,7 +202,12 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Lenis Smooth Scroll & GSAP + ScrollTrigger Libraries -->
+    <script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+

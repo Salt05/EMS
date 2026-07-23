@@ -46,28 +46,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
             var html = '';
             data.forEach(function (item) {
+                var startStr = formatTime(item.startTime);
+                var endStr = formatTime(item.endTime);
+                var timeRange = (startStr && endStr) ? (startStr + ' - ' + endStr) : (startStr || endStr);
+
                 html += '<div class="timeline-item">';
                 html += '  <div class="timeline-dot"></div>';
                 html += '  <div class="timeline-content">';
                 html += '    <div class="timeline-time">';
-                html += '      <i class="ri-time-line"></i> ' + item.startTime + ' - ' + item.endTime;
+                html += '      <i class="ri-time-line"></i> ' + timeRange;
                 html += '    </div>';
-                html += '    <div class="timeline-title">' + escapeHtml(item.title) + '</div>';
-                if (item.description) {
-                    html += '    <div class="timeline-desc">' + escapeHtml(item.description) + '</div>';
-                }
-                if (item.speaker) {
-                    html += '    <div class="timeline-speaker">';
-                    html += '      <i class="ri-user-voice-line"></i> Diễn giả: <strong>' + escapeHtml(item.speaker) + '</strong>';
-                    html += '    </div>';
-                }
-                if (item.materialUrl) {
-                    html += '    <div class="timeline-material">';
-                    html += '      <a href="' + item.materialUrl + '" target="_blank" class="btn-glass py-1 px-2.5" style="font-size: 0.75rem; border-radius: var(--r-micro);">';
-                    html += '        <i class="ri-download-cloud-2-line me-1"></i> Tải tài liệu';
-                    html += '      </a>';
-                    html += '    </div>';
-                }
+                html += '    <div class="timeline-title fw-semibold">' + escapeHtml(item.title) + '</div>';
                 html += '  </div>';
                 html += '</div>';
             });
@@ -86,6 +75,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             console.error('Failed to load agenda:', error);
         });
+
+    function formatTime(dateStr) {
+        if (!dateStr) return '';
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        var hours = d.getHours().toString().padStart(2, '0');
+        var minutes = d.getMinutes().toString().padStart(2, '0');
+        return hours + ':' + minutes;
+    }
 
     function escapeHtml(str) {
         if (!str) return '';

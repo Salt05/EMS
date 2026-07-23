@@ -32,7 +32,7 @@ public class FirestoreAgendaService : IAgendaService
 
             return snapshot.Documents
                 .Select(MapToAgendaItem)
-                .OrderBy(a => a.Order)
+                .OrderBy(a => a.StartTime)
                 .ToList();
         }
         catch (Exception ex)
@@ -123,10 +123,6 @@ public class FirestoreAgendaService : IAgendaService
             StartTime = dict.TryGetValue("startTime", out var start) && start is Timestamp startTs ? startTs.ToDateTime() : DateTime.MinValue,
             EndTime = dict.TryGetValue("endTime", out var end) && end is Timestamp endTs ? endTs.ToDateTime() : DateTime.MinValue,
             Title = dict.TryGetValue("title", out var title) ? title?.ToString() ?? "" : "",
-            Description = dict.TryGetValue("description", out var desc) ? desc?.ToString() ?? "" : "",
-            Speaker = dict.TryGetValue("speaker", out var spk) ? spk?.ToString() ?? "" : "",
-            MaterialUrl = dict.TryGetValue("materialUrl", out var mat) && !string.IsNullOrEmpty(mat?.ToString()) ? mat!.ToString() : null,
-            Order = dict.TryGetValue("order", out var ord) && ord is long ordLong ? (int)ordLong : 0,
             CreatedAt = dict.TryGetValue("createdAt", out var created) && created is Timestamp createdTs ? createdTs.ToDateTime() : DateTime.UtcNow,
             UpdatedAt = dict.TryGetValue("updatedAt", out var updated) && updated is Timestamp updatedTs ? updatedTs.ToDateTime() : DateTime.UtcNow
         };

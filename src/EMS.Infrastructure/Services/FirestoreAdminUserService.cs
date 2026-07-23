@@ -58,7 +58,12 @@ public class FirestoreAdminUserService : IAdminUserService
             // Client-side filtering for role (roleIds is an array in Firestore)
             if (!string.IsNullOrWhiteSpace(roleId))
             {
-                allUsers = allUsers.Where(u => u.RoleIds.Contains(roleId)).ToList();
+                var targetRole = roleId.Trim();
+                allUsers = allUsers.Where(u => u.RoleIds.Any(r =>
+                    r.Equals(targetRole, StringComparison.OrdinalIgnoreCase) ||
+                    (targetRole.Equals("employee", StringComparison.OrdinalIgnoreCase) && r.Equals("student", StringComparison.OrdinalIgnoreCase)) ||
+                    (targetRole.Equals("student", StringComparison.OrdinalIgnoreCase) && r.Equals("employee", StringComparison.OrdinalIgnoreCase))
+                )).ToList();
             }
 
             // Sort by creation date descending

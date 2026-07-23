@@ -11,30 +11,18 @@ public class AgendaItemDto
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Speaker { get; set; } = string.Empty;
-    public string? MaterialUrl { get; set; }
-    public int Order { get; set; }
 }
 
 public class CreateAgendaDto
 {
-    [Required(ErrorMessage = "Tiêu đề agenda không được để trống.")]
+    [Required(ErrorMessage = "Nội dung tiết mục không được để trống.")]
     public string Title { get; set; } = string.Empty;
 
-    public string Description { get; set; } = string.Empty;
-
-    public string Speaker { get; set; } = string.Empty;
-
-    [Required]
+    [Required(ErrorMessage = "Thời gian bắt đầu không được để trống.")]
     public DateTime StartTime { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "Thời gian kết thúc không được để trống.")]
     public DateTime EndTime { get; set; }
-
-    public string? MaterialUrl { get; set; }
-
-    public int Order { get; set; }
 }
 
 public class UpdateAgendaDto : CreateAgendaDto

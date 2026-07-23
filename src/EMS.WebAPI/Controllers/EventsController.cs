@@ -15,12 +15,14 @@ public class EventsController : ControllerBase
 {
     private readonly IEventService _eventService;
     private readonly IUserService _userService;
+    private readonly IAgendaService _agendaService;
     private readonly ILogger<EventsController> _logger;
 
-    public EventsController(IEventService eventService, IUserService userService, ILogger<EventsController> logger)
+    public EventsController(IEventService eventService, IUserService userService, IAgendaService agendaService, ILogger<EventsController> logger)
     {
         _eventService = eventService;
         _userService = userService;
+        _agendaService = agendaService;
         _logger = logger;
     }
 
@@ -105,6 +107,23 @@ public class EventsController : ControllerBase
         };
 
         var created = await _eventService.CreateEventAsync(ev);
+
+        if (dto.AgendaItems != null && dto.AgendaItems.Any())
+        {
+            foreach (var itemDto in dto.AgendaItems)
+            {
+                var item = new AgendaItem
+                {
+                    TenantId = tenantId,
+                    EventId = created.Id,
+                    StartTime = itemDto.StartTime.ToUniversalTime(),
+                    EndTime = itemDto.EndTime.ToUniversalTime(),
+                    Title = itemDto.Title
+                };
+                await _agendaService.CreateAgendaItemAsync(item);
+            }
+        }
+
         var email = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
         return CreatedAtAction(nameof(GetEvent), new { id = created.Id }, MapToResponse(created, email));
     }

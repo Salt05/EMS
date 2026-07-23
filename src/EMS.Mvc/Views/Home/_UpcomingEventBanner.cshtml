@@ -1,0 +1,424 @@
+@model EMS.Mvc.Models.UpcomingEventBannerViewModel
+
+@functions {
+    string FormatTimeRemaining(TimeSpan ts)
+    {
+        if (ts.TotalMinutes <= 0) return "Sắp bắt đầu";
+        int hours = (int)ts.TotalHours;
+        int mins = ts.Minutes;
+
+        if (hours > 0 && mins > 0)
+            return $"{hours} giờ {mins} phút";
+        if (hours > 0)
+            return $"{hours} giờ";
+        return $"{mins} phút";
+    }
+}
+
+@if (Model != null && (Model.IsOngoing || Model.IsUpcomingWithin24h))
+{
+    var ev = Model.Event;
+    var now = DateTime.UtcNow;
+
+    var agendaList = Model.AgendaItems.Select(a => new {
+        id = a.Id,
+        title = a.Title,
+        startTime = a.StartTime.ToString("o"),
+        endTime = a.EndTime.ToString("o"),
+        startFormatted = a.StartTime.ToLocalTime().ToString("HH:mm"),
+        endFormatted = a.EndTime.ToLocalTime().ToString("HH:mm")
+    }).ToList();
+
+    var agendaJson = System.Text.Json.JsonSerializer.Serialize(agendaList);
+
+    <div class="banner-outer mb-5 px-2 px-md-4" id="smartEventBanner" data-event-start="@ev.StartTime.ToString("o")" data-event-end="@ev.EndTime.ToString("o")">
+        @if (Model.IsOngoing)
+        {
+            <!-- ═══ ONGOING LIVE EVENT BANNER ═══ -->
+            <div class="glass-card-strong banner-glass-card p-4 p-md-5 rounded-4 position-relative overflow-hidden shadow-lg">
+                <!-- Glowing Live Badge Header -->
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="live-pulse-dot"></span>
+                        <span class="badge live-status-pill px-3 py-1.5 text-uppercase tracking-wider shadow-sm d-inline-flex align-items-center gap-1.5">
+                            <i class="ri-broadcast-line"></i> Đang diễn ra trực tiếp
+                        </span>
+                        <span class="badge ticket-status-pill px-3 py-1.5 text-xs">
+                            <i class="ri-ticket-2-line text-warning me-1"></i> Đã đăng ký vé
+                        </span>
+                    </div>
+                    <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id" class="btn-cta-outline btn-cta-sm">
+                        <span>Xem chi tiết & QR Check-in</span>
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </div>
+
+                <!-- Event Header Info -->
+                <div class="row align-items-center g-4">
+                    <div class="col-lg-7">
+                        <h2 class="h3 fw-bold banner-title mb-2">@ev.Title</h2>
+                        <div class="d-flex flex-wrap gap-3 banner-text-sub text-xs mb-3">
+                            <span><i class="ri-map-pin-2-line text-warning me-1"></i> @ev.Location</span>
+                            <span><i class="ri-time-line text-info me-1"></i> <datetime-format date="@ev.StartTime" format="HH:mm"></datetime-format> - <datetime-format date="@ev.EndTime" format="HH:mm"></datetime-format></span>
+                        </div>
+
+                        <!-- Live Active Agenda Highlight Box -->
+                        <div class="live-agenda-box p-3 rounded-4 border">
+                            <div id="liveCurrentAgendaWrapper">
+                                @if (Model.CurrentAgendaItem != null)
+                                {
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <span class="text-xs text-warning fw-bold text-uppercase tracking-wider d-flex align-items-center gap-1">
+                                            <i class="ri-flashlight-line"></i> Tiết mục đang diễn ra
+                                        </span>
+                                        <span class="badge active-item-badge px-2.5 py-1" id="liveCurrentBadge">
+                                            @Model.CurrentAgendaItem.StartTime.ToLocalTime().ToString("HH:mm") - @Model.CurrentAgendaItem.EndTime.ToLocalTime().ToString("HH:mm")
+                                        </span>
+                                    </div>
+                                    <h4 class="h5 fw-bold banner-title mb-1" id="liveCurrentTitle">@Model.CurrentAgendaItem.Title</h4>
+                                }
+                                else
+                                {
+                                    <div class="d-flex align-items-center gap-2 text-warning">
+                                        <i class="ri-time-line"></i>
+                                        <span class="text-xs fw-semibold" id="liveCurrentTitle">Chương trình đang diễn ra theo khung giờ sự kiện.</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <div id="liveNextAgendaWrapper" class="@(Model.NextAgendaItem != null ? "" : "d-none")">
+                                <div class="mt-2 pt-2 border-top border-glass-hairline text-xs banner-text-sub d-flex align-items-center justify-content-between">
+                                    <span><i class="ri-arrow-right-circle-line me-1 text-info"></i> Kế tiếp: <strong class="banner-title" id="liveNextTitle">@(Model.NextAgendaItem?.Title ?? "")</strong></span>
+                                    <span class="text-info" id="liveNextTime">lúc @(Model.NextAgendaItem?.StartTime.ToLocalTime().ToString("HH:mm") ?? "")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Agenda Quick Timeline Preview -->
+                    <div class="col-lg-5">
+                        <div class="agenda-timeline-preview p-3 rounded-4 border">
+                            <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-glass-hairline">
+                                <span class="text-xs fw-bold text-uppercase banner-text-sub">Lịch trình sự kiện</span>
+                                <span class="text-xs banner-text-sub">@Model.AgendaItems.Count tiết mục</span>
+                            </div>
+                            
+                            @if (Model.AgendaItems.Any())
+                            {
+                                <div class="agenda-scroll-list max-h-180 overflow-y-auto pe-1" id="liveAgendaItemsList">
+                                    @foreach (var item in Model.AgendaItems)
+                                    {
+                                        var isCurrent = Model.CurrentAgendaItem != null && Model.CurrentAgendaItem.Id == item.Id;
+                                        <div class="p-2.5 rounded-3 text-xs d-flex align-items-center justify-content-between transition-all agenda-item-row @(isCurrent ? "agenda-item-active" : "agenda-item-normal")" data-agenda-id="@item.Id">
+                                            <div class="d-flex align-items-center gap-2 text-truncate me-2">
+                                                <span class="fw-bold text-info shrink-0">@item.StartTime.ToLocalTime().ToString("HH:mm")</span>
+                                                <span class="text-truncate">@item.Title</span>
+                                            </div>
+                                            <span class="badge bg-warning text-dark text-[10px] fw-bold shrink-0 current-tag @(isCurrent ? "" : "d-none")">ĐANG DIỄN RA</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-xs banner-text-sub mb-0 py-2 text-center">Chưa có mốc lịch trình chi tiết nào được tạo.</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (Model.IsUpcomingWithin24h)
+        {
+            <!-- ═══ UPCOMING BANNER (< 24 Hours) ═══ -->
+            <div class="glass-card-strong banner-glass-card p-4 p-md-5 rounded-4 position-relative overflow-hidden shadow-lg">
+                <div class="row align-items-center g-4">
+                    <div class="col-lg-7">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge bg-warning text-dark px-3 py-1.5 text-uppercase fw-bold shadow-sm d-inline-flex align-items-center gap-1">
+                                <i class="ri-alarm-warning-line"></i> Sắp diễn ra trong 24 giờ!
+                            </span>
+                            <span class="badge ticket-status-pill px-3 py-1.5 text-xs">
+                                <i class="ri-ticket-2-line text-info me-1"></i> Sự kiện bạn đã đăng ký
+                            </span>
+                        </div>
+                        <h2 class="h3 fw-bold banner-title mb-2">@ev.Title</h2>
+                        <div class="d-flex flex-wrap gap-3 banner-text-sub text-xs mb-3">
+                            <span><i class="ri-calendar-event-line text-warning me-1"></i> <datetime-format date="@ev.StartTime" format="dd/MM/yyyy HH:mm"></datetime-format></span>
+                            <span><i class="ri-map-pin-2-line text-info me-1"></i> @ev.Location</span>
+                        </div>
+                        <a asp-controller="Events" asp-action="Detail" asp-route-id="@ev.Id" class="btn-cta btn-cta-sm">
+                            <span><i class="ri-qr-code-line me-1"></i> Xem vé QR-Code & Chi tiết</span>
+                        </a>
+                    </div>
+
+                    <!-- Right Column: Time Remaining Display (Hours and Minutes) -->
+                    <div class="col-lg-5 text-center text-lg-end">
+                        <div class="live-agenda-box p-3.5 rounded-4 border d-inline-block text-start shadow-sm">
+                            <div class="text-xs fw-bold text-uppercase tracking-wider banner-text-sub mb-1">
+                                <i class="ri-time-line text-warning me-1"></i> Thời gian còn lại
+                            </div>
+                            <div class="h4 fw-bold text-warning mb-0" id="timeRemainingDisplay">
+                                Sẽ diễn ra sau @FormatTimeRemaining(Model.TimeUntilStart)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Styles for Banner and Inner Components -->
+    <style>
+        .banner-glass-card {
+            background: var(--bg-surface-translucent, rgba(255, 255, 255, 0.45)) !important;
+            backdrop-filter: blur(24px) saturate(190%) !important;
+            -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+            border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.3)) !important;
+            border-radius: 24px !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+        }
+
+        html[data-theme="dark"] .banner-glass-card {
+            background: rgba(18, 21, 31, 0.55) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+        }
+
+        .banner-title {
+            color: var(--text-main) !important;
+        }
+
+        .banner-text-sub {
+            color: var(--text-secondary) !important;
+        }
+
+        .border-glass-hairline {
+            border-color: var(--border-hairline, rgba(255, 255, 255, 0.15)) !important;
+        }
+
+        /* Inner Glass Component Boxes */
+        .live-agenda-box,
+        .agenda-timeline-preview {
+            background: var(--bg-surface-translucent, rgba(255, 255, 255, 0.35)) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.25)) !important;
+        }
+
+        html[data-theme="dark"] .live-agenda-box,
+        html[data-theme="dark"] .agenda-timeline-preview {
+            background: rgba(255, 255, 255, 0.06) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        }
+
+        /* Agenda Row Items — Frosted Glass Styling */
+        .agenda-item-row {
+            margin-bottom: 0.4rem;
+            border-radius: 10px;
+            padding: 0.5rem 0.75rem;
+            transition: all 0.25s ease;
+        }
+
+        .agenda-item-normal {
+            background: var(--bg-surface-translucent, rgba(255, 255, 255, 0.5)) !important;
+            border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.3)) !important;
+            color: var(--text-main) !important;
+        }
+
+        html[data-theme="dark"] .agenda-item-normal {
+            background: rgba(255, 255, 255, 0.07) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            color: rgba(255, 255, 255, 0.88) !important;
+        }
+
+        .agenda-item-normal:hover {
+            background: var(--primary-indigo, #6366f1) !important;
+            color: #ffffff !important;
+            border-color: var(--primary-indigo, #6366f1) !important;
+        }
+
+        .agenda-item-active {
+            background: rgba(245, 158, 11, 0.2) !important;
+            border: 1px solid rgba(245, 158, 11, 0.5) !important;
+            color: var(--text-main) !important;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2) !important;
+        }
+
+        html[data-theme="dark"] .agenda-item-active {
+            color: #ffffff !important;
+        }
+
+        /* Pill Badges */
+        .live-status-pill {
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+            color: #ffffff !important;
+            border-radius: 20px;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+        }
+
+        .ticket-status-pill {
+            background: var(--bg-surface-translucent, rgba(255, 255, 255, 0.6)) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.3)) !important;
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+        }
+
+        html[data-theme="dark"] .ticket-status-pill {
+            background: rgba(255, 255, 255, 0.12) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        }
+
+        .active-item-badge {
+            background: rgba(245, 158, 11, 0.25) !important;
+            color: #d97706 !important;
+            border: 1px solid rgba(245, 158, 11, 0.4) !important;
+            border-radius: 12px;
+        }
+
+        html[data-theme="dark"] .active-item-badge {
+            color: #fbbf24 !important;
+        }
+
+        .live-pulse-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            animation: livePulse 1.6s infinite;
+        }
+
+        @@keyframes livePulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        .agenda-scroll-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .agenda-scroll-list::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.25);
+            border-radius: 4px;
+        }
+    </style>
+
+    <!-- REALTIME AUTO-UPDATE SCRIPT (CLIENT-SIDE SMART TICK) -->
+    <script>
+        (function() {
+            var bannerEl = document.getElementById('smartEventBanner');
+            if (!bannerEl) return;
+
+            var eventStartIso = bannerEl.getAttribute('data-event-start');
+            var eventEndIso = bannerEl.getAttribute('data-event-end');
+            var eventStartMs = new Date(eventStartIso).getTime();
+            var eventEndMs = new Date(eventEndIso).getTime();
+            var isOngoingMode = @(Model.IsOngoing ? "true" : "false");
+            var agendaData = @Html.Raw(agendaJson);
+
+            function updateSmartBannerState() {
+                var nowMs = new Date().getTime();
+
+                // 1. If currently in UPCOMING mode (<24h) and event starts (now >= eventStartMs) -> Reload to switch Banner to Live Ongoing
+                if (!isOngoingMode && nowMs >= eventStartMs) {
+                    location.reload();
+                    return;
+                }
+
+                // 2. If in UPCOMING mode, update the time remaining hours/minutes display every interval
+                if (!isOngoingMode) {
+                    var displayEl = document.getElementById('timeRemainingDisplay');
+                    if (displayEl) {
+                        var diffMs = eventStartMs - nowMs;
+                        if (diffMs > 0) {
+                            var totalMins = Math.floor(diffMs / 60000);
+                            var hours = Math.floor(totalMins / 60);
+                            var mins = totalMins % 60;
+                            var txt = "Sẽ diễn ra sau ";
+                            if (hours > 0 && mins > 0) txt += hours + " giờ " + mins + " phút";
+                            else if (hours > 0) txt += hours + " giờ";
+                            else txt += mins + " phút";
+                            displayEl.innerText = txt;
+                        }
+                    }
+                    return;
+                }
+
+                // 3. If in ONGOING mode: Auto-tick current active agenda phase realtime
+                if (isOngoingMode && agendaData && agendaData.length > 0) {
+                    var currentItem = null;
+                    var nextItem = null;
+
+                    for (var i = 0; i < agendaData.length; i++) {
+                        var item = agendaData[i];
+                        var itemStartMs = new Date(item.startTime).getTime();
+                        var itemEndMs = new Date(item.endTime).getTime();
+
+                        if (nowMs >= itemStartMs && nowMs <= itemEndMs) {
+                            currentItem = item;
+                            if (i + 1 < agendaData.length) {
+                                nextItem = agendaData[i + 1];
+                            }
+                            break;
+                        } else if (nowMs < itemStartMs) {
+                            if (!nextItem) nextItem = item;
+                        }
+                    }
+
+                    // Update Active Agenda Box DOM
+                    var titleEl = document.getElementById('liveCurrentTitle');
+                    var badgeEl = document.getElementById('liveCurrentBadge');
+                    var nextWrapEl = document.getElementById('liveNextAgendaWrapper');
+                    var nextTitleEl = document.getElementById('liveNextTitle');
+                    var nextTimeEl = document.getElementById('liveNextTime');
+
+                    if (currentItem) {
+                        if (titleEl) titleEl.innerText = currentItem.title;
+                        if (badgeEl) badgeEl.innerText = currentItem.startFormatted + " - " + currentItem.endFormatted;
+                    } else {
+                        if (titleEl) titleEl.innerText = "Chương trình đang diễn ra theo khung giờ sự kiện.";
+                    }
+
+                    if (nextItem && nextWrapEl) {
+                        nextWrapEl.classList.remove('d-none');
+                        if (nextTitleEl) nextTitleEl.innerText = nextItem.title;
+                        if (nextTimeEl) nextTimeEl.innerText = "lúc " + nextItem.startFormatted;
+                    } else if (nextWrapEl) {
+                        nextWrapEl.classList.add('d-none');
+                    }
+
+                    // Update Right Column List Highlighting
+                    var rows = document.querySelectorAll('.agenda-item-row');
+                    rows.forEach(function(row) {
+                        var id = row.getAttribute('data-agenda-id');
+                        var tag = row.querySelector('.current-tag');
+                        if (currentItem && id === currentItem.id) {
+                            row.className = "p-2.5 rounded-3 text-xs d-flex align-items-center justify-content-between transition-all agenda-item-row agenda-item-active";
+                            if (tag) tag.classList.remove('d-none');
+                        } else {
+                            row.className = "p-2.5 rounded-3 text-xs d-flex align-items-center justify-content-between transition-all agenda-item-row agenda-item-normal";
+                            if (tag) tag.classList.add('d-none');
+                        }
+                    });
+                }
+            }
+
+            // Run once on load and tick every 5 seconds
+            updateSmartBannerState();
+            setInterval(updateSmartBannerState, 5000);
+        })();
+    </script>
+}

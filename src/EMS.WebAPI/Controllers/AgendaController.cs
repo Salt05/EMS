@@ -71,11 +71,7 @@ public class AgendaController : ControllerBase
             EventId = eventId,
             StartTime = dto.StartTime.ToUniversalTime(),
             EndTime = dto.EndTime.ToUniversalTime(),
-            Title = dto.Title,
-            Description = dto.Description,
-            Speaker = dto.Speaker,
-            MaterialUrl = dto.MaterialUrl,
-            Order = dto.Order
+            Title = dto.Title
         };
 
         var created = await _agendaService.CreateAgendaItemAsync(item);
@@ -104,12 +100,8 @@ public class AgendaController : ControllerBase
             return BadRequest("EndTime must be after StartTime");
 
         item.Title = dto.Title;
-        item.Description = dto.Description;
-        item.Speaker = dto.Speaker;
         item.StartTime = dto.StartTime.ToUniversalTime();
         item.EndTime = dto.EndTime.ToUniversalTime();
-        item.MaterialUrl = dto.MaterialUrl;
-        item.Order = dto.Order;
 
         var success = await _agendaService.UpdateAgendaItemAsync(item);
         if (!success) return StatusCode(500, "Failed to update agenda item");
@@ -176,10 +168,6 @@ public class AgendaController : ControllerBase
         EventId = item.EventId,
         StartTime = item.StartTime,
         EndTime = item.EndTime,
-        Title = item.Title,
-        Description = item.Description,
-        Speaker = item.Speaker,
-        MaterialUrl = item.MaterialUrl,
-        Order = item.Order
+        Title = item.Title
     };
 }

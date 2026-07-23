@@ -71,6 +71,9 @@ public class AuthService : IAuthService
         try
         {
             await _authStateProvider.MarkUserAsLoggedOut();
+            await _localStorage.RemoveItemAsync("authToken");
+            await _localStorage.RemoveItemAsync("userId");
+            await _localStorage.RemoveItemAsync("currentTenantId");
             _logger.LogInformation("User logged out successfully");
         }
         catch (Exception ex)

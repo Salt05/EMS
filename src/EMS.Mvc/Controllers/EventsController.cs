@@ -285,12 +285,8 @@ public class EventsController : Controller
             id = a.Id,
             eventId = a.EventId,
             title = a.Title,
-            description = a.Description,
-            speaker = a.Speaker,
             startTime = a.StartTime.ToString("dd/MM/yyyy HH:mm"),
-            endTime = a.EndTime.ToString("HH:mm"),
-            materialUrl = a.MaterialUrl,
-            order = a.Order
+            endTime = a.EndTime.ToString("HH:mm")
         });
 
         return Json(response);

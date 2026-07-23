@@ -32,6 +32,11 @@ public class ServerAuthorizationMessageHandler : DelegatingHandler
                     request.Headers.TryAddWithoutValidation("X-Tenant-ID", tenantId);
                 }
             }
+
+            if (!request.Headers.Contains("X-API-KEY"))
+            {
+                request.Headers.TryAddWithoutValidation("X-API-KEY", "Secret_EMS_ApiKey_2026");
+            }
         }
         catch
         {

@@ -56,5 +56,6 @@ builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<ISuperAdminServiceClient, SuperAdminServiceClient>();
 builder.Services.AddScoped<ITenantAdminServiceClient, TenantAdminServiceClient>();
 builder.Services.AddScoped<IOrganizerServiceClient, OrganizerServiceClient>();
+builder.Services.AddScoped<IAgendaServiceClient, AgendaServiceClient>();
 
 await builder.Build().RunAsync();

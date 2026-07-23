@@ -9,10 +9,12 @@ namespace EMS.Mvc.Services;
 public class ServerAuthService : IAuthService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IUserContext _userContext;
 
-    public ServerAuthService(IHttpContextAccessor httpContextAccessor)
+    public ServerAuthService(IHttpContextAccessor httpContextAccessor, IUserContext userContext)
     {
         _httpContextAccessor = httpContextAccessor;
+        _userContext = userContext;
     }
 
     public Task<(LoginResponse? Response, string? ErrorMessage)> LoginAsync(LoginRequest request)
@@ -22,6 +24,7 @@ public class ServerAuthService : IAuthService
 
     public async Task LogoutAsync()
     {
+        _userContext.ClearSession();
         var httpContext = _httpContextAccessor.HttpContext;
         if (httpContext != null)
         {

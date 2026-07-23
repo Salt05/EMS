@@ -48,13 +48,19 @@
     else
     {
         <!-- Form -->
-        <!-- Form -->
         <EMS.BlazorWASM.Components.EventForm 
             EventModel="@eventModel" 
             IsSubmitting="@isSubmitting" 
             ErrorMessage="@errorMessage" 
             SubmitButtonText="@(isEditMode ? "Lưu thay đổi" : "Tạo Sự Kiện Mới")" 
             OnValidSubmit="HandleSubmitAsync" />
+
+        @if (isEditMode && !string.IsNullOrEmpty(Id))
+        {
+            <div class="mt-8">
+                <EMS.BlazorWASM.Components.EventAgendaEditor EventId="@Id" EventStartTime="@eventModel.StartTime" />
+            </div>
+        }
     }
 </div>
 

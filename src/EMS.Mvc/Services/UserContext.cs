@@ -48,7 +48,8 @@ namespace EMS.Mvc.Services
                 HttpOnly = true,
                 Expires = DateTime.UtcNow.AddHours(1),
                 SameSite = SameSiteMode.Lax,
-                Secure = true // Enable secure cookie usage
+                Secure = context.Request.IsHttps,
+                Path = "/"
             };
 
             context.Response.Cookies.Append(CookieName, $"{displayName}|{email}|{role}", cookieOptions);
@@ -63,10 +64,12 @@ namespace EMS.Mvc.Services
             {
                 HttpOnly = true,
                 SameSite = SameSiteMode.Lax,
-                Secure = true
+                Secure = context.Request.IsHttps,
+                Path = "/"
             };
 
             context.Response.Cookies.Delete(CookieName, cookieOptions);
+            context.Response.Cookies.Delete(CookieName);
         }
     }
 }

@@ -64,6 +64,11 @@
                 </div>
             </AdditionalButtons>
         </EMS.BlazorWASM.Components.EventForm>
+
+        <!-- Agenda Editor -->
+        <div class="mt-8">
+            <EMS.BlazorWASM.Components.EventAgendaEditor EventId="@Id" EventStartTime="@(eventDto?.StartTime ?? DateTime.Now)" />
+        </div>
     }
 </div>
 
