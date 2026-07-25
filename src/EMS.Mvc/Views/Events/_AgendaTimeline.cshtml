@@ -1,98 +1,41 @@
 @model EMS.Core.Entities.Event
+@inject EMS.Core.Interfaces.Services.IAgendaService AgendaService
 
-<div class="glass-card p-4 p-md-5 mb-4" id="agenda-timeline-container" data-event-id="@Model.Id">
+@{
+    var tenantId = Model.TenantId ?? Context.Items["TenantId"]?.ToString() ?? "default";
+    var agendaItems = await AgendaService.GetAgendaByEventAsync(Model.Id, tenantId);
+}
+
+<div class="glass-card p-4 p-md-5 mb-4" id="agenda-timeline-container">
     <span class="eyebrow-tag" style="margin-bottom:0.75rem;">Lịch trình</span>
     <h3 class="section-heading mb-4"><i class="ri-history-line text-primary-custom me-2"></i>Chi tiết chương trình</h3>
-    
-    <div id="agenda-loading" class="text-center py-4">
-        <div class="spinner-border text-primary spinner-border-sm" role="status">
-            <span class="visually-hidden">Đang tải...</span>
+
+    @if (agendaItems == null || !agendaItems.Any())
+    {
+        <div id="agenda-empty" class="text-center py-4">
+            <i class="ri-calendar-close-line text-muted" style="font-size: 2rem;"></i>
+            <p class="text-muted-custom small mt-2 mb-0">Chưa có lịch trình chi tiết cho sự kiện này.</p>
         </div>
-        <span class="ms-2 text-muted-custom small">Đang tải lịch trình...</span>
-    </div>
-    
-    <div id="agenda-empty" class="text-center py-4 d-none">
-        <i class="ri-calendar-close-line text-muted" style="font-size: 2rem;"></i>
-        <p class="text-muted-custom small mt-2 mb-0">Chưa có lịch trình chi tiết cho sự kiện này.</p>
-    </div>
+    }
+    else
+    {
+        <div id="agenda-timeline" class="timeline-container">
+            @foreach (var item in agendaItems)
+            {
+                var startStr = item.StartTime.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+                var endStr = item.EndTime.ToLocalTime().ToString("HH:mm");
+                var timeRange = $"{startStr} - {endStr}";
 
-    <div id="agenda-timeline" class="timeline-container d-none">
-        <!-- Loaded dynamically via API -->
-    </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-time">
+                            <i class="ri-time-line"></i> @timeRange
+                        </div>
+                        <div class="timeline-title fw-semibold">@item.Title</div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var container = document.getElementById('agenda-timeline-container');
-    if (!container) return;
-    var eventId = container.getAttribute('data-event-id');
-    if (!eventId) return;
-
-    var loadingEl = document.getElementById('agenda-loading');
-    var emptyEl = document.getElementById('agenda-empty');
-    var timelineEl = document.getElementById('agenda-timeline');
-
-    fetch('/api/events/' + eventId + '/agenda')
-        .then(function (response) {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.json();
-        })
-        .then(function (data) {
-            if (loadingEl) loadingEl.classList.add('d-none');
-            if (!data || data.length === 0) {
-                if (emptyEl) emptyEl.classList.remove('d-none');
-                return;
-            }
-
-            var html = '';
-            data.forEach(function (item) {
-                var startStr = formatTime(item.startTime);
-                var endStr = formatTime(item.endTime);
-                var timeRange = (startStr && endStr) ? (startStr + ' - ' + endStr) : (startStr || endStr);
-
-                html += '<div class="timeline-item">';
-                html += '  <div class="timeline-dot"></div>';
-                html += '  <div class="timeline-content">';
-                html += '    <div class="timeline-time">';
-                html += '      <i class="ri-time-line"></i> ' + timeRange;
-                html += '    </div>';
-                html += '    <div class="timeline-title fw-semibold">' + escapeHtml(item.title) + '</div>';
-                html += '  </div>';
-                html += '</div>';
-            });
-
-            if (timelineEl) {
-                timelineEl.innerHTML = html;
-                timelineEl.classList.remove('d-none');
-            }
-        })
-        .catch(function (error) {
-            if (loadingEl) loadingEl.classList.add('d-none');
-            if (emptyEl) {
-                emptyEl.classList.remove('d-none');
-                var p = emptyEl.querySelector('p');
-                if (p) p.textContent = 'Không thể tải lịch trình sự kiện lúc này.';
-            }
-            console.error('Failed to load agenda:', error);
-        });
-
-    function formatTime(dateStr) {
-        if (!dateStr) return '';
-        var d = new Date(dateStr);
-        if (isNaN(d.getTime())) return dateStr;
-        var hours = d.getHours().toString().padStart(2, '0');
-        var minutes = d.getMinutes().toString().padStart(2, '0');
-        return hours + ':' + minutes;
-    }
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-});
-</script>

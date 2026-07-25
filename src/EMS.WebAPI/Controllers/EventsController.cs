@@ -16,13 +16,20 @@ public class EventsController : ControllerBase
     private readonly IEventService _eventService;
     private readonly IUserService _userService;
     private readonly IAgendaService _agendaService;
+    private readonly IEventRewardService _eventRewardService;
     private readonly ILogger<EventsController> _logger;
 
-    public EventsController(IEventService eventService, IUserService userService, IAgendaService agendaService, ILogger<EventsController> logger)
+    public EventsController(
+        IEventService eventService, 
+        IUserService userService, 
+        IAgendaService agendaService, 
+        IEventRewardService eventRewardService,
+        ILogger<EventsController> logger)
     {
         _eventService = eventService;
         _userService = userService;
         _agendaService = agendaService;
+        _eventRewardService = eventRewardService;
         _logger = logger;
     }
 
@@ -122,6 +129,22 @@ public class EventsController : ControllerBase
                 };
                 await _agendaService.CreateAgendaItemAsync(item);
             }
+        }
+
+        if (dto.Rewards != null && dto.Rewards.Any())
+        {
+            var rewardEntities = dto.Rewards.Select(r => new EventReward
+            {
+                Id = string.IsNullOrEmpty(r.Id) ? Guid.NewGuid().ToString() : r.Id,
+                EventId = created.Id,
+                TenantId = tenantId,
+                RewardCategoryId = r.RewardCategoryId,
+                DetailName = r.DetailName,
+                ValueOrQuantity = r.ValueOrQuantity,
+                Description = r.Description
+            }).ToList();
+
+            await _eventRewardService.SaveEventRewardsAsync(created.Id, tenantId, rewardEntities);
         }
 
         var email = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;

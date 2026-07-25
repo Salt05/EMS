@@ -57,5 +57,6 @@ builder.Services.AddScoped<ISuperAdminServiceClient, SuperAdminServiceClient>();
 builder.Services.AddScoped<ITenantAdminServiceClient, TenantAdminServiceClient>();
 builder.Services.AddScoped<IOrganizerServiceClient, OrganizerServiceClient>();
 builder.Services.AddScoped<IAgendaServiceClient, AgendaServiceClient>();
+builder.Services.AddScoped<IRewardServiceClient, RewardServiceClient>();
 
 await builder.Build().RunAsync();

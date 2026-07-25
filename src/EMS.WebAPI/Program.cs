@@ -111,6 +111,11 @@ builder.Services.AddSingleton<IReportExportService, ReportExportService>();
 builder.Services.AddScoped<EventReminderJob>();
 builder.Services.AddScoped<PaymentExpirationJob>();
 
+builder.Services.AddScoped<FirestoreRewardService>();
+builder.Services.AddScoped<IRewardCategoryService>(sp => sp.GetRequiredService<FirestoreRewardService>());
+builder.Services.AddScoped<IEventRewardService>(sp => sp.GetRequiredService<FirestoreRewardService>());
+builder.Services.AddScoped<IUserRewardService>(sp => sp.GetRequiredService<FirestoreRewardService>());
+
 // ============ DATABASE (SQLITE / EF CORE) ============
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=ems.db";
 builder.Services.AddDbContext<EmsDbContext>(options =>

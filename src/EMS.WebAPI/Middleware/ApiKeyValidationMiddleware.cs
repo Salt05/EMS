@@ -19,13 +19,14 @@ public class ApiKeyValidationMiddleware
         // e.g., allow swagger without API Key or login endpoint.
         var path = context.Request.Path.Value?.ToLower();
         
-        // Skip validation for swagger, hangfire, Auth endpoints, Tenants endpoints, and SignalR hub
+        // Skip validation for swagger, hangfire, Auth endpoints, Tenants endpoints, public GET rewards, and SignalR hub
         if (path != null && (
             path.StartsWith("/swagger") || 
             path.StartsWith("/hangfire") || 
             path.StartsWith("/api/auth") || 
             path.StartsWith("/api/tenants") || 
-            path.StartsWith("/notificationhub")))
+            path.StartsWith("/notificationhub") ||
+            (path.StartsWith("/api/rewards") && context.Request.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))))
         {
             await _next(context);
             return;

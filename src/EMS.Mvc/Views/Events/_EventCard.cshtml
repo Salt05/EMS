@@ -1,4 +1,5 @@
 @model EMS.Core.Entities.Event
+@inject EMS.Core.Interfaces.Services.IEventRewardService RewardService
 <div class="col-lg-4 col-md-6">
     <div class="event-glass-card">
         <!-- Double-bezel image -->
@@ -12,26 +13,54 @@
         </div>
 
         <div class="event-card-body">
-            <h5 class="event-card-title">@Model.Title</h5>
-            <div class="event-card-meta">
-                <div><i class="ri-time-line"></i> @Model.StartTime.ToString("dd/MM/yyyy HH:mm") - @Model.EndTime.ToString("HH:mm")</div>
-                <div><i class="ri-map-pin-2-line"></i> @Model.Location</div>
-            </div>
-            @{
-                var displayDesc = Model.Description ?? "";
-                if (displayDesc.Length > 120)
-                    displayDesc = displayDesc.Substring(0, 117) + "...";
-            }
-            <p class="event-card-desc">@displayDesc</p>
-        </div>
+            <h5 class="event-card-title font-mono">
+                <a href="/Events/Detail/@Model.Id">@Model.Title</a>
+            </h5>
 
-        <div class="event-card-footer">
-            <span><i class="ri-group-line me-1"></i> Sức chứa: @Model.Capacity</span>
-            <a asp-controller="Events" asp-action="Detail" asp-route-id="@Model.Id"
-               class="btn-cta btn-cta-sm">
-                <span>Chi tiết</span>
-                <span class="btn-icon-circle"><i class="ri-arrow-right-up-line"></i></span>
-            </a>
+            <p class="event-card-desc">@(Model.Description?.Length > 120 ? Model.Description.Substring(0, 117) + "..." : Model.Description)</p>
+
+            @{
+                var tenantId = Context.Items["TenantId"]?.ToString() ?? "default";
+                var rewards = await RewardService.GetRewardsByEventAsync(Model.Id, tenantId);
+                var firstTwoRewards = rewards.Take(2).ToList();
+                var remainingRewardCount = rewards.Count - 2;
+            }
+
+            @if (rewards.Any())
+            {
+                <div class="d-flex flex-wrap gap-1 mt-2.5 mb-2 align-items-center">
+                    @foreach (var rw in firstTwoRewards)
+                    {
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 small">
+                            <i class="ri-gift-line me-1"></i>@rw.DetailName
+                        </span>
+                    }
+                    @if (remainingRewardCount > 0)
+                    {
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2.5 py-1 small">
+                            +@remainingRewardCount quà khác
+                        </span>
+                    }
+                </div>
+            }
+
+            <div class="event-card-meta">
+                <div class="meta-item font-mono">
+                    <i class="ri-map-pin-2-line me-1"></i> @Model.Location
+                </div>
+                <div class="meta-item font-mono">
+                    <i class="ri-calendar-line me-1"></i> @Model.StartTime.ToString("dd/MM/yyyy HH:mm")
+                </div>
+            </div>
+
+            <div class="event-card-footer mt-3">
+                <div class="price-tag font-mono">
+                    @(Model.Price == 0 ? "FREE" : $"{Model.Price:N0}đ")
+                </div>
+                <a href="/Events/Detail/@Model.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                    Chi tiết <i class="ri-arrow-right-line ms-1"></i>
+                </a>
+            </div>
         </div>
     </div>
 </div>

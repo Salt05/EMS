@@ -1,0 +1,174 @@
+@model List<EMS.Core.Entities.UserRewardRecord>
+@using EMS.Core.Entities.Enums
+@{
+    ViewData["Title"] = "Phần thưởng của tôi";
+    var selectedType = ViewBag.SelectedType as RewardType?;
+    var fromDate = ViewBag.FromDate as string;
+    var toDate = ViewBag.ToDate as string;
+}
+
+<div class="container my-5">
+    <div class="row mb-4">
+        <div class="col-md-8 mx-auto text-center">
+            <span class="eyebrow-tag">Kho quà & Tích lũy</span>
+            <h1 class="heading-gradient heading-gradient-md mb-2">Phần thưởng của tôi</h1>
+            <p class="subtitle-text">
+                Theo dõi điểm rèn luyện, quà tặng vật lý và chứng nhận bạn đã tích lũy từ các sự kiện đã tham gia.
+            </p>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="glass-card p-4 mb-4">
+        <form method="get" asp-action="MyRewards" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold small text-muted-custom">Loại phần thưởng</label>
+                <select name="type" class="form-select glass-input">
+                    <option value="">-- Tất cả loại --</option>
+                    <option value="@((int)RewardType.TrainingPoint)" selected="@(selectedType == RewardType.TrainingPoint)">⭐ Điểm rèn luyện</option>
+                    <option value="@((int)RewardType.PhysicalGift)" selected="@(selectedType == RewardType.PhysicalGift)">🎁 Quà tặng vật lý</option>
+                    <option value="@((int)RewardType.Voucher)" selected="@(selectedType == RewardType.Voucher)">🏷️ Voucher / Giftcode</option>
+                    <option value="@((int)RewardType.Certificate)" selected="@(selectedType == RewardType.Certificate)">📜 Giấy chứng nhận</option>
+                    <option value="@((int)RewardType.InternalCoin)" selected="@(selectedType == RewardType.InternalCoin)">🪙 Coin nội bộ</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small text-muted-custom">Từ ngày</label>
+                <input type="date" name="fromDate" value="@fromDate" class="form-control glass-input" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small text-muted-custom">Đến ngày</label>
+                <input type="date" name="toDate" value="@toDate" class="form-control glass-input" />
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn-cta w-100 justify-content-center py-2">
+                    <i class="ri-filter-3-line me-1"></i> Lọc
+                </button>
+                <a asp-action="MyRewards" class="btn-glass py-2" title="Xóa bộ lọc">
+                    <i class="ri-refresh-line"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary Stats Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="glass-card p-3 d-flex align-items-center gap-3">
+                <div class="rounded-circle p-3 bg-primary-subtle text-primary fs-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="ri-star-line"></i>
+                </div>
+                <div>
+                    <div class="text-muted-custom small fw-semibold">Tổng Điểm rèn luyện</div>
+                    <div class="fs-4 fw-bold text-gradient">@Model.Where(r => r.RewardType == RewardType.TrainingPoint).Sum(r => r.Amount) điểm</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card p-3 d-flex align-items-center gap-3">
+                <div class="rounded-circle p-3 bg-warning-subtle text-warning fs-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="ri-gift-line"></i>
+                </div>
+                <div>
+                    <div class="text-muted-custom small fw-semibold">Quà & Voucher đã nhận</div>
+                    <div class="fs-4 fw-bold text-gradient">@Model.Count(r => r.RewardType == RewardType.PhysicalGift || r.RewardType == RewardType.Voucher) phần</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card p-3 d-flex align-items-center gap-3">
+                <div class="rounded-circle p-3 bg-info-subtle text-info fs-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="ri-award-line"></i>
+                </div>
+                <div>
+                    <div class="text-muted-custom small fw-semibold">Chứng nhận đã nhận</div>
+                    <div class="fs-4 fw-bold text-gradient">@Model.Count(r => r.RewardType == RewardType.Certificate) chứng nhận</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Records -->
+    <div class="glass-card p-4">
+        @if (!Model.Any())
+        {
+            <div class="text-center py-5">
+                <div class="mb-3 text-muted-custom fs-1">
+                    <i class="ri-gift-2-line"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Chưa có phần thưởng nào</h5>
+                <p class="text-muted-custom mb-0">Bạn chưa nhận được phần thưởng nào trùng khớp với bộ lọc hiện tại.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="text-muted-custom text-uppercase small">
+                            <th>Loại phần thưởng</th>
+                            <th>Chi tiết</th>
+                            <th>Giá trị / Số lượng</th>
+                            <th>Sự kiện</th>
+                            <th>Thời gian nhận</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @switch (item.RewardType)
+                                    {
+                                        case RewardType.TrainingPoint:
+                                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-star-line me-1"></i> Điểm rèn luyện
+                                            </span>
+                                            break;
+                                        case RewardType.PhysicalGift:
+                                            <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-gift-line me-1"></i> Quà vật lý
+                                            </span>
+                                            break;
+                                        case RewardType.Voucher:
+                                            <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-ticket-line me-1"></i> Voucher
+                                            </span>
+                                            break;
+                                        case RewardType.Certificate:
+                                            <span class="badge bg-info-subtle text-info rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-award-line me-1"></i> Chứng nhận
+                                            </span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-coin-line me-1"></i> @item.RewardCategoryName
+                                            </span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    <div class="fw-bold">@item.DetailName</div>
+                                    <small class="text-muted-custom">@item.RewardCategoryName</small>
+                                </td>
+                                <td>
+                                    <span class="fw-bold fs-6">
+                                        @(item.RewardType == RewardType.TrainingPoint ? "+" + item.Amount + " điểm" : item.Amount.ToString("N0") + " phần")
+                                    </span>
+                                </td>
+                                <td>
+                                    <a asp-action="Detail" asp-route-id="@item.EventId" class="link-primary-hover fw-medium">
+                                        @item.EventTitle
+                                    </a>
+                                </td>
+                                <td class="text-muted-custom small">
+                                    <i class="ri-calendar-line me-1"></i>@item.GrantedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

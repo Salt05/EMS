@@ -33,4 +33,6 @@ public class CreateEventDto
     public int Scope { get; set; }
 
     public List<CreateAgendaDto> AgendaItems { get; set; } = new();
+
+    public List<EMS.Shared.DTOs.Rewards.EventRewardDto> Rewards { get; set; } = new();
 }

@@ -1,8 +1,11 @@
 @page "/Admin/Events/Pending"
 @attribute [Authorize(Roles = "admin")]
-@inject ITenantAdminServiceClient TenantAdminService
-@inject ToastService ToastService
 @using EMS.Shared.DTOs.Events
+@using EMS.Shared.DTOs.Rewards
+@using EMS.BlazorWASM.Services
+@inject ITenantAdminServiceClient TenantAdminService
+@inject IRewardServiceClient RewardService
+@inject ToastService ToastService
 
 <PageTitle>Phê duyệt Sự kiện — EMS</PageTitle>
 
@@ -36,12 +39,102 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@evt.StartTime.ToString("dd/MM/yyyy HH:mm")</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@evt.Capacity người</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <button @onclick="() => OpenDetailModal(evt)" class="text-indigo-600 hover:underline">Chi tiết</button>
                 <button @onclick="() => ApproveEvent(evt)" class="text-emerald-600 hover:underline">Phê duyệt</button>
                 <button @onclick="() => OpenRejectModal(evt)" class="text-rose-600 hover:underline">Từ chối</button>
             </td>
         </RowTemplate>
     </DataTable>
 </div>
+
+<!-- Event Detail Modal -->
+@if (isDetailOpen && selectedDetailEvent != null)
+{
+    <FormModal Title="Chi tiết sự kiện chờ duyệt" IsOpen="isDetailOpen" SaveText="Đóng" OnSave="() => isDetailOpen = false" OnCancel="() => isDetailOpen = false">
+        <div class="space-y-4 text-xs">
+            @if (!string.IsNullOrEmpty(selectedDetailEvent.ImageUrl))
+            {
+                <div class="w-full aspect-video rounded-xl overflow-hidden bg-canvas border border-border">
+                    <img src="@selectedDetailEvent.ImageUrl" alt="@selectedDetailEvent.Title" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/800x400/6366f1/ffffff?text=EMS+Event'; this.onerror=null;" />
+                </div>
+            }
+
+            <div>
+                <h3 class="text-base font-bold text-charcoal">@selectedDetailEvent.Title</h3>
+                <p class="text-muted mt-1 whitespace-pre-line leading-relaxed">@selectedDetailEvent.Description</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 p-3.5 bg-canvas/50 border border-border rounded-xl">
+                <div>
+                    <span class="text-muted font-mono text-[11px]">Ban tổ chức:</span>
+                    <div class="font-bold text-charcoal">@GetOrganizerName(selectedDetailEvent.OrganizerId)</div>
+                </div>
+                <div>
+                    <span class="text-muted font-mono text-[11px]">Địa điểm:</span>
+                    <div class="font-bold text-charcoal">@selectedDetailEvent.Location</div>
+                </div>
+                <div>
+                    <span class="text-muted font-mono text-[11px]">Thời gian bắt đầu:</span>
+                    <div class="font-bold text-charcoal font-mono">@selectedDetailEvent.StartTime.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div>
+                    <span class="text-muted font-mono text-[11px]">Thời gian kết thúc:</span>
+                    <div class="font-bold text-charcoal font-mono">@selectedDetailEvent.EndTime.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div>
+                    <span class="text-muted font-mono text-[11px]">Giá vé:</span>
+                    <div class="font-bold text-emerald-600 font-mono">@(selectedDetailEvent.Price == 0 ? "Miễn phí" : $"{selectedDetailEvent.Price:N0}đ")</div>
+                </div>
+                <div>
+                    <span class="text-muted font-mono text-[11px]">Sức chứa:</span>
+                    <div class="font-bold text-charcoal font-mono">@selectedDetailEvent.Capacity người</div>
+                </div>
+            </div>
+
+            <!-- List Rewards of this event -->
+            @if (isLoadingDetailRewards)
+            {
+                <div class="py-3 text-center text-muted">Đang tải thông tin phần thưởng...</div>
+            }
+            else if (detailRewards.Any())
+            {
+                <div class="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-2">
+                    <div class="font-bold text-amber-900 flex items-center gap-1.5 text-xs">
+                        <span>🎁</span> Phần thưởng người tham gia nhận khi check-in (@detailRewards.Count phần thưởng)
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        @foreach (var rw in detailRewards)
+                        {
+                            <div class="p-2.5 bg-white border border-amber-200 rounded-lg shadow-2xs">
+                                <div class="font-bold text-charcoal">@rw.DetailName</div>
+                                <div class="text-[11px] text-muted mt-0.5">SL / Giá trị: <strong>@rw.ValueOrQuantity</strong></div>
+                                @if (!string.IsNullOrEmpty(rw.Description))
+                                {
+                                    <div class="text-[10px] text-muted italic">@rw.Description</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="p-3 bg-canvas border border-border rounded-xl text-center text-muted text-xs">
+                    Sự kiện này chưa đăng ký danh sách phần thưởng.
+                </div>
+            }
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-border mt-4">
+                <button type="button" @onclick="() => ApproveFromDetail(selectedDetailEvent)" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors text-xs">
+                    Phê duyệt sự kiện này
+                </button>
+                <button type="button" @onclick="() => RejectFromDetail(selectedDetailEvent)" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl transition-colors text-xs">
+                    Từ chối
+                </button>
+            </div>
+        </div>
+    </FormModal>
+}
 
 <!-- Reject Modal -->
 <FormModal Title="Từ chối yêu cầu tổ chức sự kiện" IsOpen="isRejectOpen" SaveText="Xác nhận từ chối" OnSave="RejectEvent" OnCancel="() => isRejectOpen = false">
@@ -63,7 +156,13 @@
     private int pageSize = 10;
     private string searchQuery = "";
 
-    // Modals
+    // Detail Modal
+    private bool isDetailOpen = false;
+    private EventResponseDto? selectedDetailEvent;
+    private List<EventRewardDto> detailRewards = new();
+    private bool isLoadingDetailRewards = false;
+
+    // Reject Modal
     private bool isRejectOpen;
     private EventResponseDto? selectedEvent;
     private string rejectReason = "";
@@ -119,6 +218,38 @@
     private string GetOrganizerName(string orgId)
     {
         return orgId == "user2" ? "CLB Tin học" : "Đoàn Khoa CNTT";
+    }
+
+    private async Task OpenDetailModal(EventResponseDto evt)
+    {
+        selectedDetailEvent = evt;
+        isDetailOpen = true;
+        isLoadingDetailRewards = true;
+
+        try
+        {
+            detailRewards = await RewardService.GetRewardsByEventAsync(evt.Id, "default");
+        }
+        catch
+        {
+            detailRewards = new List<EventRewardDto>();
+        }
+        finally
+        {
+            isLoadingDetailRewards = false;
+        }
+    }
+
+    private async Task ApproveFromDetail(EventResponseDto evt)
+    {
+        isDetailOpen = false;
+        await ApproveEvent(evt);
+    }
+
+    private void RejectFromDetail(EventResponseDto evt)
+    {
+        isDetailOpen = false;
+        OpenRejectModal(evt);
     }
 
     private async Task ApproveEvent(EventResponseDto evt)

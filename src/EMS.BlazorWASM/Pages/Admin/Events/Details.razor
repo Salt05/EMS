@@ -1,7 +1,13 @@
 @page "/admin/events/{Id}"
-@attribute [Authorize]
+@page "/admin/events/details/{Id}"
+@page "/organizer/events/{Id}"
+@page "/organizer/events/details/{Id}"
+@page "/SuperAdmin/Events/{Id}"
+@page "/SuperAdmin/Events/details/{Id}"
+@attribute [Authorize(Roles = "manager,admin,superadmin")]
 @inject EMS.BlazorWASM.Services.IEventServiceClient EventService
 @inject EMS.BlazorWASM.Services.IRegistrationServiceClient RegistrationService
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 @using EMS.Shared.DTOs.Events
@@ -31,7 +37,7 @@
         <div class="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
                 <div class="flex items-center gap-2 text-xs font-medium text-muted mb-2">
-                    <a href="/admin/events" class="hover:text-charcoal transition-colors">Danh sách sự kiện</a>
+                    <a href="@GetParentListUrl()" class="hover:text-charcoal transition-colors">@GetParentListTitle()</a>
                     <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
@@ -223,9 +229,32 @@
     private EventResponseDto? eventData;
     private List<RegistrationResponseDto> registrations = new();
 
+    private bool isSuperAdmin = false;
+    private bool isTenantAdmin = false;
+    private bool isOrganizer = false;
+
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isSuperAdmin = user.IsInRole("superadmin");
+        isTenantAdmin = user.IsInRole("admin");
+        isOrganizer = user.IsInRole("manager");
+
         await LoadDataAsync();
+    }
+
+    private string GetParentListTitle()
+    {
+        if (isOrganizer) return "Sự kiện của tôi";
+        return "Danh sách sự kiện";
+    }
+
+    private string GetParentListUrl()
+    {
+        if (isOrganizer) return "/organizer/my-events";
+        if (isSuperAdmin) return "/SuperAdmin/Events";
+        return "/admin/events";
     }
 
     private async Task LoadDataAsync()
@@ -282,7 +311,7 @@
             var success = await EventService.DeleteEventAsync(Id);
             if (success)
             {
-                NavigationManager.NavigateTo("/admin/events");
+                NavigationManager.NavigateTo(GetParentListUrl());
             }
             else
             {

@@ -1,0 +1,222 @@
+@page "/Admin/RewardCategories"
+@attribute [Authorize(Roles = "admin")]
+@inject IRewardServiceClient RewardService
+@inject ToastService ToastService
+@using EMS.Shared.DTOs.Rewards
+
+<PageTitle>Quản lý Loại Phần thưởng — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">
+                Quản lý Loại Phần thưởng
+            </h1>
+            <p class="text-sm text-muted mt-1">Định nghĩa các loại phần thưởng (Điểm rèn luyện, Quà tặng, Certificate...) dùng cho toàn bộ sự kiện của đơn vị.</p>
+        </div>
+        <button @onclick="OpenCreateModal" class="inline-flex items-center gap-2 bg-charcoal text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-black transition-colors shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Tạo loại phần thưởng
+        </button>
+    </div>
+
+    <!-- Data Table -->
+    <DataTable TItem="RewardCategoryDto" Items="categories" TotalCount="categories.Count" 
+               Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading">
+        <TableHeader>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Tên loại phần thưởng</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Phân loại</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Mô tả</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Trạng thái</th>
+            <th class="px-6 py-3 text-right text-xs font-bold text-muted uppercase tracking-wider font-mono">Hành động</th>
+        </TableHeader>
+        <RowTemplate Context="cat">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-charcoal">@cat.Name</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                @switch (cat.Type)
+                {
+                    case RewardTypeDto.TrainingPoint:
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            ⭐ Điểm rèn luyện
+                        </span>
+                        break;
+                    case RewardTypeDto.PhysicalGift:
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                            🎁 Quà vật lý
+                        </span>
+                        break;
+                    case RewardTypeDto.Voucher:
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                            🏷️ Voucher / Giftcode
+                        </span>
+                        break;
+                    case RewardTypeDto.Certificate:
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            📜 Giấy chứng nhận
+                        </span>
+                        break;
+                    default:
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            🪙 Coin nội bộ
+                        </span>
+                        break;
+                }
+            </td>
+            <td class="px-6 py-4 text-sm text-muted max-w-xs truncate">@cat.Description</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium @(cat.IsActive ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800")">
+                    @(cat.IsActive ? "Hoạt động" : "Vô hiệu hóa")
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                <button @onclick="() => OpenEditModal(cat)" class="text-indigo-600 hover:underline">Sửa</button>
+                <button @onclick="() => ToggleActive(cat)" class="@(cat.IsActive ? "text-rose-600" : "text-emerald-600") hover:underline">
+                    @(cat.IsActive ? "Vô hiệu hóa" : "Kích hoạt lại")
+                </button>
+            </td>
+        </RowTemplate>
+    </DataTable>
+</div>
+
+<!-- Modal Create / Edit -->
+@if (showModal)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-100 animate-fadeIn">
+            <h3 class="text-lg font-bold text-charcoal mb-4">
+                @(isEdit ? "Chỉnh sửa Loại Phần Thưởng" : "Thêm Loại Phần Thưởng Mới")
+            </h3>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-muted mb-1">Tên loại phần thưởng</label>
+                    <input type="text" @bind="formModel.Name" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="VD: Điểm rèn luyện - Thể thao" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-muted mb-1">Phân loại hệ thống</label>
+                    <select @bind="formModel.Type" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <option value="@RewardTypeDto.TrainingPoint">⭐ Điểm rèn luyện</option>
+                        <option value="@RewardTypeDto.PhysicalGift">🎁 Quà tặng vật lý</option>
+                        <option value="@RewardTypeDto.Voucher">🏷️ Voucher / Giftcode</option>
+                        <option value="@RewardTypeDto.Certificate">📜 Giấy chứng nhận</option>
+                        <option value="@RewardTypeDto.InternalCoin">🪙 Coin nội bộ</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-muted mb-1">Mô tả</label>
+                    <textarea @bind="formModel.Description" rows="3" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Mô tả công dụng hoặc ghi chú"></textarea>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <button @onclick="CloseModal" class="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl">Hủy</button>
+                <button @onclick="SaveCategory" class="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700">Lưu</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RewardCategoryDto> categories = new();
+    private bool isLoading = true;
+    private int page = 1;
+    private int pageSize = 10;
+
+    private bool showModal = false;
+    private bool isEdit = false;
+    private RewardCategoryDto formModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            categories = await RewardService.GetCategoriesByTenantAsync("default", activeOnly: false);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Không thể tải danh sách loại phần thưởng: " + ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnPageChanged(int newPage) => page = newPage;
+
+    private void OpenCreateModal()
+    {
+        isEdit = false;
+        formModel = new RewardCategoryDto { TenantId = "default", IsActive = true };
+        showModal = true;
+    }
+
+    private void OpenEditModal(RewardCategoryDto cat)
+    {
+        isEdit = true;
+        formModel = new RewardCategoryDto
+        {
+            Id = cat.Id,
+            TenantId = cat.TenantId,
+            Name = cat.Name,
+            Type = cat.Type,
+            Description = cat.Description,
+            IsActive = cat.IsActive
+        };
+        showModal = true;
+    }
+
+    private void CloseModal() => showModal = false;
+
+    private async Task SaveCategory()
+    {
+        if (string.IsNullOrWhiteSpace(formModel.Name))
+        {
+            ToastService.ShowWarning("Vui lòng nhập tên loại phần thưởng.");
+            return;
+        }
+
+        try
+        {
+            if (isEdit)
+            {
+                await RewardService.UpdateCategoryAsync(formModel);
+                ToastService.ShowSuccess("Cập nhật thành công!");
+            }
+            else
+            {
+                await RewardService.CreateCategoryAsync(formModel);
+                ToastService.ShowSuccess("Tạo mới thành công!");
+            }
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi lưu phần thưởng: " + ex.Message);
+        }
+    }
+
+    private async Task ToggleActive(RewardCategoryDto cat)
+    {
+        try
+        {
+            await RewardService.ToggleActiveStatusAsync(cat.Id, cat.TenantId, !cat.IsActive);
+            ToastService.ShowSuccess(cat.IsActive ? "Đã vô hiệu hóa loại phần thưởng." : "Đã kích hoạt lại.");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi thay đổi trạng thái: " + ex.Message);
+        }
+    }
+}

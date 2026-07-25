@@ -1,17 +1,29 @@
+@page "/organizer/events/create"
+@page "/organizer/events/new"
+@page "/organizer/events/edit/{Id}"
 @page "/admin/events/new"
+@page "/admin/events/create"
 @page "/admin/events/edit/{Id}"
+@page "/SuperAdmin/Events/new"
+@page "/SuperAdmin/Events/create"
 @page "/SuperAdmin/Events/edit/{Id}"
-@attribute [Authorize]
-@inject EMS.BlazorWASM.Services.IEventServiceClient EventService
-@inject EMS.BlazorWASM.Services.ISuperAdminServiceClient SuperAdminService
+@attribute [Authorize(Roles = "manager,admin,superadmin")]
+@using EMS.Shared.DTOs
+@using EMS.Shared.DTOs.Events
+@using EMS.Shared.DTOs.Rewards
+@using EMS.BlazorWASM.Services
+@inject IEventServiceClient EventService
+@inject IOrganizerServiceClient OrganizerService
+@inject ISuperAdminServiceClient SuperAdminService
+@inject IAgendaServiceClient AgendaService
+@inject IRewardServiceClient RewardService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
-@using EMS.Shared.DTOs.Events
 
-<PageTitle>@(isEditMode ? "Chỉnh sửa Sự kiện" : "Tạo Sự Kiện Mới") — EMS</PageTitle>
+<PageTitle>@(isEditMode ? "Chỉnh sửa Sự kiện" : "Tạo Sự kiện mới") — EMS</PageTitle>
 
 <div class="max-w-5xl mx-auto pb-12 pt-6">
-    <!-- Header -->
+    <!-- Header & Breadcrumbs -->
     <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <div class="flex items-center gap-2 text-xs font-medium text-muted mb-2">
@@ -19,20 +31,13 @@
                 <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-                @if (isEditMode)
-                {
-                    <a href="@(isSuperAdmin ? "/SuperAdmin/Events" : "/admin/events")" class="hover:text-charcoal transition-colors">Danh sách sự kiện</a>
-                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                    <span class="text-charcoal">Chỉnh sửa</span>
-                }
-                else
-                {
-                    <span class="text-charcoal">Tạo Sự Kiện</span>
-                }
+                <a href="@GetParentListUrl()" class="hover:text-charcoal transition-colors">@GetParentListTitle()</a>
+                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+                <span class="text-charcoal">@(isEditMode ? "Chỉnh sửa" : "Tạo Sự kiện mới")</span>
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-charcoal">@(isEditMode ? "Chỉnh sửa Sự kiện" : "Tạo Sự Kiện Mới")</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">@(isEditMode ? "Chỉnh sửa Sự kiện" : "Tạo Sự kiện mới")</h1>
         </div>
         <button type="button" @onclick="NavigateBack" class="px-4 py-2 text-sm font-medium text-charcoal bg-white border border-border rounded-md shadow-sm hover:bg-canvas transition-colors">
             Huỷ bỏ
@@ -53,16 +58,49 @@
             IsSubmitting="@isSubmitting" 
             ErrorMessage="@errorMessage" 
             SubmitButtonText="@(isEditMode ? "Lưu thay đổi" : "Tạo Sự Kiện Mới")" 
-            OnValidSubmit="HandleSubmitAsync" />
+            IsPriceDisabled="@(isEditMode && eventStatus != 1)"
+            ShowInlineAgendaAndRewards="@(!isEditMode)"
+            OnValidSubmit="HandleSubmitAsync">
+            
+            <AdditionalButtons>
+                @if (isEditMode)
+                {
+                    <div class="flex items-center gap-3 mt-3">
+                        <button type="button" class="flex-1 py-2 px-4 border border-border rounded-md text-sm font-semibold text-charcoal bg-white hover:bg-canvas transition-colors text-center" @onclick="NavigateBack">
+                            Huỷ bỏ
+                        </button>
+                        <button type="button" class="flex-1 py-2 px-4 border border-rose-200 rounded-md text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors text-center" @onclick="AskDeleteEvent">
+                            Xóa sự kiện
+                        </button>
+                    </div>
+                }
+            </AdditionalButtons>
+        </EMS.BlazorWASM.Components.EventForm>
 
         @if (isEditMode && !string.IsNullOrEmpty(Id))
         {
+            <!-- Standalone Agenda Editor with instant API save -->
             <div class="mt-8">
                 <EMS.BlazorWASM.Components.EventAgendaEditor EventId="@Id" EventStartTime="@eventModel.StartTime" />
+            </div>
+
+            <!-- Standalone Reward Editor with instant API save -->
+            <div class="mt-8">
+                <EMS.BlazorWASM.Components.EventRewardEditor EventId="@Id" />
             </div>
         }
     }
 </div>
+
+<!-- Confirm Delete Modal -->
+<ConfirmModal Title="Xác nhận xóa sự kiện"
+              Message="@($"Bạn có chắc chắn muốn xóa sự kiện này? Hành động này không thể hoàn tác.")"
+              IsOpen="isDeleteOpen"
+              IsDanger="true"
+              ConfirmText="Xóa sự kiện"
+              CancelText="Hủy bỏ"
+              OnConfirm="ConfirmDeleteEvent"
+              OnCancel="() => isDeleteOpen = false" />
 
 @code {
     [Parameter]
@@ -71,7 +109,12 @@
     private CreateEventDto eventModel = new();
     private bool isSubmitting = false;
     private bool isLoading = true;
+    private bool isDeleteOpen = false;
+    private int eventStatus = 1;
+
     private bool isSuperAdmin = false;
+    private bool isTenantAdmin = false;
+    private bool isOrganizer = false;
     private string errorMessage = string.Empty;
 
     private bool isEditMode => !string.IsNullOrEmpty(Id);
@@ -79,23 +122,17 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        isSuperAdmin = authState.User.IsInRole("superadmin");
+        var user = authState.User;
+        isSuperAdmin = user.IsInRole("superadmin");
+        isTenantAdmin = user.IsInRole("admin");
+        isOrganizer = user.IsInRole("manager");
 
         if (isEditMode)
         {
             isLoading = true;
             try
             {
-                EventResponseDto? ev = null;
-                if (isSuperAdmin)
-                {
-                    ev = await SuperAdminService.GetEventByIdAsync(Id!);
-                }
-                else
-                {
-                    ev = await EventService.GetEventByIdAsync(Id!);
-                }
-
+                var ev = await EventService.GetEventByIdAsync(Id!);
                 if (ev != null)
                 {
                     eventModel = new CreateEventDto
@@ -111,10 +148,27 @@
                         Price = ev.Price,
                         Scope = ev.Scope
                     };
-                }
-                else
-                {
-                    errorMessage = "Không tìm thấy thông tin sự kiện.";
+
+                    try
+                    {
+                        var agendaList = await AgendaService.GetAgendaByEventAsync(Id!);
+                        eventModel.AgendaItems = agendaList.Select(a => new CreateAgendaDto
+                        {
+                            Title = a.Title,
+                            StartTime = a.StartTime.ToLocalTime(),
+                            EndTime = a.EndTime.ToLocalTime()
+                        }).ToList();
+                    }
+                    catch { }
+
+                    try
+                    {
+                        var rewardList = await RewardService.GetRewardsByEventAsync(Id!, "default");
+                        eventModel.Rewards = rewardList;
+                    }
+                    catch { }
+
+                    eventStatus = ev.Status;
                 }
             }
             catch (Exception ex)
@@ -128,9 +182,9 @@
         }
         else
         {
-            // Set default values for creation mode
-            eventModel.StartTime = DateTime.Now.AddDays(1).Date.AddHours(9); // Tomorrow 9 AM
-            eventModel.EndTime = DateTime.Now.AddDays(1).Date.AddHours(17); // Tomorrow 5 PM
+            // Default values for creation mode
+            eventModel.StartTime = DateTime.Now.AddDays(1).Date.AddHours(9);
+            eventModel.EndTime = DateTime.Now.AddDays(1).Date.AddHours(17);
             eventModel.Capacity = 0;
             isLoading = false;
         }
@@ -157,8 +211,8 @@
                     Description = eventModel.Description,
                     Location = eventModel.Location,
                     VenueId = eventModel.VenueId,
-                    StartTime = eventModel.StartTime.ToUniversalTime(),
-                    EndTime = eventModel.EndTime.ToUniversalTime(),
+                    StartTime = eventModel.StartTime,
+                    EndTime = eventModel.EndTime,
                     Capacity = eventModel.Capacity,
                     ImageUrl = eventModel.ImageUrl,
                     Price = eventModel.Price,
@@ -177,6 +231,7 @@
 
                 if (success)
                 {
+                    OrganizerService.InvalidateCache();
                     NavigateBack();
                 }
                 else
@@ -189,6 +244,12 @@
                 var result = await EventService.CreateEventAsync(eventModel);
                 if (result != null)
                 {
+                    if (eventModel.Rewards != null && eventModel.Rewards.Any())
+                    {
+                        await RewardService.SaveEventRewardsAsync(result.Id, "default", eventModel.Rewards);
+                    }
+
+                    OrganizerService.InvalidateCache();
                     NavigateBack();
                 }
                 else
@@ -207,18 +268,44 @@
         }
     }
 
-    private void NavigateBack()
+    private void AskDeleteEvent()
     {
-        if (isEditMode)
+        isDeleteOpen = true;
+    }
+
+    private async Task ConfirmDeleteEvent()
+    {
+        isDeleteOpen = false;
+        isSubmitting = true;
+        bool success = await EventService.DeleteEventAsync(Id!);
+
+        if (success)
         {
-            if (isSuperAdmin)
-                NavigationManager.NavigateTo("/SuperAdmin/Events");
-            else
-                NavigationManager.NavigateTo("/admin/events");
+            OrganizerService.InvalidateCache();
+            NavigateBack();
         }
         else
         {
-            NavigationManager.NavigateTo("/admin/events");
+            errorMessage = "Xóa sự kiện thất bại. Vui lòng thử lại.";
+            isSubmitting = false;
         }
+    }
+
+    private string GetParentListTitle()
+    {
+        if (isOrganizer) return "Sự kiện của tôi";
+        return "Danh sách sự kiện";
+    }
+
+    private string GetParentListUrl()
+    {
+        if (isOrganizer) return "/organizer/my-events";
+        if (isSuperAdmin) return "/SuperAdmin/Events";
+        return "/admin/events";
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo(GetParentListUrl());
     }
 }

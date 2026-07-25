@@ -107,6 +107,12 @@
                                     <i class="ri-ticket-2-line"></i> Vé của tôi
                                 </a>
                             </li>
+                            <li class="nav-item me-md-1 mb-2 mb-md-0">
+                                <a class="nav-link nav-link-glass nav-link-aplot @(ViewContext.RouteData.Values["controller"]?.ToString() == "Events" && ViewContext.RouteData.Values["action"]?.ToString() == "MyRewards" ? "active" : "")"
+                                   asp-controller="Events" asp-action="MyRewards">
+                                    <i class="ri-gift-line"></i> Phần thưởng
+                                </a>
+                            </li>
                             <li class="nav-item dropdown me-md-1 mb-2 mb-md-0">
                                 <a class="user-dropdown-trigger dropdown-toggle nav-link nav-link-glass nav-link-aplot" href="#"
                                    id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -206,6 +212,16 @@
     <script src="https://unpkg.com/lenis@1.1.18/dist/lenis.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script>
+        window.downloadFileFromBytes = function (filename, base64Content, contentType) {
+            var link = document.createElement('a');
+            link.download = filename;
+            link.href = 'data:' + (contentType || 'application/octet-stream') + ';base64,' + base64Content;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

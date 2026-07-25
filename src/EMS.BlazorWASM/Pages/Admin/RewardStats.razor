@@ -1,0 +1,241 @@
+@page "/Admin/RewardStats"
+@attribute [Authorize(Roles = "admin")]
+@inject IRewardServiceClient RewardService
+@inject ToastService ToastService
+@inject IJSRuntime JSRuntime
+@using EMS.Shared.DTOs.Rewards
+@using System.Text
+@using System.Linq
+
+<PageTitle>Báo cáo Thống kê Phần thưởng — EMS</PageTitle>
+
+<div class="max-w-7xl mx-auto pb-12 pt-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-charcoal">
+                Báo cáo Thống kê Phần thưởng Sinh viên
+            </h1>
+            <p class="text-sm text-muted mt-1">Xem tổng hợp số điểm rèn luyện, quà tặng và chứng nhận của từng sinh viên theo bộ lọc khoảng thời gian.</p>
+        </div>
+        <button @onclick="ExportToCsv" class="inline-flex items-center gap-2 bg-emerald-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Xuất file Excel (CSV)
+        </button>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-xs font-bold uppercase text-muted mb-1">Loại phần thưởng</label>
+                <select @bind="selectedCategoryId" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
+                    <option value="">-- Tất cả danh mục --</option>
+                    @foreach (var cat in availableCategories)
+                    {
+                        <option value="@cat.Id">@cat.Name</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-muted mb-1">Từ ngày</label>
+                <input type="date" @bind="fromDate" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" />
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-muted mb-1">Đến ngày</label>
+                <input type="date" @bind="toDate" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" />
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-muted mb-1">Sắp xếp theo số lượng</label>
+                <select @bind="sortOrder" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
+                    <option value="desc">Từ lớn đến bé (Giảm dần)</option>
+                    <option value="asc">Từ bé đến lớn (Tăng dần)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+            <input type="text" @bind="searchKeyword" placeholder="Tìm kiếm theo Tên sinh viên hoặc Email..." class="flex-grow px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm" />
+            <button @onclick="LoadData" class="px-5 py-2 bg-indigo-600 text-white font-semibold text-sm rounded-xl hover:bg-indigo-700">Lọc dữ liệu</button>
+            <button @onclick="ResetFilters" class="px-4 py-2 border text-gray-600 font-semibold text-sm rounded-xl hover:bg-gray-50">Đặt lại</button>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <DataTable TItem="StudentRewardSummaryDto" Items="statsList" TotalCount="statsList.Count" 
+               Page="page" PageSize="pageSize" PageChanged="OnPageChanged" ShowSearch="false" IsLoading="isLoading">
+        <TableHeader>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Sinh viên / Người dùng</th>
+            <th class="px-6 py-3 text-left text-xs font-bold text-muted uppercase tracking-wider font-mono">Email</th>
+            <th class="px-6 py-3 text-center text-xs font-bold text-muted uppercase tracking-wider font-mono">Số lần nhận</th>
+            <th class="px-6 py-3 text-right text-xs font-bold text-muted uppercase tracking-wider font-mono">Tổng giá trị / Số điểm</th>
+            <th class="px-6 py-3 text-right text-xs font-bold text-muted uppercase tracking-wider font-mono">Chi tiết</th>
+        </TableHeader>
+        <RowTemplate Context="row">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-charcoal">@row.StudentName</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-muted font-mono">@row.StudentEmail</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                    @row.RecordCount sự kiện
+                </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-extrabold text-indigo-600 text-base">
+                @row.TotalAmount
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                <button @onclick="() => OpenDetailModal(row)" class="text-indigo-600 font-semibold hover:underline">
+                    Xem phần thưởng [@row.Records.Count]
+                </button>
+            </td>
+        </RowTemplate>
+    </DataTable>
+</div>
+
+<!-- Modal Detail -->
+@if (selectedStudent != null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl border border-gray-100 animate-fadeIn max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between pb-4 border-b">
+                <div>
+                    <h3 class="text-lg font-bold text-charcoal">Chi tiết phần thưởng — @selectedStudent.StudentName</h3>
+                    <p class="text-xs text-muted">@selectedStudent.StudentEmail</p>
+                </div>
+                <button @onclick="CloseDetailModal" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <div class="overflow-y-auto py-4 space-y-3 flex-grow">
+                @foreach (var rec in selectedStudent.Records)
+                {
+                    <div class="p-3.5 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-sm text-charcoal">@rec.DetailName</div>
+                            <div class="text-xs text-muted mt-0.5">Sự kiện: <span class="font-medium text-gray-700">@rec.EventTitle</span></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-extrabold text-indigo-600 text-sm">+@rec.Amount</div>
+                            <div class="text-[11px] text-muted">@(rec.GrantedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="pt-3 border-t text-right">
+                <button @onclick="CloseDetailModal" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200">Đóng</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<StudentRewardSummaryDto> statsList = new();
+    private List<RewardCategoryDto> availableCategories = new();
+    private bool isLoading = true;
+    private int page = 1;
+    private int pageSize = 10;
+
+    private string? selectedCategoryId;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private string sortOrder = "desc";
+    private string searchKeyword = "";
+
+    private StudentRewardSummaryDto? selectedStudent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            availableCategories = await RewardService.GetCategoriesByTenantAsync("default", activeOnly: false);
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Lỗi tải danh mục phần thưởng: " + ex.Message);
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            statsList = await RewardService.GetTenantUserRewardStatsAsync(
+                "default",
+                rewardCategoryId: selectedCategoryId,
+                rewardType: null,
+                fromDate: fromDate,
+                toDate: toDate,
+                sortOrder: sortOrder,
+                searchKeyword: searchKeyword
+            );
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError("Không thể tải báo cáo thống kê: " + ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnPageChanged(int newPage) => page = newPage;
+
+    private async Task ResetFilters()
+    {
+        selectedCategoryId = null;
+        fromDate = null;
+        toDate = null;
+        sortOrder = "desc";
+        searchKeyword = "";
+        await LoadData();
+    }
+
+    private void OpenDetailModal(StudentRewardSummaryDto student) => selectedStudent = student;
+    private void CloseDetailModal() => selectedStudent = null;
+
+    private async Task ExportToCsv()
+    {
+        if (!statsList.Any())
+        {
+            ToastService.ShowWarning("Không có dữ liệu để xuất file!");
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("STT,Ho Ten,Email,So Luong Event,Tong Gia Tri Phan Thuong");
+
+        int index = 1;
+        foreach (var row in statsList)
+        {
+            sb.AppendLine(index.ToString() + "," + EscapeCsv(row.StudentName) + "," + EscapeCsv(row.StudentEmail) + "," + row.RecordCount.ToString() + "," + row.TotalAmount.ToString());
+            index++;
+        }
+
+        var preamble = Encoding.UTF8.GetPreamble();
+        var contentBytes = Encoding.UTF8.GetBytes(sb.ToString());
+        var bytes = new byte[preamble.Length + contentBytes.Length];
+        Buffer.BlockCopy(preamble, 0, bytes, 0, preamble.Length);
+        Buffer.BlockCopy(contentBytes, 0, bytes, preamble.Length, contentBytes.Length);
+
+        var fileName = "BaoCao_PhanThuong_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv";
+
+        await JSRuntime.InvokeVoidAsync("downloadFileFromBytes", fileName, Convert.ToBase64String(bytes), "text/csv");
+        ToastService.ShowSuccess("Đã xuất file báo cáo thành công!");
+    }
+
+    private string EscapeCsv(string field)
+    {
+        if (string.IsNullOrEmpty(field)) return "";
+        if (field.Contains(",") || field.Contains("\"") || field.Contains("\n"))
+        {
+            return "\"" + field.Replace("\"", "\"\"") + "\"";
+        }
+        return field;
+    }
+}

@@ -20,6 +20,10 @@ if (useInMemoryData)
     builder.Services.AddSingleton<ITenantService, DevInMemoryTenantService>();
     builder.Services.AddSingleton<IRegistrationService, DevInMemoryRegistrationService>();
     builder.Services.AddSingleton<IAgendaService, DevInMemoryAgendaService>();
+    builder.Services.AddScoped<HttpRewardService>();
+    builder.Services.AddScoped<IRewardCategoryService>(sp => sp.GetRequiredService<HttpRewardService>());
+    builder.Services.AddScoped<IEventRewardService>(sp => sp.GetRequiredService<HttpRewardService>());
+    builder.Services.AddScoped<IUserRewardService>(sp => sp.GetRequiredService<HttpRewardService>());
 }
 else
 {
@@ -65,6 +69,10 @@ else
     builder.Services.AddScoped<IEventService, FirestoreEventService>();
     builder.Services.AddScoped<IRegistrationService, FirestoreRegistrationService>();
     builder.Services.AddScoped<IAgendaService, FirestoreAgendaService>();
+    builder.Services.AddScoped<HttpRewardService>();
+    builder.Services.AddScoped<IRewardCategoryService>(sp => sp.GetRequiredService<HttpRewardService>());
+    builder.Services.AddScoped<IEventRewardService>(sp => sp.GetRequiredService<HttpRewardService>());
+    builder.Services.AddScoped<IUserRewardService>(sp => sp.GetRequiredService<HttpRewardService>());
 }
 
 // ============ SHARED SERVICES ============
@@ -97,7 +105,10 @@ builder.Services.AddScoped<ServerAuthorizationMessageHandler>();
 builder.Services.AddScoped(sp =>
 {
     var handler = sp.GetRequiredService<ServerAuthorizationMessageHandler>();
-    handler.InnerHandler = new HttpClientHandler();
+    handler.InnerHandler = new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+    };
     return new HttpClient(handler)
     {
         BaseAddress = new Uri(webApiBaseUrl)
@@ -115,6 +126,7 @@ builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<ISuperAdminServiceClient, SuperAdminServiceClient>();
 builder.Services.AddScoped<ITenantAdminServiceClient, TenantAdminServiceClient>();
 builder.Services.AddScoped<IOrganizerServiceClient, OrganizerServiceClient>();
+builder.Services.AddScoped<IRewardServiceClient, ServerRewardServiceClient>();
 
 var app = builder.Build();
 

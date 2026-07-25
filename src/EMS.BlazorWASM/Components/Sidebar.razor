@@ -150,6 +150,28 @@
             </div>
 
             <div>
+                <span class="px-3 text-[10px] font-semibold text-muted uppercase tracking-widest font-mono">🎁 PHẦN THƯỞNG</span>
+                <ul class="mt-2 space-y-1">
+                    <li>
+                        <NavLink class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted hover:text-charcoal hover:bg-canvas rounded-md transition-all duration-150" href="Admin/RewardCategories" @onclick="CloseSidebar">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                            Loại phần thưởng
+                        </NavLink>
+                    </li>
+                    <li>
+                        <NavLink class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted hover:text-charcoal hover:bg-canvas rounded-md transition-all duration-150" href="Admin/RewardStats" @onclick="CloseSidebar">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2a2 2 0 00-2 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Thống kê phần thưởng
+                        </NavLink>
+                    </li>
+                </ul>
+            </div>
+
+            <div>
                 <span class="px-3 text-[10px] font-semibold text-muted uppercase tracking-widest font-mono">📧 CÀI ĐẶT</span>
                 <ul class="mt-2 space-y-1">
                     <li>
@@ -199,14 +221,6 @@
             <div>
                 <span class="px-3 text-[10px] font-semibold text-muted uppercase tracking-widest font-mono">🔧 TÁC VỤ</span>
                 <ul class="mt-2 space-y-1">
-                    <li>
-                        <NavLink class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted hover:text-charcoal hover:bg-canvas rounded-md transition-all duration-150" href="Organizer/Registrations/Pending" @onclick="CloseSidebar">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Phê duyệt Đăng ký
-                        </NavLink>
-                    </li>
                     <li>
                         <NavLink class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted hover:text-charcoal hover:bg-canvas rounded-md transition-all duration-150" href="Organizer/Attendance" @onclick="CloseSidebar">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

@@ -17,6 +17,8 @@ public class EventsController : Controller
     private readonly IRegistrationService _registrationService;
     private readonly IAgendaService _agendaService;
     private readonly ICalendarService _calendarService;
+    private readonly IUserRewardService _userRewardService;
+    private readonly IEventRewardService _eventRewardService;
     private readonly ILogger<EventsController> _logger;
     private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
@@ -25,6 +27,8 @@ public class EventsController : Controller
         IRegistrationService registrationService, 
         IAgendaService agendaService,
         ICalendarService calendarService,
+        IUserRewardService userRewardService,
+        IEventRewardService eventRewardService,
         ILogger<EventsController> logger,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
@@ -32,6 +36,8 @@ public class EventsController : Controller
         _registrationService = registrationService;
         _agendaService = agendaService;
         _calendarService = calendarService;
+        _userRewardService = userRewardService;
+        _eventRewardService = eventRewardService;
         _logger = logger;
         _configuration = configuration;
     }
@@ -327,6 +333,7 @@ public class EventsController : Controller
 
         if (success)
         {
+            await _userRewardService.GrantRewardsOnCheckInAsync(tenantId, eventId, "", userEmail, displayName ?? userEmail);
             TempData["SuccessMessage"] = "Điểm danh thành công! 🎉";
             TriggerCheckInNotification(eventId, tenantId);
         }
@@ -353,6 +360,7 @@ public class EventsController : Controller
 
         if (success)
         {
+            await _userRewardService.GrantRewardsOnCheckInAsync(tenantId, eventId, "", userEmail, displayName ?? userEmail);
             TriggerCheckInNotification(eventId, tenantId);
             var studentRegs = await _registrationService.GetRegistrationsByStudentAsync(userEmail, tenantId);
             var reg = studentRegs.FirstOrDefault(r => r.EventId == eventId);
@@ -363,6 +371,26 @@ public class EventsController : Controller
         }
 
         return Json(new { success = false, error = message ?? "Mã điểm danh không hợp lệ hoặc đã hết hạn." });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> MyRewards(EMS.Core.Entities.Enums.RewardType? type, System.DateTime? fromDate, System.DateTime? toDate)
+    {
+        var (displayName, userEmail, _) = GetUserSession();
+        if (userEmail == null)
+        {
+            TempData["ErrorMessage"] = "Bạn cần đăng nhập để xem lịch sử phần thưởng.";
+            return RedirectToAction("Login", "Auth");
+        }
+
+        var tenantId = HttpContext.Items["TenantId"]?.ToString() ?? DevInMemoryTenantService.DefaultTenantId;
+        var records = await _userRewardService.GetUserRewardsAsync(userEmail, tenantId, type, fromDate, toDate);
+
+        ViewBag.SelectedType = type;
+        ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
+        ViewBag.ToDate = toDate?.ToString("yyyy-MM-dd");
+
+        return View(records);
     }
 
     private void TriggerCheckInNotification(string eventId, string tenantId)
