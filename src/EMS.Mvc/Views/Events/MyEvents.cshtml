@@ -68,6 +68,11 @@
                         <div class="row g-4">
                             @foreach (var item in activeRegs)
                             {
+                                var now = DateTime.UtcNow;
+                                var isUpcoming = now < item.Event.StartTime;
+                                var isOngoing = now >= item.Event.StartTime && now <= item.Event.EndTime;
+                                var isEnded = now > item.Event.EndTime;
+
                                 <div class="col-lg-6">
                                     <div class="ticket-glass-card d-flex flex-row overflow-hidden h-100">
                                         <!-- Double-bezel thumbnail -->
@@ -95,17 +100,44 @@
                                                 </div>
                                             </div>
                                             <div class="d-flex gap-2 mt-2">
-                                                <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-glass flex-grow-1">
-                                                    Chi tiết
-                                                </a>
-                                                <form asp-action="Cancel" method="post" class="flex-grow-1">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="eventId" value="@item.Event.Id" />
-                                                    <input type="hidden" name="redirectTo" value="MyEvents" />
-                                                    <button type="submit" class="btn-danger-outline w-100" onclick="return confirm('Bạn có chắc chắn muốn hủy đăng ký vé cho sự kiện này?')">
-                                                        Hủy vé
-                                                    </button>
-                                                </form>
+                                                @if (isEnded)
+                                                {
+                                                    <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-glass w-100 text-center">
+                                                        Chi tiết
+                                                    </a>
+                                                }
+                                                else if (isOngoing)
+                                                {
+                                                    <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-glass flex-grow-1 text-center">
+                                                        Chi tiết
+                                                    </a>
+                                                    if (item.Registration.CheckedIn)
+                                                    {
+                                                        <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-success-outline flex-grow-1 text-center">
+                                                            <i class="ri-checkbox-circle-line me-1"></i>Đã điểm danh
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-primary-outline flex-grow-1 text-center">
+                                                            <i class="ri-qr-code-line me-1"></i>Điểm danh
+                                                        </a>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <a asp-action="Detail" asp-route-id="@item.Event.Id" class="btn-glass flex-grow-1 text-center">
+                                                        Chi tiết
+                                                    </a>
+                                                    <form asp-action="Cancel" method="post" class="flex-grow-1">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="eventId" value="@item.Event.Id" />
+                                                        <input type="hidden" name="redirectTo" value="MyEvents" />
+                                                        <button type="submit" class="btn-danger-outline w-100" onclick="return confirm('Bạn có chắc chắn muốn hủy đăng ký vé cho sự kiện này?')">
+                                                            Hủy vé
+                                                        </button>
+                                                    </form>
+                                                }
                                             </div>
                                         </div>
                                     </div>

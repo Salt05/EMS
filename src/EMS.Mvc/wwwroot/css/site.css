@@ -472,6 +472,68 @@ html[data-theme="dark"] .btn-cta-outline:hover {
   transform: scale(0.98);
 }
 
+/* Primary outline */
+.btn-primary-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--primary, #6366f1);
+  border: 1.5px solid var(--primary, #6366f1);
+  border-radius: var(--r-input);
+  padding: 0.5rem 1rem;
+  font-family: var(--font-family);
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) ease,
+    background var(--duration-fast) ease;
+}
+
+.btn-primary-outline:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--primary-hover, #4f46e5);
+  text-decoration: none;
+}
+
+.btn-primary-outline:active {
+  transform: scale(0.98);
+}
+
+/* Success outline */
+.btn-success-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--success, #10b981);
+  border: 1.5px solid var(--success, #10b981);
+  border-radius: var(--r-input);
+  padding: 0.5rem 1rem;
+  font-family: var(--font-family);
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) ease,
+    background var(--duration-fast) ease;
+}
+
+.btn-success-outline:hover {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--success, #10b981);
+  text-decoration: none;
+}
+
+.btn-success-outline:active {
+  transform: scale(0.98);
+}
+
 /* Light / subtle button */
 .btn-glass {
   display: inline-flex;
