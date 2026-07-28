@@ -218,6 +218,19 @@ public class DevInMemoryRewardService : IRewardCategoryService, IEventRewardServ
 
     public Task<List<UserRewardRecord>> GetUserRewardsAsync(string studentEmail, string tenantId, RewardType? type = null, DateTime? fromDate = null, DateTime? toDate = null)
     {
+        foreach (var rec in _userRecords)
+        {
+            if (!string.IsNullOrEmpty(rec.RewardCategoryId))
+            {
+                var cat = _categories.FirstOrDefault(c => c.Id == rec.RewardCategoryId);
+                if (cat != null && rec.RewardType != cat.Type)
+                {
+                    rec.RewardType = cat.Type;
+                    rec.RewardCategoryName = cat.Name;
+                }
+            }
+        }
+
         var query = _userRecords.Where(r => r.StudentEmail.Equals(studentEmail, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(tenantId) && tenantId != "all")

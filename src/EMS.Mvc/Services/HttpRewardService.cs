@@ -24,12 +24,39 @@ public class HttpRewardService : IRewardCategoryService, IEventRewardService, IU
         _logger = logger;
     }
 
+    private async Task<T?> SafeGetFromJsonAsync<T>(string url)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning($"[HttpRewardService] GET {url} returned status code {response.StatusCode}");
+                return default;
+            }
+
+            var contentType = response.Content.Headers.ContentType?.MediaType;
+            if (contentType == null || !contentType.Contains("json", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning($"[HttpRewardService] GET {url} returned non-JSON content type: {contentType}");
+                return default;
+            }
+
+            return await response.Content.ReadFromJsonAsync<T>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"[HttpRewardService] Error in SafeGetFromJsonAsync for {url}");
+            return default;
+        }
+    }
+
     #region IEventRewardService
     public async Task<List<EventReward>> GetRewardsByEventAsync(string eventId, string tenantId)
     {
         try
         {
-            var dtos = await _httpClient.GetFromJsonAsync<List<EventRewardDto>>($"/api/rewards/events/{eventId}?tenantId={tenantId}")
+            var dtos = await SafeGetFromJsonAsync<List<EventRewardDto>>($"/api/rewards/events/{eventId}?tenantId={tenantId}")
                        ?? new List<EventRewardDto>();
 
             return dtos.Select(r => new EventReward
@@ -87,7 +114,7 @@ public class HttpRewardService : IRewardCategoryService, IEventRewardService, IU
     {
         try
         {
-            var dtos = await _httpClient.GetFromJsonAsync<List<RewardCategoryDto>>($"/api/rewards/categories?tenantId={tenantId}&activeOnly={activeOnly}")
+            var dtos = await SafeGetFromJsonAsync<List<RewardCategoryDto>>($"/api/rewards/categories?tenantId={tenantId}&activeOnly={activeOnly}")
                        ?? new List<RewardCategoryDto>();
 
             return dtos.Select(MapCategoryToEntity).ToList();
@@ -102,7 +129,7 @@ public class HttpRewardService : IRewardCategoryService, IEventRewardService, IU
     {
         try
         {
-            var dto = await _httpClient.GetFromJsonAsync<RewardCategoryDto>($"/api/rewards/categories/{id}?tenantId={tenantId}");
+            var dto = await SafeGetFromJsonAsync<RewardCategoryDto>($"/api/rewards/categories/{id}?tenantId={tenantId}");
             return dto == null ? null : MapCategoryToEntity(dto);
         }
         catch
@@ -167,14 +194,54 @@ public class HttpRewardService : IRewardCategoryService, IEventRewardService, IU
     #endregion
 
     #region IUserRewardService
-    public Task<bool> GrantRewardsOnCheckInAsync(string tenantId, string eventId, string userId, string studentEmail, string studentName)
+    public async Task<bool> GrantRewardsOnCheckInAsync(string tenantId, string eventId, string userId, string studentEmail, string studentName)
     {
-        return Task.FromResult(true);
+        try
+        {
+            var url = $"/api/rewards/grant?tenantId={tenantId}&eventId={eventId}&studentEmail={Uri.EscapeDataString(studentEmail)}&studentName={Uri.EscapeDataString(studentName ?? "")}&userId={userId ?? ""}";
+            var response = await _httpClient.PostAsync(url, null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"[HttpRewardService] Failed to grant rewards for eventId={eventId}, studentEmail={studentEmail}");
+            return false;
+        }
     }
 
-    public Task<List<UserRewardRecord>> GetUserRewardsAsync(string studentEmail, string tenantId, RewardType? type = null, DateTime? fromDate = null, DateTime? toDate = null)
+    public async Task<List<UserRewardRecord>> GetUserRewardsAsync(string studentEmail, string tenantId, RewardType? type = null, DateTime? fromDate = null, DateTime? toDate = null)
     {
-        return Task.FromResult(new List<UserRewardRecord>());
+        try
+        {
+            var url = $"/api/rewards/user?studentEmail={Uri.EscapeDataString(studentEmail)}&tenantId={tenantId}";
+            if (type.HasValue) url += $"&type={(int)type.Value}";
+            if (fromDate.HasValue) url += $"&fromDate={fromDate.Value:yyyy-MM-dd}";
+            if (toDate.HasValue) url += $"&toDate={toDate.Value:yyyy-MM-dd}";
+
+            var dtos = await SafeGetFromJsonAsync<List<UserRewardRecordDto>>(url) ?? new List<UserRewardRecordDto>();
+
+            return dtos.Select(r => new UserRewardRecord
+            {
+                Id = r.Id,
+                TenantId = r.TenantId,
+                UserId = r.UserId,
+                StudentEmail = r.StudentEmail,
+                StudentName = r.StudentName,
+                EventId = r.EventId,
+                EventTitle = r.EventTitle,
+                RewardCategoryId = r.RewardCategoryId,
+                RewardCategoryName = r.RewardCategoryName,
+                RewardType = (RewardType)(int)r.RewardType,
+                DetailName = r.DetailName,
+                Amount = r.Amount,
+                GrantedAt = r.GrantedAt
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"[HttpRewardService] Failed to fetch user rewards for studentEmail={studentEmail}, tenantId={tenantId}");
+            return new List<UserRewardRecord>();
+        }
     }
 
     public async Task<List<EMS.Core.Interfaces.Services.StudentRewardSummaryDto>> GetTenantUserRewardStatsAsync(string tenantId, string? rewardCategoryId = null, RewardType? rewardType = null, DateTime? fromDate = null, DateTime? toDate = null, string sortOrder = "desc", string? searchKeyword = null)
@@ -188,7 +255,7 @@ public class HttpRewardService : IRewardCategoryService, IEventRewardService, IU
             if (toDate.HasValue) url += $"&toDate={toDate.Value:yyyy-MM-dd}";
             if (!string.IsNullOrWhiteSpace(searchKeyword)) url += $"&searchKeyword={Uri.EscapeDataString(searchKeyword)}";
 
-            var dtos = await _httpClient.GetFromJsonAsync<List<EMS.Shared.DTOs.Rewards.StudentRewardSummaryDto>>(url) ?? new List<EMS.Shared.DTOs.Rewards.StudentRewardSummaryDto>();
+            var dtos = await SafeGetFromJsonAsync<List<EMS.Shared.DTOs.Rewards.StudentRewardSummaryDto>>(url) ?? new List<EMS.Shared.DTOs.Rewards.StudentRewardSummaryDto>();
 
             return dtos.Select(s => new EMS.Core.Interfaces.Services.StudentRewardSummaryDto
             {

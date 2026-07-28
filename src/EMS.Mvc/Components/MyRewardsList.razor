@@ -1,0 +1,284 @@
+@using EMS.Core.Entities
+@using EMS.Core.Entities.Enums
+@using EMS.Core.Interfaces.Services
+@using Microsoft.AspNetCore.Components
+@inject IUserRewardService UserRewardService
+
+<div class="container my-5">
+    <div class="row mb-4">
+        <div class="col-md-8 mx-auto text-center">
+            <span class="eyebrow-tag">Kho quà & Tích lũy</span>
+            <h1 class="heading-gradient heading-gradient-md mb-2">Phần thưởng của tôi</h1>
+            <p class="subtitle-text">
+                Theo dõi điểm rèn luyện, quà tặng vật lý và chứng nhận bạn đã tích lũy từ các sự kiện đã tham gia.
+            </p>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="glass-card p-4 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold small text-muted-custom">Loại phần thưởng</label>
+                <select class="form-select glass-input" @onchange="OnTypeChanged">
+                    <option value="">-- Tất cả loại --</option>
+                    <option value="@((int)RewardType.TrainingPoint)">⭐ Điểm rèn luyện</option>
+                    <option value="@((int)RewardType.PhysicalGift)">🎁 Quà tặng vật lý</option>
+                    <option value="@((int)RewardType.Voucher)">🏷️ Voucher / Giftcode</option>
+                    <option value="@((int)RewardType.Certificate)">📜 Giấy chứng nhận</option>
+                    <option value="@((int)RewardType.InternalCoin)">🪙 Coin nội bộ</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small text-muted-custom">Từ ngày</label>
+                <input type="date" class="form-control glass-input" value="@fromDateString" @onchange="OnFromDateChanged" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small text-muted-custom">Đến ngày</label>
+                <input type="date" class="form-control glass-input" value="@toDateString" @onchange="OnToDateChanged" />
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="button" class="btn-cta w-100 justify-content-center py-2" @onclick="LoadRewardsAsync" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    }
+                    else
+                    {
+                        <i class="ri-filter-3-line me-1"></i>
+                    }
+                    <span>Lọc</span>
+                </button>
+                <button type="button" class="btn-glass py-2" title="Xóa bộ lọc" @onclick="ResetFilterAsync" disabled="@isLoading">
+                    <i class="ri-refresh-line"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Stats Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="glass-card p-3 d-flex align-items-center gap-3">
+                <div class="rounded-circle p-3 bg-primary-subtle text-primary fs-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="ri-star-line"></i>
+                </div>
+                <div>
+                    <div class="text-muted-custom small fw-semibold">Tổng Điểm rèn luyện</div>
+                    <div class="fs-4 fw-bold text-gradient">@records.Where(r => r.RewardType == RewardType.TrainingPoint).Sum(r => r.Amount) điểm</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card p-3 d-flex align-items-center gap-3">
+                <div class="rounded-circle p-3 bg-warning-subtle text-warning fs-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="ri-gift-line"></i>
+                </div>
+                <div>
+                    <div class="text-muted-custom small fw-semibold">Quà & Voucher đã nhận</div>
+                    <div class="fs-4 fw-bold text-gradient">@records.Count(r => r.RewardType == RewardType.PhysicalGift || r.RewardType == RewardType.Voucher) phần</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card p-3 d-flex align-items-center gap-3">
+                <div class="rounded-circle p-3 bg-info-subtle text-info fs-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="ri-award-line"></i>
+                </div>
+                <div>
+                    <div class="text-muted-custom small fw-semibold">Chứng nhận đã nhận</div>
+                    <div class="fs-4 fw-bold text-gradient">@records.Count(r => r.RewardType == RewardType.Certificate) chứng nhận</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Records -->
+    <div class="glass-card p-4">
+        @if (isLoading)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                <h6 class="text-muted-custom">Đang tải dữ liệu phần thưởng...</h6>
+            </div>
+        }
+        else if (!records.Any())
+        {
+            <div class="text-center py-5">
+                <div class="mb-3 text-muted-custom fs-1">
+                    <i class="ri-gift-2-line"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Chưa có phần thưởng nào</h5>
+                <p class="text-muted-custom mb-0">Bạn chưa nhận được phần thưởng nào trùng khớp với bộ lọc hiện tại.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="text-muted-custom text-uppercase small">
+                            <th>Loại phần thưởng</th>
+                            <th>Chi tiết</th>
+                            <th>Giá trị / Số lượng</th>
+                            <th>Sự kiện</th>
+                            <th>Thời gian nhận</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in records)
+                        {
+                            <tr>
+                                <td>
+                                    @switch (item.RewardType)
+                                    {
+                                        case RewardType.TrainingPoint:
+                                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-star-line me-1"></i> Điểm rèn luyện
+                                            </span>
+                                            break;
+                                        case RewardType.PhysicalGift:
+                                            <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-gift-line me-1"></i> Quà vật lý
+                                            </span>
+                                            break;
+                                        case RewardType.Voucher:
+                                            <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-ticket-line me-1"></i> Voucher
+                                            </span>
+                                            break;
+                                        case RewardType.Certificate:
+                                            <span class="badge bg-info-subtle text-info rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-award-line me-1"></i> Chứng nhận
+                                            </span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1 fw-semibold">
+                                                <i class="ri-coin-line me-1"></i> @item.RewardCategoryName
+                                            </span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    <div class="fw-bold">@item.DetailName</div>
+                                    <small class="text-muted-custom">@item.RewardCategoryName</small>
+                                </td>
+                                <td>
+                                    <span class="fw-bold fs-6">
+                                        @(item.RewardType == RewardType.TrainingPoint ? "+" + item.Amount + " điểm" : item.Amount.ToString("N0") + " phần")
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="/Events/Detail/@item.EventId" class="link-primary-hover fw-medium">
+                                        @item.EventTitle
+                                    </a>
+                                </td>
+                                <td class="text-muted-custom small">
+                                    <i class="ri-calendar-line me-1"></i>@item.GrantedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string UserEmail { get; set; } = string.Empty;
+    [Parameter] public string TenantId { get; set; } = string.Empty;
+
+    private List<UserRewardRecord> records = new();
+    private RewardType? selectedType;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private string fromDateString = string.Empty;
+    private string toDateString = string.Empty;
+    private bool isLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadRewardsAsync();
+    }
+
+    private async Task LoadRewardsAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            if (!string.IsNullOrEmpty(UserEmail))
+            {
+                records = await UserRewardService.GetUserRewardsAsync(UserEmail, TenantId, selectedType, fromDate, toDate);
+            }
+            else
+            {
+                records = new List<UserRewardRecord>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Blazor MyRewardsList] Error loading rewards: {ex.Message}");
+            records = new List<UserRewardRecord>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnTypeChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString();
+        if (int.TryParse(val, out var typeInt))
+        {
+            selectedType = (RewardType)typeInt;
+        }
+        else
+        {
+            selectedType = null;
+        }
+        await LoadRewardsAsync();
+    }
+
+    private async Task OnFromDateChanged(ChangeEventArgs e)
+    {
+        fromDateString = e.Value?.ToString() ?? string.Empty;
+        if (DateTime.TryParse(fromDateString, out var dt))
+        {
+            fromDate = dt;
+        }
+        else
+        {
+            fromDate = null;
+        }
+        await LoadRewardsAsync();
+    }
+
+    private async Task OnToDateChanged(ChangeEventArgs e)
+    {
+        toDateString = e.Value?.ToString() ?? string.Empty;
+        if (DateTime.TryParse(toDateString, out var dt))
+        {
+            toDate = dt;
+        }
+        else
+        {
+            toDate = null;
+        }
+        await LoadRewardsAsync();
+    }
+
+    private async Task ResetFilterAsync()
+    {
+        selectedType = null;
+        fromDate = null;
+        toDate = null;
+        fromDateString = string.Empty;
+        toDateString = string.Empty;
+        await LoadRewardsAsync();
+    }
+}

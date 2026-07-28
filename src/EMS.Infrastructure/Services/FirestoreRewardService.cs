@@ -59,12 +59,7 @@ public class FirestoreRewardService : IRewardCategoryService, IEventRewardServic
             var snapshot = await _firestoreDb.Collection(CategoriesCollection).Document(id).GetSnapshotAsync();
             if (!snapshot.Exists) return null;
 
-            var cat = MapToCategory(snapshot);
-            if (!string.IsNullOrEmpty(tenantId) && !tenantId.Equals("all", StringComparison.OrdinalIgnoreCase) && cat.TenantId != tenantId)
-            {
-                return null;
-            }
-            return cat;
+            return MapToCategory(snapshot);
         }
         catch (Exception ex)
         {
@@ -314,6 +309,18 @@ public class FirestoreRewardService : IRewardCategoryService, IEventRewardServic
             var eventRewards = await GetRewardsByEventAsync(eventId, tenantId);
             if (!eventRewards.Any()) return true;
 
+            // Fetch actual Event Title
+            string eventTitle = "Sự kiện #" + eventId;
+            try
+            {
+                var eventDoc = await _firestoreDb.Collection("events").Document(eventId).GetSnapshotAsync();
+                if (eventDoc.Exists && eventDoc.TryGetValue<string>("title", out var title) && !string.IsNullOrEmpty(title))
+                {
+                    eventTitle = title;
+                }
+            }
+            catch { }
+
             var batch = _firestoreDb.StartBatch();
             foreach (var er in eventRewards)
             {
@@ -328,7 +335,7 @@ public class FirestoreRewardService : IRewardCategoryService, IEventRewardServic
                     { "studentEmail", studentEmail.ToLowerInvariant() },
                     { "studentName", studentName },
                     { "eventId", eventId },
-                    { "eventTitle", "Sự kiện #" + eventId },
+                    { "eventTitle", eventTitle },
                     { "rewardCategoryId", er.RewardCategoryId },
                     { "rewardCategoryName", cat?.Name ?? "Phần thưởng" },
                     { "rewardType", (int)(cat?.Type ?? RewardType.TrainingPoint) },
@@ -353,6 +360,35 @@ public class FirestoreRewardService : IRewardCategoryService, IEventRewardServic
     {
         try
         {
+            // Retroactively grant rewards for any checked-in events of this student that haven't been granted yet
+            try
+            {
+                var allRegs = await _firestoreDb.Collection("registrations")
+                    .WhereEqualTo("studentEmail", studentEmail.ToLowerInvariant())
+                    .GetSnapshotAsync();
+
+                foreach (var doc in allRegs.Documents)
+                {
+                    var dict = doc.ToDictionary();
+                    var isCheckedIn = dict.TryGetValue("checkedIn", out var ci) && ci is bool ciBool && ciBool;
+                    if (!isCheckedIn) continue;
+
+                    var eId = dict.TryGetValue("eventId", out var eid) ? eid?.ToString() ?? "" : "";
+                    var tId = dict.TryGetValue("tenantId", out var tid) ? tid?.ToString() ?? tenantId : tenantId;
+                    var uId = dict.TryGetValue("userId", out var uid) ? uid?.ToString() ?? "" : "";
+                    var sName = dict.TryGetValue("studentName", out var sn) ? sn?.ToString() ?? studentEmail : studentEmail;
+
+                    if (!string.IsNullOrEmpty(eId))
+                    {
+                        await GrantRewardsOnCheckInAsync(tId, eId, uId, studentEmail, sName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"Failed retroactive reward check for {studentEmail}");
+            }
+
             Query query = _firestoreDb.Collection(UserRecordsCollection).WhereEqualTo("studentEmail", studentEmail.ToLowerInvariant());
 
             if (!string.IsNullOrEmpty(tenantId) && !tenantId.Equals("all", StringComparison.OrdinalIgnoreCase))
@@ -360,13 +396,37 @@ public class FirestoreRewardService : IRewardCategoryService, IEventRewardServic
                 query = query.WhereEqualTo("tenantId", tenantId);
             }
 
-            if (type.HasValue)
+            var snapshot = await query.GetSnapshotAsync();
+            var list = new List<UserRewardRecord>();
+
+            foreach (var doc in snapshot.Documents)
             {
-                query = query.WhereEqualTo("rewardType", (int)type.Value);
+                var rec = MapToUserRecord(doc);
+
+                // Auto-correct rewardType if category exists and differs
+                if (!string.IsNullOrEmpty(rec.RewardCategoryId))
+                {
+                    var cat = await GetCategoryByIdAsync(rec.RewardCategoryId, tenantId);
+                    if (cat != null && rec.RewardType != cat.Type)
+                    {
+                        rec.RewardType = cat.Type;
+                        rec.RewardCategoryName = cat.Name;
+
+                        _ = doc.Reference.UpdateAsync(new Dictionary<string, object>
+                        {
+                            { "rewardType", (int)cat.Type },
+                            { "rewardCategoryName", cat.Name }
+                        });
+                    }
+                }
+
+                list.Add(rec);
             }
 
-            var snapshot = await query.GetSnapshotAsync();
-            var list = snapshot.Documents.Select(MapToUserRecord).ToList();
+            if (type.HasValue)
+            {
+                list = list.Where(r => r.RewardType == type.Value).ToList();
+            }
 
             if (fromDate.HasValue)
             {
@@ -392,6 +452,34 @@ public class FirestoreRewardService : IRewardCategoryService, IEventRewardServic
     {
         try
         {
+            // Retroactively grant rewards for any checked-in registrations across all events that haven't been granted yet
+            try
+            {
+                var allRegsSnapshot = await _firestoreDb.Collection("registrations").GetSnapshotAsync();
+
+                foreach (var doc in allRegsSnapshot.Documents)
+                {
+                    var dict = doc.ToDictionary();
+                    var isCheckedIn = dict.TryGetValue("checkedIn", out var ci) && ci is bool ciBool && ciBool;
+                    if (!isCheckedIn) continue;
+
+                    var eId = dict.TryGetValue("eventId", out var eid) ? eid?.ToString() ?? "" : "";
+                    var tId = dict.TryGetValue("tenantId", out var tid) ? tid?.ToString() ?? tenantId : tenantId;
+                    var uId = dict.TryGetValue("userId", out var uid) ? uid?.ToString() ?? "" : "";
+                    var sEmail = dict.TryGetValue("studentEmail", out var se) ? se?.ToString() ?? "" : "";
+                    var sName = dict.TryGetValue("studentName", out var sn) ? sn?.ToString() ?? sEmail : sEmail;
+
+                    if (!string.IsNullOrEmpty(eId) && !string.IsNullOrEmpty(sEmail))
+                    {
+                        await GrantRewardsOnCheckInAsync(tId, eId, uId, sEmail, sName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed retroactive reward check in GetTenantUserRewardStatsAsync");
+            }
+
             Query query = _firestoreDb.Collection(UserRecordsCollection);
 
             if (!string.IsNullOrEmpty(tenantId) && !tenantId.Equals("all", StringComparison.OrdinalIgnoreCase))
@@ -399,18 +487,50 @@ public class FirestoreRewardService : IRewardCategoryService, IEventRewardServic
                 query = query.WhereEqualTo("tenantId", tenantId);
             }
 
+            var snapshot = await query.GetSnapshotAsync();
+            var allRecords = new List<UserRewardRecord>();
+
+            foreach (var doc in snapshot.Documents)
+            {
+                var rec = MapToUserRecord(doc);
+
+                // Auto-correct rewardType if category exists and differs
+                if (!string.IsNullOrEmpty(rec.RewardCategoryId))
+                {
+                    var cat = await GetCategoryByIdAsync(rec.RewardCategoryId, tenantId);
+                    if (cat != null && rec.RewardType != cat.Type)
+                    {
+                        rec.RewardType = cat.Type;
+                        rec.RewardCategoryName = cat.Name;
+
+                        _ = doc.Reference.UpdateAsync(new Dictionary<string, object>
+                        {
+                            { "rewardType", (int)cat.Type },
+                            { "rewardCategoryName", cat.Name }
+                        });
+                    }
+                }
+
+                allRecords.Add(rec);
+            }
+
             if (!string.IsNullOrEmpty(rewardCategoryId))
             {
-                query = query.WhereEqualTo("rewardCategoryId", rewardCategoryId);
+                var targetCat = await GetCategoryByIdAsync(rewardCategoryId, tenantId);
+                if (targetCat != null)
+                {
+                    allRecords = allRecords.Where(r => r.RewardCategoryId == rewardCategoryId || r.RewardType == targetCat.Type).ToList();
+                }
+                else
+                {
+                    allRecords = allRecords.Where(r => r.RewardCategoryId == rewardCategoryId).ToList();
+                }
             }
 
             if (rewardType.HasValue)
             {
-                query = query.WhereEqualTo("rewardType", (int)rewardType.Value);
+                allRecords = allRecords.Where(r => r.RewardType == rewardType.Value).ToList();
             }
-
-            var snapshot = await query.GetSnapshotAsync();
-            var allRecords = snapshot.Documents.Select(MapToUserRecord).ToList();
 
             if (fromDate.HasValue)
             {

@@ -163,6 +163,61 @@ public class RewardsController : ControllerBase
         return Ok(dtos);
     }
 
+    [HttpGet("user")]
+    public async Task<IActionResult> GetUserRewards(
+        [FromQuery] string studentEmail,
+        [FromQuery] string tenantId = "default",
+        [FromQuery] RewardTypeDto? type = null,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
+    {
+        if (string.IsNullOrEmpty(studentEmail))
+        {
+            return BadRequest("studentEmail is required");
+        }
+
+        RewardType? coreRewardType = type.HasValue ? (RewardType)(int)type.Value : null;
+        var list = await _userRewardService.GetUserRewardsAsync(studentEmail, tenantId, coreRewardType, fromDate, toDate);
+
+        var dtos = list.Select(r => new UserRewardRecordDto
+        {
+            Id = r.Id,
+            TenantId = r.TenantId,
+            UserId = r.UserId,
+            StudentEmail = r.StudentEmail,
+            StudentName = r.StudentName,
+            EventId = r.EventId,
+            EventTitle = r.EventTitle,
+            RewardCategoryId = r.RewardCategoryId,
+            RewardCategoryName = r.RewardCategoryName,
+            RewardType = (RewardTypeDto)(int)r.RewardType,
+            DetailName = r.DetailName,
+            Amount = r.Amount,
+            GrantedAt = r.GrantedAt
+        }).ToList();
+
+        return Ok(dtos);
+    }
+
+    [HttpPost("grant")]
+    public async Task<IActionResult> GrantRewardsOnCheckIn(
+        [FromQuery] string tenantId = "default",
+        [FromQuery] string eventId = "",
+        [FromQuery] string studentEmail = "",
+        [FromQuery] string? studentName = null,
+        [FromQuery] string? userId = null)
+    {
+        if (string.IsNullOrEmpty(eventId) || string.IsNullOrEmpty(studentEmail))
+        {
+            return BadRequest("eventId and studentEmail are required.");
+        }
+
+        var success = await _userRewardService.GrantRewardsOnCheckInAsync(
+            tenantId, eventId, userId ?? "", studentEmail, studentName ?? studentEmail);
+
+        return Ok(new { success });
+    }
+
     private static RewardCategoryDto MapCategoryToDto(RewardCategory cat)
     {
         return new RewardCategoryDto

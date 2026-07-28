@@ -379,6 +379,10 @@ public class EventsController : Controller
         var (displayName, userEmail, _) = GetUserSession();
         if (userEmail == null)
         {
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                return Unauthorized();
+            }
             TempData["ErrorMessage"] = "Bạn cần đăng nhập để xem lịch sử phần thưởng.";
             return RedirectToAction("Login", "Auth");
         }
@@ -389,6 +393,11 @@ public class EventsController : Controller
         ViewBag.SelectedType = type;
         ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
         ViewBag.ToDate = toDate?.ToString("yyyy-MM-dd");
+
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        {
+            return PartialView("_MyRewardsTablePartial", records);
+        }
 
         return View(records);
     }
