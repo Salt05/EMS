@@ -61,8 +61,12 @@ public class FirestoreRegistrationService : IRegistrationService
         try
         {
             Query query = _firestoreDb.Collection(CollectionName)
-                .WhereEqualTo("tenantId", tenantId)
                 .WhereEqualTo("eventId", eventId);
+
+            if (!string.IsNullOrWhiteSpace(tenantId) && tenantId != "all")
+            {
+                query = query.WhereEqualTo("tenantId", tenantId);
+            }
 
             if (status.HasValue)
             {
@@ -87,10 +91,15 @@ public class FirestoreRegistrationService : IRegistrationService
     {
         try
         {
-            var snapshot = await _firestoreDb.Collection(CollectionName)
-                .WhereEqualTo("tenantId", tenantId)
-                .WhereEqualTo("userId", userId)
-                .GetSnapshotAsync();
+            Query query = _firestoreDb.Collection(CollectionName)
+                .WhereEqualTo("userId", userId);
+
+            if (!string.IsNullOrWhiteSpace(tenantId) && tenantId != "all")
+            {
+                query = query.WhereEqualTo("tenantId", tenantId);
+            }
+
+            var snapshot = await query.GetSnapshotAsync();
 
             return snapshot.Documents
                 .Select(MapToRegistration)
@@ -573,10 +582,15 @@ public class FirestoreRegistrationService : IRegistrationService
     {
         try
         {
-            var snapshot = await _firestoreDb.Collection(CollectionName)
-                .WhereEqualTo("tenantId", tenantId)
-                .WhereEqualTo("studentEmail", studentEmail)
-                .GetSnapshotAsync();
+            Query query = _firestoreDb.Collection(CollectionName)
+                .WhereEqualTo("studentEmail", studentEmail);
+
+            if (!string.IsNullOrWhiteSpace(tenantId) && tenantId != "all")
+            {
+                query = query.WhereEqualTo("tenantId", tenantId);
+            }
+
+            var snapshot = await query.GetSnapshotAsync();
 
             return snapshot.Documents
                 .Select(MapToRegistration)

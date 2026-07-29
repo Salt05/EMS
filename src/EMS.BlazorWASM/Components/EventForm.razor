@@ -1,7 +1,9 @@
+@using EMS.Shared.DTOs
 @using EMS.Shared.DTOs.Events
 @using EMS.Shared.DTOs.Rewards
 @using EMS.BlazorWASM.Services
 @inject IRewardServiceClient RewardService
+@inject IAiServiceClient AiService
 
 <EditForm Model="@EventModel" OnValidSubmit="OnValidSubmit">
     <DataAnnotationsValidator />
@@ -10,6 +12,7 @@
         
         <!-- Cột trái: Thông tin chính -->
         <div class="lg:col-span-2 space-y-6">
+
             <!-- Card 1: Thông tin cơ bản -->
             <div class="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-border bg-canvas/30">
@@ -770,5 +773,93 @@
     {
         if (EventModel == null || EventModel.AgendaItems == null) return false;
         return EventModel.AgendaItems.Any(x => x.StartTime < EventModel.StartTime || x.EndTime > EventModel.EndTime);
+    }
+
+    // ============ AI MAGIC WRITER ============
+    private string aiTopicPrompt = string.Empty;
+    private bool isAiGenerating = false;
+    private string? aiSuccessMessage;
+    private string? aiErrorMessage;
+
+    private async Task HandleAiKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !isAiGenerating && !string.IsNullOrWhiteSpace(aiTopicPrompt))
+        {
+            await GenerateWithAi();
+        }
+    }
+
+    private async Task GenerateWithAi()
+    {
+        if (string.IsNullOrWhiteSpace(aiTopicPrompt) || isAiGenerating) return;
+
+        isAiGenerating = true;
+        aiSuccessMessage = null;
+        aiErrorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var request = new AiGenerateEventRequestDto
+            {
+                TopicPrompt = aiTopicPrompt.Trim(),
+                StartTime = EventModel.StartTime > DateTime.MinValue ? EventModel.StartTime : (DateTime?)null,
+                EndTime = EventModel.EndTime > DateTime.MinValue ? EventModel.EndTime : (DateTime?)null
+            };
+
+            var result = await AiService.GenerateEventContentAsync(request);
+
+            if (result != null)
+            {
+                // Auto-fill form fields
+                EventModel.Title = result.Title;
+                EventModel.Description = result.Description;
+                EventModel.Location = result.SuggestedLocation;
+                EventModel.Capacity = result.SuggestedCapacity;
+
+                // Set StartTime/EndTime if not already set
+                if (EventModel.StartTime <= DateTime.MinValue)
+                {
+                    EventModel.StartTime = DateTime.Now.Date.AddDays(7).AddHours(8);
+                }
+                if (EventModel.EndTime <= DateTime.MinValue)
+                {
+                    EventModel.EndTime = EventModel.StartTime.AddHours(3);
+                }
+
+                // Auto-fill Agenda Items
+                if (result.AgendaItems != null && result.AgendaItems.Any())
+                {
+                    EventModel.AgendaItems.Clear();
+                    foreach (var aiItem in result.AgendaItems)
+                    {
+                        var itemStart = EventModel.StartTime.AddMinutes(aiItem.StartMinuteOffset);
+                        var itemEnd = itemStart.AddMinutes(aiItem.DurationMinutes);
+                        EventModel.AgendaItems.Add(new CreateAgendaDto
+                        {
+                            Title = aiItem.Title,
+                            StartTime = itemStart,
+                            EndTime = itemEnd
+                        });
+                    }
+                }
+
+                var agendaCount = result.AgendaItems?.Count ?? 0;
+                aiSuccessMessage = $"AI đã tạo thành công! Đã điền: Tên, Mô tả, Địa điểm, Sức chứa ({result.SuggestedCapacity} người) và {agendaCount} mốc lịch trình.";
+            }
+            else
+            {
+                aiErrorMessage = "Không thể tạo nội dung. Vui lòng thử lại.";
+            }
+        }
+        catch (Exception ex)
+        {
+            aiErrorMessage = $"Lỗi: {ex.Message}";
+        }
+        finally
+        {
+            isAiGenerating = false;
+            StateHasChanged();
+        }
     }
 }

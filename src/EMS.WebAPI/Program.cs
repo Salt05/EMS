@@ -116,6 +116,10 @@ builder.Services.AddScoped<IRewardCategoryService>(sp => sp.GetRequiredService<F
 builder.Services.AddScoped<IEventRewardService>(sp => sp.GetRequiredService<FirestoreRewardService>());
 builder.Services.AddScoped<IUserRewardService>(sp => sp.GetRequiredService<FirestoreRewardService>());
 
+// ============ AI SERVICE (Gemini) ============
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IAiService, GeminiAiService>();
+
 // ============ DATABASE (SQLITE / EF CORE) ============
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=ems.db";
 builder.Services.AddDbContext<EmsDbContext>(options =>

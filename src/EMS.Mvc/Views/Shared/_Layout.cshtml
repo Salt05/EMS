@@ -28,6 +28,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/aplot-student-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/ai-chatbot.css" asp-append-version="true" />
     <!-- Lenis Smooth Scroll CSS -->
     <link rel="stylesheet" href="https://unpkg.com/lenis@1.1.18/dist/lenis.css" />
     <link rel="stylesheet" href="~/EMS.Mvc.styles.css" asp-append-version="true" />
@@ -222,6 +223,9 @@
             document.body.removeChild(link);
         };
     </script>
+    <!-- Marked Library for Markdown Parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="~/js/ai-chatbot.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

@@ -127,6 +127,7 @@ builder.Services.AddScoped<ISuperAdminServiceClient, SuperAdminServiceClient>();
 builder.Services.AddScoped<ITenantAdminServiceClient, TenantAdminServiceClient>();
 builder.Services.AddScoped<IOrganizerServiceClient, OrganizerServiceClient>();
 builder.Services.AddScoped<IRewardServiceClient, ServerRewardServiceClient>();
+builder.Services.AddScoped<IAiServiceClient, AiServiceClient>();
 
 var app = builder.Build();
 

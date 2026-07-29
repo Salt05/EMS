@@ -1,0 +1,252 @@
+@using EMS.Shared.DTOs
+@using EMS.BlazorWASM.Services
+@inject IAiServiceClient AiService
+@inject IJSRuntime JSRuntime
+
+<!-- Floating Sparkle FAB Trigger Button -->
+<div class="fixed bottom-6 right-6 z-50">
+    <button @onclick="ToggleChat" class="w-14 h-14 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-xl hover:shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95 group focus:outline-none">
+        @if (isOpen)
+        {
+            <svg class="w-6 h-6 text-white transition-transform duration-200 group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        }
+        else
+        {
+            <svg class="w-7 h-7 text-white animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" />
+            </svg>
+        }
+    </button>
+</div>
+
+<!-- Admin AI Chat Drawer Window -->
+@if (isOpen)
+{
+    <div class="fixed bottom-24 right-6 w-[380px] sm:w-[420px] h-[540px] z-50 bg-[#121318] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white font-sans backdrop-blur-xl animate-fadeIn">
+        
+        <!-- Header -->
+        <div class="px-5 py-3.5 border-b border-white/10 bg-gradient-to-r from-violet-950/80 via-slate-900 to-slate-900 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-500 to-cyan-400 p-0.5 shadow-md shrink-0">
+                    <div class="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
+                        <svg class="w-4 h-4 text-cyan-300" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" />
+                        </svg>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                        <span>EMS AI Assistant</span>
+                        <span class="px-1.5 py-0.2 text-[9px] font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 rounded-full uppercase tracking-wider">Admin</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400">Trợ lý Quản trị & Tạo sự kiện thông minh</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button @onclick="ResetChat" class="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="Bắt đầu cuộc trò chuyện mới">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+                <button @onclick="ToggleChat" class="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors" title="Đóng">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div id="adminAiChatScrollArea" class="flex-1 p-4 overflow-y-auto space-y-4 text-xs scrollbar-thin scrollbar-thumb-slate-700">
+            <!-- Welcome Card -->
+            <div class="p-3.5 rounded-xl bg-gradient-to-br from-violet-900/30 to-indigo-900/20 border border-indigo-500/20 text-slate-200">
+                <p class="font-semibold text-indigo-300 mb-1">Xin chào Ban Quản Trị! 👋</p>
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                    Mình là Trợ lý AI hệ thống EMS. Bạn có thể nhờ mình tạo nội dung bài viết sự kiện, kiểm tra lịch trình, hoặc tra cứu danh sách sự kiện!
+                </p>
+            </div>
+
+            <!-- Message History -->
+            @foreach (var msg in chatHistory)
+            {
+                if (msg.Role == "user")
+                {
+                    <div class="flex justify-end">
+                        <div class="max-w-[85%] px-3.5 py-2.5 rounded-2xl rounded-tr-xs bg-indigo-600 text-white shadow-md leading-relaxed">
+                            @msg.Content
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="flex gap-2.5 items-start">
+                        <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-violet-500 to-cyan-400 p-0.5 shrink-0 mt-0.5">
+                            <div class="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
+                                <svg class="w-3 h-3 text-cyan-300" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="max-w-[88%] px-3.5 py-2.5 rounded-2xl rounded-tl-xs bg-[#1e2029] border border-white/10 text-slate-200 shadow-md leading-relaxed">
+                            @((MarkupString)RenderMessageHtml(msg.Content))
+                        </div>
+                    </div>
+                }
+            }
+
+            @if (isLoading)
+            {
+                <div class="flex gap-2.5 items-start">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-violet-500 to-cyan-400 p-0.5 shrink-0 mt-0.5 animate-pulse">
+                        <div class="w-full h-full bg-slate-950 rounded-full flex items-center justify-center">
+                            <svg class="w-3 h-3 text-cyan-300" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="px-3.5 py-2.5 rounded-2xl bg-[#1e2029] border border-white/10 flex items-center gap-1.5">
+                        <div class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce"></div>
+                        <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:0.2s]"></div>
+                        <div class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce [animation-delay:0.4s]"></div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Input Footer -->
+        <div class="p-3 border-t border-white/10 bg-[#171821] flex items-center gap-2">
+            <input type="text" 
+                   @bind="inputText" 
+                   @bind:event="oninput"
+                   @onkeydown="HandleKeyDown"
+                   placeholder="Nhắc AI tạo sự kiện, tra cứu..."
+                   disabled="@isLoading"
+                   class="flex-1 px-3.5 py-2 text-xs bg-slate-900 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors" />
+            
+            <button type="button" 
+                    @onclick="SendMessage" 
+                    disabled="@(isLoading || string.IsNullOrWhiteSpace(inputText))"
+                    class="p-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-md transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isOpen = false;
+    private bool isLoading = false;
+    private string inputText = string.Empty;
+    private List<AiChatMessageDto> chatHistory = new();
+
+    private void ToggleChat()
+    {
+        isOpen = !isOpen;
+    }
+
+    private void ResetChat()
+    {
+        chatHistory.Clear();
+    }
+
+    private async Task SendQuickPrompt(string prompt)
+    {
+        inputText = prompt;
+        await SendMessage();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(inputText) && !isLoading)
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        var text = inputText?.Trim();
+        if (string.IsNullOrWhiteSpace(text) || isLoading) return;
+
+        chatHistory.Add(new AiChatMessageDto { Role = "user", Content = text });
+        inputText = string.Empty;
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var request = new AiChatRequestDto
+            {
+                Message = text,
+                History = chatHistory.Take(chatHistory.Count - 1).ToList()
+            };
+
+            var response = await AiService.ChatAsync(request);
+
+            if (response != null && !string.IsNullOrWhiteSpace(response.Reply))
+            {
+                chatHistory.Add(new AiChatMessageDto { Role = "model", Content = response.Reply });
+            }
+            else
+            {
+                chatHistory.Add(new AiChatMessageDto { Role = "model", Content = "Xin lỗi, mình chưa thể xử lý yêu cầu lúc này. Vui lòng thử lại nhé! 😅" });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending AI chat: {ex.Message}");
+            chatHistory.Add(new AiChatMessageDto { Role = "model", Content = "⚠️ Đã xảy ra lỗi khi kết nối với máy chủ AI." });
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string RenderMessageHtml(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content)) return string.Empty;
+
+        var html = System.Web.HttpUtility.HtmlEncode(content);
+
+        // Convert formatting
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*\*(.*?)\*\*", "<strong>$1</strong>");
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*(.*?)\*", "<em>$1</em>");
+        html = html.Replace("\n", "<br/>");
+
+        // Convert [BTN: id=... | title=...] to inline action buttons linking to /admin/events
+        var btnRegex = new System.Text.RegularExpressions.Regex(@"\[BTN:\s*id=([^|\]]+)\s*\|\s*title=([^\]]+)\]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = btnRegex.Replace(html, m =>
+        {
+            var id = m.Groups[1].Value.Trim();
+            var title = m.Groups[2].Value.Trim();
+            return $"<button type=\"button\" onclick=\"window.location.href='/admin/events/details/{id}'\" class=\"inline-flex items-center gap-1 px-2.5 py-1 mx-1 my-0.5 text-[11px] font-semibold text-cyan-300 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 rounded-full transition-all shadow-sm hover:scale-105 active:scale-95\">🎛️ Hiển thị sự kiện</button>";
+        });
+
+        // Convert [CARD: ...] or [BARNARW: ...] to rich Admin Event Card
+        var cardRegex = new System.Text.RegularExpressions.Regex(@"\[(?:CARD|BARNARW|CARD\w*):\s*id=([^|\]]+)\s*\|\s*title=([^|\]]+)(?:\s*\|\s*image=([^|\]]*))?\s*\|\s*time=([^|\]]+)\s*\|\s*location=([^|\]]+)\s*\|\s*capacity=([^|\]]+)\s*\|\s*price=([^|\]]+)(?:[\s\S]*?)\]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = cardRegex.Replace(html, m =>
+        {
+            var id = m.Groups[1].Value.Trim();
+            var title = m.Groups[2].Value.Trim();
+            var img = m.Groups[3].Value.Trim();
+            var time = m.Groups[4].Value.Trim();
+            var loc = m.Groups[5].Value.Trim();
+            var cap = m.Groups[6].Value.Trim();
+            var price = m.Groups[7].Value.Trim();
+
+            var imgHtml = (string.IsNullOrWhiteSpace(img) || img.Equals("null", StringComparison.OrdinalIgnoreCase))
+                ? ""
+                : $"<img src=\"{img}\" class=\"w-full h-24 object-cover rounded-lg mb-2\" onerror=\"this.style.display='none';\" />";
+
+            return $"<div class=\"my-2.5 p-3 rounded-xl bg-slate-900 border border-indigo-500/30 shadow-xl\">{imgHtml}<div class=\"font-bold text-indigo-300 text-xs mb-1.5\">{title}</div><div class=\"text-[11px] text-slate-300 space-y-1 mb-2.5\"><div>🕒 {time}</div><div>📍 {loc}</div><div>👥 Sức chứa: {cap} chỗ</div><div>🎫 Giá vé: {price}</div></div><a href=\"/admin/events/details/{id}\" class=\"inline-flex items-center justify-center gap-1.5 w-full py-1.5 px-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-[11px] rounded-lg transition-all shadow-md\">Chi tiết sự kiện (/admin/events)</a></div>";
+        });
+
+        return html;
+    }
+}
