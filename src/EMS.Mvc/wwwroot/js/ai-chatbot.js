@@ -32,7 +32,7 @@
     // ============ INITIALIZATION ============
     document.addEventListener('DOMContentLoaded', function () {
         createChatWidget();
-        
+
         // Nạp lại lịch sử nếu có, ngược lại hiện tin chào mừng
         const loaded = loadHistoryFromSession();
         if (!loaded) {
@@ -60,7 +60,7 @@
                         ${GEMINI_SPARK_SVG}
                     </div>
                     <div class="ai-chat-header-info">
-                        <h4>EMS Gemini AI</h4>
+                        <h4>EMS AI</h4>
                         <p>Trợ lý tư vấn sự kiện thông minh</p>
                     </div>
                 </div>
@@ -71,7 +71,7 @@
             <div class="ai-chat-messages" id="aiChatMessages"></div>
             <div class="ai-chat-input-area">
                 <div class="ai-chat-input-wrapper">
-                    <input type="text" id="aiChatInput" placeholder="Hỏi Gemini về sự kiện, đăng ký, check-in..." autocomplete="off" />
+                    <input type="text" id="aiChatInput" placeholder="Hỏi AI về sự kiện, đăng ký, check-in..." autocomplete="off" />
                     <button class="ai-chat-send-btn" id="aiChatSendBtn" title="Gửi">
                         <i class="ri-arrow-up-line"></i>
                     </button>
@@ -94,7 +94,7 @@
             }
         });
 
-        inputField.addEventListener('input', function() {
+        inputField.addEventListener('input', function () {
             if (inputField.value.trim().length > 0) {
                 sendBtn.classList.add('has-text');
             } else {
@@ -138,7 +138,7 @@
 
         const btnRegex = /\[BTN:\s*id=([^|\]]+)\s*\|\s*title=([^\]]+)\]/gi;
 
-        return html.replace(btnRegex, function(match, id, title) {
+        return html.replace(btnRegex, function (match, id, title) {
             id = (id || '').trim();
             title = (title || '').trim();
 
@@ -151,7 +151,7 @@
         if (!html) return html;
 
         // Clean up <pre><code> wrappers if marked turned [CARD: ...] into code blocks
-        html = html.replace(/<pre><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, function(match, codeContent) {
+        html = html.replace(/<pre><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, function (match, codeContent) {
             if (codeContent.includes('[CARD:')) {
                 return codeContent
                     .replace(/&lt;/g, '<')
@@ -164,9 +164,15 @@
         // Clean up <p> tags wrapping [CARD: ...]
         html = html.replace(/<p>\s*(\[CARD:[\s\S]*?\])\s*<\/p>/gi, '$1');
 
+        // Convert Vietnamese hallucinated tag blocks to standard card format
+        const vnCardBlockRegex = /\[TÊN_SỰ_KIỆN:\s*([^\]]+)\]\s*\[ID_SỰ_KIỆN:\s*([^\]]+)\](?:\s*\[HÌNH_ẢNH:\s*([^\]]*)\])?\s*\[THỜI_GIAN:\s*([^\]]+)\]\s*\[ĐỊA_ĐIỂM:\s*([^\]]+)\]\s*\[SỨC_CHỨA:\s*([^\]]+)\]\s*\[GIÁ_VÉ:\s*([^\]]+)\](?:[\s\S]*?)(?=\n\n|$|\[|<)/gi;
+        html = html.replace(vnCardBlockRegex, function(m, title, id, image, time, loc, cap, price) {
+            return `[CARD: id=${id.trim()} | title=${title.trim()} | image=${(image||'').trim()} | time=${time.trim()} | location=${loc.trim()} | capacity=${cap.trim()} | price=${price.trim()}]`;
+        });
+
         const cardRegex = /\[CARD:\s*id=([^|\]]+)\s*\|\s*title=([^|\]]+)(?:\s*\|\s*image=([^|\]]*))?\s*\|\s*time=([^|\]]+)\s*\|\s*location=([^|\]]+)\s*\|\s*capacity=([^|\]]+)\s*\|\s*price=([^|\]]+)(?:[\s\S]*?)\]/gi;
 
-        return html.replace(cardRegex, function(match, id, title, image, time, location, capacity, price) {
+        return html.replace(cardRegex, function (match, id, title, image, time, location, capacity, price) {
             id = (id || '').trim();
             title = (title || '').trim();
             image = (image || '').replace(/<[^>]*>/g, '').trim(); // Clean any HTML tags
@@ -177,7 +183,7 @@
 
             const defaultBg = 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)';
             let bannerContent = '';
-            
+
             if (image && image.length > 5 && !image.toLowerCase().includes('null')) {
                 bannerContent = `<img src="${image}" alt="${title}" class="ai-card-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" /><div class="ai-card-banner-fallback" style="display:none; background: ${defaultBg};"><i class="ri-calendar-event-fill" style="font-size: 2.2rem; color: #a8c7fa; opacity: 0.85;"></i></div>`;
             } else {
@@ -210,7 +216,7 @@
                 .replace(/`([^`]+)`/g, '<code>$1</code>')
                 .replace(/^\s*[\-\*]\s+(.*)$/gm, '<li>$1</li>');
 
-            html = html.replace(/(<li>[\s\S]*?<\/li>)+/g, function(match) {
+            html = html.replace(/(<li>[\s\S]*?<\/li>)+/g, function (match) {
                 return '<ul>' + match + '</ul>';
             });
 
@@ -375,7 +381,7 @@
             const response = await fetch(CHAT_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     message: text,
                     history: pastHistory
                 })

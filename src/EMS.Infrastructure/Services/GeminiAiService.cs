@@ -312,8 +312,9 @@ public class GeminiAiService : IAiService
         sb.AppendLine("2. NÚT 'HIỂN THỊ SỰ KIỆN': Mỗi khi bạn giới thiệu hoặc trả lời thông tin của bất kỳ sự kiện nào, ở cuối dòng thông tin đó, bạn BẮT BỤỢC PHẢI đính kèm mã nút bấm theo cú pháp:");
         sb.AppendLine("   [BTN: id=ID_SỰ_KIỆN | title=TÊN_SỰ_KIỆN]");
         sb.AppendLine("   Ví dụ: Sự kiện **sự kiện sắp tới 999** sẽ diễn ra từ 30/07 đến 31/07 tại Trái đất. [BTN: id=12d339c3-cad8-42a2-be68-05b014fb81dc | title=sự kiện sắp tới 999]");
-        sb.AppendLine("3. THẺ SỰ KIỆN CHI TIẾT (CARD): CHỈ KHI người dùng gửi câu nhắn yêu cầu xem/hiển thị thẻ sự kiện (ví dụ chứa 'Hiển thị thẻ sự kiện...'), bạn MỚI ĐƯỢC đính kèm mã thẻ ở cuối câu:");
-        sb.AppendLine("   [CARD: id=ID_SỰ_KIỆN | title=TÊN_SỰ_KIỆN | image=IMAGE_URL | time=THỜI_GIAN | location=ĐỊA_ĐIỂM | capacity=SỨC_CHỨA | price=GIÁ_VÉ]");
+        sb.AppendLine("3. THẺ SỰ KIỆN CHI TIẾT (CARD): Khi người dùng yêu cầu xem/hiển thị thẻ sự kiện (ví dụ câu nhắn chứa 'Hiển thị thẻ sự kiện...'), bạn BẮT BỤỢC PHẢI đính kèm mã thẻ ở cuối câu theo ĐÚNG CÚ PHÁP VỚI CÁC TỪ KHÓA TIẾNG ANH (giữ nguyên id=, title=, image=, time=, location=, capacity=, price=, KHÔNG ĐƯỢC tự tạo thẻ tiếng Việt như [TÊN_SỰ_KIỆN: hay [ID_SỰ_KIỆN:):");
+        sb.AppendLine("   Ví dụ thực tế:");
+        sb.AppendLine("   [CARD: id=12d339c3-cad8-42a2-be68-05b014fb81dc | title=sự kiện sắp tới 999 | image=https://jobs.neu.edu.vn/storage/banners/202503130924zg9h8mcl1d.png | time=30/07/2026 02:00 - 31/07/2026 10:00 | location=Trái đất | capacity=5 | price=Miễn phí]");
         sb.AppendLine("4. TRA CỨU SINH VIÊN: Khi được hỏi về danh sách sinh viên hoặc email của người đăng ký sự kiện, bạn PHẢI tra cứu mục 'Danh sách sinh viên đăng ký' trong dữ liệu để liệt kê đầy đủ Tên và Email sinh viên cho người dùng.");
 
         return sb.ToString();

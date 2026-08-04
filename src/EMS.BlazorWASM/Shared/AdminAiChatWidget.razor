@@ -228,6 +228,20 @@
             return $"<button type=\"button\" onclick=\"window.location.href='/admin/events/details/{id}'\" class=\"inline-flex items-center gap-1 px-2.5 py-1 mx-1 my-0.5 text-[11px] font-semibold text-cyan-300 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 rounded-full transition-all shadow-sm hover:scale-105 active:scale-95\">🎛️ Hiển thị sự kiện</button>";
         });
 
+        // Convert Vietnamese hallucinated tag blocks to standard card format
+        var vnCardBlockRegex = new System.Text.RegularExpressions.Regex(@"\[TÊN_SỰ_KIỆN:\s*([^\]]+)\]\s*\[ID_SỰ_KIỆN:\s*([^\]]+)\](?:\s*\[HÌNH_ẢNH:\s*([^\]]*)\])?\s*\[THỜI_GIAN:\s*([^\]]+)\]\s*\[ĐỊA_ĐIỂM:\s*([^\]]+)\]\s*\[SỨC_CHỨA:\s*([^\]]+)\]\s*\[GIÁ_VÉ:\s*([^\]]+)\]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        html = vnCardBlockRegex.Replace(html, m =>
+        {
+            var title = m.Groups[1].Value.Trim();
+            var id = m.Groups[2].Value.Trim();
+            var img = m.Groups[3].Value.Trim();
+            var time = m.Groups[4].Value.Trim();
+            var loc = m.Groups[5].Value.Trim();
+            var cap = m.Groups[6].Value.Trim();
+            var price = m.Groups[7].Value.Trim();
+            return $"[CARD: id={id} | title={title} | image={img} | time={time} | location={loc} | capacity={cap} | price={price}]";
+        });
+
         // Convert [CARD: ...] or [BARNARW: ...] to rich Admin Event Card
         var cardRegex = new System.Text.RegularExpressions.Regex(@"\[(?:CARD|BARNARW|CARD\w*):\s*id=([^|\]]+)\s*\|\s*title=([^|\]]+)(?:\s*\|\s*image=([^|\]]*))?\s*\|\s*time=([^|\]]+)\s*\|\s*location=([^|\]]+)\s*\|\s*capacity=([^|\]]+)\s*\|\s*price=([^|\]]+)(?:[\s\S]*?)\]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         html = cardRegex.Replace(html, m =>
